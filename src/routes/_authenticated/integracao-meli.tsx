@@ -55,6 +55,7 @@ export const Route = createFileRoute("/_authenticated/integracao-meli")({
 function IntegracaoMeliPage() {
   const router = useRouter();
   const importar = useServerFn(meliImportarRota);
+  const importarBruto = useServerFn(meliImportarRotaBruta);
   const listar = useServerFn(meliListarRotas);
   const detalhar = useServerFn(meliDetalharRota);
 
