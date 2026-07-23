@@ -11,6 +11,11 @@ import {
   type MeliListarResult,
   type MeliDetalheResult,
 } from "@/lib/meli.functions";
+import {
+  normalizarPayloadMeli,
+  type PayloadNormalizado,
+  type ResumoNormalizacao,
+} from "@/lib/meli-normalize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +62,10 @@ function IntegracaoMeliPage() {
   const [importando, setImportando] = useState(false);
   const [ultimoResultado, setUltimoResultado] =
     useState<MeliImportResult | null>(null);
+  const [previa, setPrevia] = useState<
+    | { payload: PayloadNormalizado; resumo: ResumoNormalizacao; confirmadoMismatch: boolean }
+    | null
+  >(null);
 
   const [busca, setBusca] = useState("");
   const [cluster, setCluster] = useState("");
@@ -105,25 +114,57 @@ function IntegracaoMeliPage() {
     setJsonTexto(txt);
   }
 
-  async function handleImportar() {
+  function handleAnalisar() {
+    setUltimoResultado(null);
+    setPrevia(null);
     if (!jsonTexto.trim()) {
       toast.error("Cole o JSON ou selecione um arquivo.");
       return;
     }
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(jsonTexto);
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error("JSON deve ser um objeto com 'meli_route_id'.");
+      const raw = JSON.parse(jsonTexto);
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        throw new Error("JSON deve ser um objeto.");
       }
+      parsed = raw as Record<string, unknown>;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "JSON inválido.");
+      return;
+    }
+    try {
+      const { payload, resumo } = normalizarPayloadMeli(parsed);
+      if (!payload.route_id) {
+        toast.error("Payload sem route_id (campo 'id' do Meli).");
+        return;
+      }
+      if (payload.pacotes.length === 0) {
+        toast.error("Nenhum pacote válido extraído do payload.");
+        return;
+      }
+      setPrevia({ payload, resumo, confirmadoMismatch: false });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao normalizar payload.");
+    }
+  }
+
+  async function handleImportar() {
+    if (!previa) {
+      handleAnalisar();
+      return;
+    }
+    const { payload, resumo, confirmadoMismatch } = previa;
+    if (resumo.diferenca !== null && resumo.diferenca !== 0 && !confirmadoMismatch) {
+      toast.error("Divergência entre extraídos e informado — confirme antes de importar.");
       return;
     }
     setImportando(true);
     try {
       const res = await importar({
-        data: { payload: parsed, arquivo_nome: arquivoNome ?? undefined },
+        data: {
+          payload: payload as unknown as Record<string, unknown>,
+          arquivo_nome: arquivoNome ?? undefined,
+        },
       });
       setUltimoResultado(res);
       if (res.status === "ok") {
@@ -132,6 +173,7 @@ function IntegracaoMeliPage() {
         );
         setJsonTexto("");
         setArquivoNome(null);
+        setPrevia(null);
         router.invalidate();
         rotasQuery.refetch();
       } else {
@@ -143,6 +185,7 @@ function IntegracaoMeliPage() {
       setImportando(false);
     }
   }
+
 
   const rotas = rotasQuery.data?.rotas ?? [];
   const semPermissao =
@@ -194,9 +237,10 @@ function IntegracaoMeliPage() {
               )}
             </div>
             <div className="text-xs text-muted-foreground self-end">
-              Estrutura esperada: <code>meli_route_id</code>, <code>cluster</code>,{" "}
-              <code>facility</code>, <code>data_rota</code> e{" "}
-              <code>pacotes[]</code>.
+              Aceita o JSON bruto do endpoint <code>route-detail</code> do Meli
+              (com <code>id</code>, <code>stops[]</code>, <code>counters</code>)
+              ou o formato já normalizado (<code>route_id</code>,{" "}
+              <code>pacotes[]</code>).
             </div>
           </div>
           <div>
@@ -204,16 +248,31 @@ function IntegracaoMeliPage() {
             <Textarea
               id="json-meli"
               value={jsonTexto}
-              onChange={(e) => setJsonTexto(e.target.value)}
+              onChange={(e) => {
+                setJsonTexto(e.target.value);
+                setPrevia(null);
+              }}
               rows={8}
-              placeholder='{"meli_route_id":"...","pacotes":[...]}'
+              placeholder='{"id":"...","stops":[...]} ou {"route_id":"...","pacotes":[...]}'
               className="font-mono text-xs"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleImportar} disabled={importando}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={handleAnalisar} disabled={importando}>
+              Analisar payload
+            </Button>
+            <Button
+              onClick={handleImportar}
+              disabled={
+                importando ||
+                !previa ||
+                (previa.resumo.diferenca !== null &&
+                  previa.resumo.diferenca !== 0 &&
+                  !previa.confirmadoMismatch)
+              }
+            >
               {importando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Importar
+              {previa ? "Confirmar e importar" : "Importar"}
             </Button>
             <Button
               variant="ghost"
@@ -221,12 +280,88 @@ function IntegracaoMeliPage() {
                 setJsonTexto("");
                 setArquivoNome(null);
                 setUltimoResultado(null);
+                setPrevia(null);
               }}
               disabled={importando}
             >
               Limpar
             </Button>
           </div>
+
+          {previa && (
+            <div
+              className={`rounded border p-3 text-sm space-y-2 ${
+                previa.resumo.diferenca !== null && previa.resumo.diferenca !== 0
+                  ? "border-destructive bg-destructive/5"
+                  : "bg-muted/40"
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <strong>Prévia da rota:</strong>
+                <span className="font-mono text-xs">
+                  {previa.resumo.route_id}
+                </span>
+                {previa.resumo.cluster && (
+                  <Badge variant="outline">{previa.resumo.cluster}</Badge>
+                )}
+                {previa.resumo.facility && (
+                  <Badge variant="outline">{previa.resumo.facility}</Badge>
+                )}
+              </div>
+              <ul className="text-xs grid gap-1 sm:grid-cols-2">
+                <li>Paradas: {previa.resumo.total_paradas}</li>
+                <li>Pacotes extraídos: {previa.resumo.total_extraidos}</li>
+                <li>
+                  Informado (counters.totalShipments):{" "}
+                  {previa.resumo.total_informado ?? "—"}
+                </li>
+                <li>
+                  Diferença:{" "}
+                  <span
+                    className={
+                      previa.resumo.diferenca !== null &&
+                      previa.resumo.diferenca !== 0
+                        ? "text-destructive font-semibold"
+                        : ""
+                    }
+                  >
+                    {previa.resumo.diferenca ?? "—"}
+                  </span>
+                </li>
+                <li>
+                  Descartados sem tracking:{" "}
+                  {previa.resumo.descartados_sem_tracking}
+                </li>
+                <li>
+                  Duplicados removidos: {previa.resumo.duplicados_removidos}
+                </li>
+              </ul>
+              {previa.resumo.diferenca !== null &&
+                previa.resumo.diferenca !== 0 && (
+                  <div className="text-xs text-destructive space-y-2">
+                    <p>
+                      Atenção: o total extraído difere do informado pelo Meli.
+                      Confirme antes de importar.
+                    </p>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={previa.confirmadoMismatch}
+                        onChange={(e) =>
+                          setPrevia((p) =>
+                            p
+                              ? { ...p, confirmadoMismatch: e.target.checked }
+                              : p,
+                          )
+                        }
+                      />
+                      Confirmo a divergência e desejo importar assim mesmo.
+                    </label>
+                  </div>
+                )}
+            </div>
+          )}
+
 
           {ultimoResultado && (
             <div className="rounded border p-3 text-sm bg-muted/40 space-y-1">
