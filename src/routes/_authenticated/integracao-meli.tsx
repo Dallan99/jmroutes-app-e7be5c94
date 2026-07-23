@@ -675,7 +675,7 @@ function IntegracaoMeliPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/60 uppercase">
                     <tr>
-                      <th className="text-left p-2">#</th>
+                      <th className="text-left p-2 w-16">ORDEM</th>
                       <th className="text-left p-2">Tracking</th>
                       <th className="text-left p-2">Shipment</th>
                       <th className="text-left p-2">Destinatário</th>
@@ -687,7 +687,7 @@ function IntegracaoMeliPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(detalheQuery.data.pacotes ?? []).map((p) => (
+                    {pacotesOrdenados.map((p) => (
                       <tr key={p.id} className="border-t">
                         <td className="p-2">{p.ordem ?? "—"}</td>
                         <td className="p-2 font-mono">{p.tracking_id}</td>
@@ -705,7 +705,7 @@ function IntegracaoMeliPage() {
                         <td className="p-2">{p.printed_label ?? "—"}</td>
                       </tr>
                     ))}
-                    {(detalheQuery.data.pacotes ?? []).length === 0 && (
+                    {pacotesOrdenados.length === 0 && (
                       <tr>
                         <td colSpan={9} className="p-4 text-center text-muted-foreground">
                           Sem pacotes.
