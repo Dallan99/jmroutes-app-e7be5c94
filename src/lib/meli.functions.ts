@@ -4,14 +4,14 @@ import { z } from "zod";
 
 const importarSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
-  arquivo_nome: z.string().trim().max(255).nullable().optional(),
+  arquivo_nome: z.string().trim().max(255).optional(),
 });
 
 const listarSchema = z.object({
-  cluster: z.string().trim().min(1).max(120).nullable().optional(),
-  data_de: z.string().trim().min(1).max(20).nullable().optional(),
-  data_ate: z.string().trim().min(1).max(20).nullable().optional(),
-  busca: z.string().trim().min(1).max(120).nullable().optional(),
+  cluster: z.string().trim().min(1).max(120).optional(),
+  data_de: z.string().trim().min(1).max(20).optional(),
+  data_ate: z.string().trim().min(1).max(20).optional(),
+  busca: z.string().trim().min(1).max(120).optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -84,7 +84,7 @@ export type MeliPacote = {
 export type MeliDetalheResult = {
   status: "ok" | "erro";
   erro?: string;
-  rota?: MeliRotaResumo & Record<string, unknown>;
+  rota?: Record<string, unknown> & Partial<MeliRotaResumo>;
   importacao?: Record<string, unknown> | null;
   pacotes?: MeliPacote[];
   total_pacotes?: number;
@@ -99,7 +99,7 @@ export const meliImportarRota = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: res, error } = await supabase.rpc("meli_importar_rota", {
       p_payload: data.payload as never,
-      p_arquivo_nome: data.arquivo_nome ?? null,
+      p_arquivo_nome: data.arquivo_nome,
     });
     if (error) {
       return { status: "erro", erro: error.message };
@@ -113,10 +113,10 @@ export const meliListarRotas = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<MeliListarResult> => {
     const { supabase } = context;
     const { data: res, error } = await supabase.rpc("meli_listar_rotas", {
-      p_cluster: data.cluster ?? null,
-      p_data_de: data.data_de ?? null,
-      p_data_ate: data.data_ate ?? null,
-      p_busca: data.busca ?? null,
+      p_cluster: data.cluster,
+      p_data_de: data.data_de,
+      p_data_ate: data.data_ate,
+      p_busca: data.busca,
       p_limit: data.limit ?? 50,
       p_offset: data.offset ?? 0,
     });
