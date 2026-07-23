@@ -84,8 +84,8 @@ export type MeliPacote = {
 export type MeliDetalheResult = {
   status: "ok" | "erro";
   erro?: string;
-  rota?: Record<string, unknown> & Partial<MeliRotaResumo>;
-  importacao?: Record<string, unknown> | null;
+  rota?: MeliRotaResumo;
+  importacao?: { id: string; status: string; iniciado_em: string | null; finalizado_em: string | null; total_pacotes: number | null; total_erros: number | null; arquivo_nome: string | null } | null;
   pacotes?: MeliPacote[];
   total_pacotes?: number;
   limit?: number;
