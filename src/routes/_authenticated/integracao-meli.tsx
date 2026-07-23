@@ -11,6 +11,7 @@ import {
   type MeliImportResult,
   type MeliListarResult,
   type MeliDetalheResult,
+  type MeliPacote,
 } from "@/lib/meli.functions";
 import {
   normalizarPayloadMeli,
@@ -107,6 +108,16 @@ function IntegracaoMeliPage() {
     const total = rotasQuery.data?.total ?? 0;
     return Math.max(1, Math.ceil(total / limite));
   }, [rotasQuery.data?.total]);
+
+  const pacotesOrdenados = useMemo<MeliPacote[]>(() => {
+    const pacotes = detalheQuery.data?.pacotes ?? [];
+    return [...pacotes].sort((a, b) => {
+      const ordemA = a.ordem ?? Infinity;
+      const ordemB = b.ordem ?? Infinity;
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      return a.tracking_id.localeCompare(b.tracking_id);
+    });
+  }, [detalheQuery.data?.pacotes]);
 
   async function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -664,7 +675,7 @@ function IntegracaoMeliPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/60 uppercase">
                     <tr>
-                      <th className="text-left p-2">#</th>
+                      <th className="text-left p-2 w-16">ORDEM</th>
                       <th className="text-left p-2">Tracking</th>
                       <th className="text-left p-2">Shipment</th>
                       <th className="text-left p-2">Destinatário</th>
@@ -676,7 +687,7 @@ function IntegracaoMeliPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(detalheQuery.data.pacotes ?? []).map((p) => (
+                    {pacotesOrdenados.map((p) => (
                       <tr key={p.id} className="border-t">
                         <td className="p-2">{p.ordem ?? "—"}</td>
                         <td className="p-2 font-mono">{p.tracking_id}</td>
@@ -694,7 +705,7 @@ function IntegracaoMeliPage() {
                         <td className="p-2">{p.printed_label ?? "—"}</td>
                       </tr>
                     ))}
-                    {(detalheQuery.data.pacotes ?? []).length === 0 && (
+                    {pacotesOrdenados.length === 0 && (
                       <tr>
                         <td colSpan={9} className="p-4 text-center text-muted-foreground">
                           Sem pacotes.
