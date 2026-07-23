@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JM Routes Importador</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="hdr">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">JM</div>
+        <div class="brand-text">
+          <div class="brand-title">JM Routes</div>
+          <div class="brand-sub">Importador</div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <h1 class="title">Importar rota aberta do Meli</h1>
+
+      <div class="row">
+        <span class="label">Rota detectada:</span>
+        <span id="routeId" class="route">—</span>
+      </div>
+
+      <div id="status" class="status status-idle">Aguardando…</div>
+
+      <div id="divergencia" class="divergencia hidden">
+        <div class="div-title">Divergência encontrada</div>
+        <div>Total informado pelo Meli: <b id="divMeli">—</b></div>
+        <div>Total extraído: <b id="divExtr">—</b></div>
+        <div>Diferença: <b id="divDif">—</b></div>
+      </div>
+
+      <div id="result" class="result hidden"></div>
+
+      <button id="btnImportar" class="btn btn-primary" disabled>
+        Importar rota aberta
+      </button>
+      <button id="btnConfirmar" class="btn btn-secondary hidden">
+        Confirmar e importar
+      </button>
+    </main>
+
+    <footer class="ftr">v0.1.0</footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
