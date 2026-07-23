@@ -1,11 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { normalizarPayloadMeli } from "@/lib/meli-normalize";
 
 const importarSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
   arquivo_nome: z.string().trim().max(255).optional(),
 });
+
+const importarBrutoSchema = z.object({
+  payload: z.record(z.string(), z.unknown()),
+  arquivo_nome: z.string().trim().max(255).optional(),
+  confirmar_divergencia: z.boolean().optional(),
+});
+
 
 const listarSchema = z.object({
   cluster: z.string().trim().min(1).max(120).optional(),
