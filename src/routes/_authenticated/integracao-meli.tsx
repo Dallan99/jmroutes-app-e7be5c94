@@ -114,25 +114,57 @@ function IntegracaoMeliPage() {
     setJsonTexto(txt);
   }
 
-  async function handleImportar() {
+  function handleAnalisar() {
+    setUltimoResultado(null);
+    setPrevia(null);
     if (!jsonTexto.trim()) {
       toast.error("Cole o JSON ou selecione um arquivo.");
       return;
     }
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(jsonTexto);
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error("JSON deve ser um objeto com 'meli_route_id'.");
+      const raw = JSON.parse(jsonTexto);
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        throw new Error("JSON deve ser um objeto.");
       }
+      parsed = raw as Record<string, unknown>;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "JSON inválido.");
+      return;
+    }
+    try {
+      const { payload, resumo } = normalizarPayloadMeli(parsed);
+      if (!payload.route_id) {
+        toast.error("Payload sem route_id (campo 'id' do Meli).");
+        return;
+      }
+      if (payload.pacotes.length === 0) {
+        toast.error("Nenhum pacote válido extraído do payload.");
+        return;
+      }
+      setPrevia({ payload, resumo, confirmadoMismatch: false });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao normalizar payload.");
+    }
+  }
+
+  async function handleImportar() {
+    if (!previa) {
+      handleAnalisar();
+      return;
+    }
+    const { payload, resumo, confirmadoMismatch } = previa;
+    if (resumo.diferenca !== null && resumo.diferenca !== 0 && !confirmadoMismatch) {
+      toast.error("Divergência entre extraídos e informado — confirme antes de importar.");
       return;
     }
     setImportando(true);
     try {
       const res = await importar({
-        data: { payload: parsed, arquivo_nome: arquivoNome ?? undefined },
+        data: {
+          payload: payload as unknown as Record<string, unknown>,
+          arquivo_nome: arquivoNome ?? undefined,
+        },
       });
       setUltimoResultado(res);
       if (res.status === "ok") {
@@ -141,6 +173,7 @@ function IntegracaoMeliPage() {
         );
         setJsonTexto("");
         setArquivoNome(null);
+        setPrevia(null);
         router.invalidate();
         rotasQuery.refetch();
       } else {
@@ -152,6 +185,7 @@ function IntegracaoMeliPage() {
       setImportando(false);
     }
   }
+
 
   const rotas = rotasQuery.data?.rotas ?? [];
   const semPermissao =
