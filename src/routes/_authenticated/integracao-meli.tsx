@@ -150,6 +150,64 @@ function IntegracaoMeliPage() {
     }
   }
 
+  async function handleImportarBruto() {
+    if (!jsonTexto.trim()) {
+      toast.error("Cole o JSON ou selecione um arquivo.");
+      return;
+    }
+    let parsed: Record<string, unknown>;
+    try {
+      const raw = JSON.parse(jsonTexto);
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        throw new Error("JSON deve ser um objeto.");
+      }
+      parsed = raw as Record<string, unknown>;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "JSON inválido.");
+      return;
+    }
+    setImportando(true);
+    try {
+      let res = await importarBruto({
+        data: { payload: parsed, arquivo_nome: arquivoNome ?? undefined },
+      });
+      if (res.status === "erro" && res.alerta_divergencia) {
+        const dif = res.resumo?.diferenca ?? 0;
+        const ok = window.confirm(
+          `Divergência entre pacotes extraídos e informado pelo Meli (diferença: ${dif}). Importar assim mesmo?`,
+        );
+        if (!ok) {
+          setUltimoResultado(res);
+          return;
+        }
+        res = await importarBruto({
+          data: {
+            payload: parsed,
+            arquivo_nome: arquivoNome ?? undefined,
+            confirmar_divergencia: true,
+          },
+        });
+      }
+      setUltimoResultado(res);
+      if (res.status === "ok") {
+        toast.success(
+          `Rota ${res.route_id} importada — ${res.pacotes_inseridos ?? 0} novos, ${res.pacotes_atualizados ?? 0} atualizados.`,
+        );
+        setJsonTexto("");
+        setArquivoNome(null);
+        setPrevia(null);
+        router.invalidate();
+        rotasQuery.refetch();
+      } else {
+        toast.error(`Falha na importação: ${res.erro ?? "erro desconhecido"}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro na importação.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
   async function handleImportar() {
     if (!previa) {
       handleAnalisar();
