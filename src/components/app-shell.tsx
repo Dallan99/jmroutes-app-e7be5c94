@@ -30,6 +30,7 @@ import {
   RotateCcw,
   Truck,
   ListChecks,
+  PackageOpen,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ const NAV_OPERACIONAL: NavItem[] = [
 const NAV_GESTAO: NavItem[] = [
   { title: "Histórico", to: "/historico", icon: History, roles: ["admin", "supervisor", "gerente"] },
   { title: "Gerencial", to: "/gerencial", icon: TrendingUp, roles: ["admin", "supervisor", "gerente"] },
+  { title: "Integração Meli", to: "/integracao-meli", icon: PackageOpen, roles: ["admin", "supervisor", "gerente"] },
 ];
 const NAV_ADMIN: NavItem[] = [
   { title: "Usuários", to: "/usuarios", icon: Users, roles: ["admin"] },
