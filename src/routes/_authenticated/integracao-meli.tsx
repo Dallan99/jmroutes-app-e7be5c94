@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   meliImportarRota,
+  meliImportarRotaBruta,
   meliListarRotas,
   meliDetalharRota,
   type MeliImportResult,
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/_authenticated/integracao-meli")({
 function IntegracaoMeliPage() {
   const router = useRouter();
   const importar = useServerFn(meliImportarRota);
+  const importarBruto = useServerFn(meliImportarRotaBruta);
   const listar = useServerFn(meliListarRotas);
   const detalhar = useServerFn(meliDetalharRota);
 
@@ -145,6 +147,64 @@ function IntegracaoMeliPage() {
       setPrevia({ payload, resumo, confirmadoMismatch: false });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha ao normalizar payload.");
+    }
+  }
+
+  async function handleImportarBruto() {
+    if (!jsonTexto.trim()) {
+      toast.error("Cole o JSON ou selecione um arquivo.");
+      return;
+    }
+    let parsed: Record<string, unknown>;
+    try {
+      const raw = JSON.parse(jsonTexto);
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        throw new Error("JSON deve ser um objeto.");
+      }
+      parsed = raw as Record<string, unknown>;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "JSON inválido.");
+      return;
+    }
+    setImportando(true);
+    try {
+      let res = await importarBruto({
+        data: { payload: parsed, arquivo_nome: arquivoNome ?? undefined },
+      });
+      if (res.status === "erro" && res.alerta_divergencia) {
+        const dif = res.resumo?.diferenca ?? 0;
+        const ok = window.confirm(
+          `Divergência entre pacotes extraídos e informado pelo Meli (diferença: ${dif}). Importar assim mesmo?`,
+        );
+        if (!ok) {
+          setUltimoResultado(res);
+          return;
+        }
+        res = await importarBruto({
+          data: {
+            payload: parsed,
+            arquivo_nome: arquivoNome ?? undefined,
+            confirmar_divergencia: true,
+          },
+        });
+      }
+      setUltimoResultado(res);
+      if (res.status === "ok") {
+        toast.success(
+          `Rota ${res.route_id} importada — ${res.pacotes_inseridos ?? 0} novos, ${res.pacotes_atualizados ?? 0} atualizados.`,
+        );
+        setJsonTexto("");
+        setArquivoNome(null);
+        setPrevia(null);
+        router.invalidate();
+        rotasQuery.refetch();
+      } else {
+        toast.error(`Falha na importação: ${res.erro ?? "erro desconhecido"}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro na importação.");
+    } finally {
+      setImportando(false);
     }
   }
 
@@ -273,6 +333,15 @@ function IntegracaoMeliPage() {
             >
               {importando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {previa ? "Confirmar e importar" : "Importar"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleImportarBruto}
+              disabled={importando}
+              title="Envia o JSON bruto do endpoint route-detail do Meli; a transformação ocorre no servidor."
+            >
+              {importando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Importar JSON bruto do Meli
             </Button>
             <Button
               variant="ghost"

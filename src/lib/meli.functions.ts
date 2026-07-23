@@ -1,11 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { normalizarPayloadMeli } from "@/lib/meli-normalize";
 
 const importarSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
   arquivo_nome: z.string().trim().max(255).optional(),
 });
+
+const importarBrutoSchema = z.object({
+  payload: z.record(z.string(), z.unknown()),
+  arquivo_nome: z.string().trim().max(255).optional(),
+  confirmar_divergencia: z.boolean().optional(),
+});
+
 
 const listarSchema = z.object({
   cluster: z.string().trim().min(1).max(120).optional(),
@@ -137,3 +145,78 @@ export const meliDetalharRota = createServerFn({ method: "GET" })
     if (error) return { status: "erro", erro: error.message };
     return res as MeliDetalheResult;
   });
+
+export type MeliImportBrutoResult = MeliImportResult & {
+  resumo?: {
+    route_id: string;
+    cluster: string | null;
+    facility: string | null;
+    total_paradas: number;
+    total_extraidos: number;
+    total_informado: number | null;
+    diferenca: number | null;
+    descartados_sem_tracking: number;
+    duplicados_removidos: number;
+  };
+  alerta_divergencia?: boolean;
+};
+
+/**
+ * Recebe o JSON bruto do endpoint route-detail do Mercado Livre
+ * (com id/stops/orders/transportUnits/relatedEntity/receiverInfo),
+ * transforma para o formato aceito por meli_importar_rota e importa.
+ *
+ * Autorização: requer sessão autenticada. A RPC subjacente
+ * (meli_importar_rota) valida perfil admin/gerente/supervisor via
+ * meli_pode_operar() e retorna sem_permissao caso contrário.
+ * Não usa service_role.
+ */
+export const meliImportarRotaBruta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => importarBrutoSchema.parse(data))
+  .handler(async ({ data, context }): Promise<MeliImportBrutoResult> => {
+    const { supabase } = context;
+    const bruto = data.payload;
+
+    if (bruto.id === undefined || bruto.id === null || bruto.id === "") {
+      return { status: "erro", erro: "payload sem 'id' de rota do Meli." };
+    }
+    if (!Array.isArray(bruto.stops)) {
+      return { status: "erro", erro: "payload sem 'stops' (esperado array)." };
+    }
+
+    const { payload: normalizado, resumo } = normalizarPayloadMeli(bruto);
+
+    if (!normalizado.route_id) {
+      return { status: "erro", erro: "route_id vazio após normalização." };
+    }
+    if (normalizado.pacotes.length === 0) {
+      return {
+        status: "erro",
+        erro: "nenhum pacote válido extraído do payload.",
+        resumo,
+      };
+    }
+    if (
+      resumo.diferenca !== null &&
+      resumo.diferenca !== 0 &&
+      data.confirmar_divergencia !== true
+    ) {
+      return {
+        status: "erro",
+        erro: `divergencia_totais: extraidos=${resumo.total_extraidos} informado=${resumo.total_informado} diferenca=${resumo.diferenca}`,
+        resumo,
+        alerta_divergencia: true,
+      };
+    }
+
+    const { data: res, error } = await supabase.rpc("meli_importar_rota", {
+      p_payload: normalizado as never,
+      p_arquivo_nome: data.arquivo_nome,
+    });
+    if (error) {
+      return { status: "erro", erro: error.message, resumo };
+    }
+    return { ...(res as MeliImportResult), resumo };
+  });
+
