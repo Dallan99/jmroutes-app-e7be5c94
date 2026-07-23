@@ -11,6 +11,11 @@ import {
   type MeliListarResult,
   type MeliDetalheResult,
 } from "@/lib/meli.functions";
+import {
+  normalizarPayloadMeli,
+  type PayloadNormalizado,
+  type ResumoNormalizacao,
+} from "@/lib/meli-normalize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
