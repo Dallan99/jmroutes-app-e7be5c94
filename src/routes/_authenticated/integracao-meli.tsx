@@ -11,6 +11,7 @@ import {
   type MeliImportResult,
   type MeliListarResult,
   type MeliDetalheResult,
+  type MeliPacote,
 } from "@/lib/meli.functions";
 import {
   normalizarPayloadMeli,
