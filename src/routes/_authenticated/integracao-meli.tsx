@@ -62,6 +62,10 @@ function IntegracaoMeliPage() {
   const [importando, setImportando] = useState(false);
   const [ultimoResultado, setUltimoResultado] =
     useState<MeliImportResult | null>(null);
+  const [previa, setPrevia] = useState<
+    | { payload: PayloadNormalizado; resumo: ResumoNormalizacao; confirmadoMismatch: boolean }
+    | null
+  >(null);
 
   const [busca, setBusca] = useState("");
   const [cluster, setCluster] = useState("");
