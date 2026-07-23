@@ -277,6 +277,15 @@ function IntegracaoMeliPage() {
               {previa ? "Confirmar e importar" : "Importar"}
             </Button>
             <Button
+              variant="secondary"
+              onClick={handleImportarBruto}
+              disabled={importando}
+              title="Envia o JSON bruto do endpoint route-detail do Meli; a transformação ocorre no servidor."
+            >
+              {importando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Importar JSON bruto do Meli
+            </Button>
+            <Button
               variant="ghost"
               onClick={() => {
                 setJsonTexto("");
