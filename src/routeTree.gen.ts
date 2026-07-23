@@ -34,6 +34,7 @@ import { Route as AuthenticatedContagemRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedBasesRouteImport } from './routes/_authenticated/bases'
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
+import { Route as ApiPublicMeliImportarRotaBrutaRouteImport } from './routes/api/public/meli/importar-rota-bruta'
 
 const TvRoute = TvRouteImport.update({
   id: '/tv',
@@ -165,6 +166,12 @@ const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
   path: '/auditoria',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicMeliImportarRotaBrutaRoute =
+  ApiPublicMeliImportarRotaBrutaRouteImport.update({
+    id: '/api/public/meli/importar-rota-bruta',
+    path: '/api/public/meli/importar-rota-bruta',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/tv/dashboard': typeof TvDashboardRoute
   '/tv/gerencial': typeof TvGerencialRoute
+  '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -217,6 +225,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/tv/dashboard': typeof TvDashboardRoute
   '/tv/gerencial': typeof TvGerencialRoute
+  '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -245,6 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/tv/dashboard': typeof TvDashboardRoute
   '/tv/gerencial': typeof TvGerencialRoute
+  '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/tv/dashboard'
     | '/tv/gerencial'
+    | '/api/public/meli/importar-rota-bruta'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/tv/dashboard'
     | '/tv/gerencial'
+    | '/api/public/meli/importar-rota-bruta'
   id:
     | '__root__'
     | '/'
@@ -326,6 +338,7 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/tv/dashboard'
     | '/tv/gerencial'
+    | '/api/public/meli/importar-rota-bruta'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -335,6 +348,7 @@ export interface RootRouteChildren {
   PreviewRelatoriosRoute: typeof PreviewRelatoriosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TvRoute: typeof TvRouteWithChildren
+  ApiPublicMeliImportarRotaBrutaRoute: typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -514,6 +528,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/meli/importar-rota-bruta': {
+      id: '/api/public/meli/importar-rota-bruta'
+      path: '/api/public/meli/importar-rota-bruta'
+      fullPath: '/api/public/meli/importar-rota-bruta'
+      preLoaderRoute: typeof ApiPublicMeliImportarRotaBrutaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -579,6 +600,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewRelatoriosRoute: PreviewRelatoriosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TvRoute: TvRouteWithChildren,
+  ApiPublicMeliImportarRotaBrutaRoute: ApiPublicMeliImportarRotaBrutaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
