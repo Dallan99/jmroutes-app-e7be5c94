@@ -123,7 +123,7 @@ function IntegracaoMeliPage() {
     setImportando(true);
     try {
       const res = await importar({
-        data: { payload: parsed, arquivo_nome: arquivoNome },
+        data: { payload: parsed, arquivo_nome: arquivoNome ?? undefined },
       });
       setUltimoResultado(res);
       if (res.status === "ok") {
