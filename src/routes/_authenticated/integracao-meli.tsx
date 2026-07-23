@@ -109,6 +109,16 @@ function IntegracaoMeliPage() {
     return Math.max(1, Math.ceil(total / limite));
   }, [rotasQuery.data?.total]);
 
+  const pacotesOrdenados = useMemo<MeliPacote[]>(() => {
+    const pacotes = detalheQuery.data?.pacotes ?? [];
+    return [...pacotes].sort((a, b) => {
+      const ordemA = a.ordem ?? Infinity;
+      const ordemB = b.ordem ?? Infinity;
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      return a.tracking_id.localeCompare(b.tracking_id);
+    });
+  }, [detalheQuery.data?.pacotes]);
+
   async function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
