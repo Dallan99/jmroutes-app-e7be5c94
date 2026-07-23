@@ -111,10 +111,18 @@ function IntegracaoMeliPage() {
 
   const pacotesOrdenados = useMemo<MeliPacote[]>(() => {
     const pacotes = detalheQuery.data?.pacotes ?? [];
+    const numEtiqueta = (v: string | null): number => {
+      if (!v) return Infinity;
+      const m = v.match(/(\d+)\s*$/);
+      return m ? Number(m[1]) : Infinity;
+    };
     return [...pacotes].sort((a, b) => {
       const ordemA = a.ordem ?? Infinity;
       const ordemB = b.ordem ?? Infinity;
       if (ordemA !== ordemB) return ordemA - ordemB;
+      const etA = numEtiqueta(a.printed_label);
+      const etB = numEtiqueta(b.printed_label);
+      if (etA !== etB) return etA - etB;
       return a.tracking_id.localeCompare(b.tracking_id);
     });
   }, [detalheQuery.data?.pacotes]);
