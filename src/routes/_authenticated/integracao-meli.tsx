@@ -72,10 +72,10 @@ function IntegracaoMeliPage() {
     queryFn: () =>
       listar({
         data: {
-          busca: busca.trim() || null,
-          cluster: cluster.trim() || null,
-          data_de: dataDe || null,
-          data_ate: dataAte || null,
+          busca: busca.trim() || undefined,
+          cluster: cluster.trim() || undefined,
+          data_de: dataDe || undefined,
+          data_ate: dataAte || undefined,
           limit: limite,
           offset: pagina * limite,
         },
@@ -123,7 +123,7 @@ function IntegracaoMeliPage() {
     setImportando(true);
     try {
       const res = await importar({
-        data: { payload: parsed, arquivo_nome: arquivoNome },
+        data: { payload: parsed, arquivo_nome: arquivoNome ?? undefined },
       });
       setUltimoResultado(res);
       if (res.status === "ok") {
