@@ -238,40 +238,6 @@ function fetchRouteDetailInPage(routeId) {
       return score;
     }
 
-    function descobrirUrls() {
-      const urls = [];
-      try {
-        const entries = performance.getEntriesByType("resource") || [];
-        entries
-          .map((entry) => ({ entry, score: scoreEntry(entry) }))
-          .filter(({ score }) => score > 20)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 30)
-          .forEach(({ entry }) => {
-            const normalized = normalizeCandidateUrl(entry.name);
-            if (normalized) urls.push(normalized);
-          });
-      } catch {
-        // performance pode estar indisponível em alguns contextos.
-      }
-
-      const current = new URL(window.location.href);
-      const siteParam = current.searchParams.get("site") ? "&site=" + encodeURIComponent(current.searchParams.get("site")) : "";
-      [
-        "/logistics/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
-        "/logistics/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
-        "/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
-        "/logistics/monitoring-distribution/api/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
-        "/logistics/monitoring-distribution/route-detail?id=" + encodeURIComponent(routeIdText) + siteParam,
-        "/logistics/monitoring-distribution/route-detail?route_id=" + encodeURIComponent(routeIdText) + siteParam,
-      ].forEach((raw) => {
-        const normalized = normalizeCandidateUrl(raw);
-        if (normalized) urls.push(normalized);
-      });
-
-      return Array.from(new Set(urls));
-    }
-
     (async () => {
       const cached = payloadJaCarregadoNaPagina();
       if (cached && cached.payload) {
@@ -280,65 +246,52 @@ function fetchRouteDetailInPage(routeId) {
         return;
       }
 
-      const urls = descobrirUrls();
+      const routeDetailUrl =
+        "https://envios.adminml.com/logistics/api/monitoring-route/route-detail?routeId=" +
+        encodeURIComponent(routeIdText) +
+        "&siteId=MLB";
+
       const tentativas = [];
-      let ultimoStatus = null;
-      let ultimoMotivo = null;
+      try {
+        const r = await fetch(routeDetailUrl, {
+          method: "GET",
+          credentials: "include",
+          headers: { Accept: "application/json, text/plain, */*" },
+          signal: ctrl.signal,
+        });
+        const ct = (r.headers.get("content-type") || "").toLowerCase();
+        const urlLog = safeUrlForLog(routeDetailUrl);
+        tentativas.push({ url: urlLog, status: r.status, contentType: ct.slice(0, 80) });
 
-      for (const url of urls) {
-        try {
-          const r = await fetch(url, {
-            method: "GET",
-            credentials: "include",
-            cache: "no-store",
-            headers: {
-              Accept: "application/json, text/plain, */*",
-              "X-Requested-With": "XMLHttpRequest",
-            },
-            signal: ctrl.signal,
-          });
-          const ct = (r.headers.get("content-type") || "").toLowerCase();
-          const text = await r.text();
-          tentativas.push({ url: safeUrlForLog(url), status: r.status, contentType: ct.slice(0, 80) });
-
-          if (!r.ok) {
-            ultimoStatus = r.status;
-            ultimoMotivo = r.status === 404 ? "not_found" : "http";
-            continue;
-          }
-          if (!ct.includes("json") && !text.trim().startsWith("{") && !text.trim().startsWith("[")) {
-            ultimoStatus = r.status;
-            ultimoMotivo = "content_type";
-            continue;
-          }
-          try {
-            const parsed = JSON.parse(text);
-            const payload = isRoutePayload(parsed) ? parsed : findRoutePayload(parsed);
-            if (!payload) {
-              ultimoStatus = r.status;
-              ultimoMotivo = "payload_shape";
-              continue;
-            }
-            clearTimeout(timer);
-            resolve({ ok: true, payload, urlUsada: safeUrlForLog(url) });
-            return;
-          } catch {
-            ultimoStatus = r.status;
-            ultimoMotivo = "parse";
-            continue;
-          }
-        } catch (e) {
-          if (e && e.name === "AbortError") {
-            clearTimeout(timer);
-            resolve({ ok: false, reason: "timeout", tentativas });
-            return;
-          }
-          ultimoMotivo = "network";
-          tentativas.push({ url: safeUrlForLog(url), status: "falha", contentType: "network" });
+        if (!r.ok) {
+          clearTimeout(timer);
+          const reason = r.status === 401 || r.status === 403 ? "sessao_expirada"
+            : r.status === 404 ? "not_found"
+            : "http";
+          resolve({ ok: false, status: r.status, reason, tentativas });
+          return;
         }
+        if (!ct.includes("json")) {
+          clearTimeout(timer);
+          resolve({ ok: false, status: r.status, reason: "content_type", tentativas });
+          return;
+        }
+        const parsed = await r.json();
+        if (!isObject(parsed) || !Array.isArray(parsed.stops) || String(parsed.id ?? "") !== routeIdText) {
+          clearTimeout(timer);
+          resolve({ ok: false, status: r.status, reason: "payload_shape", tentativas });
+          return;
+        }
+        clearTimeout(timer);
+        resolve({ ok: true, payload: parsed, urlUsada: urlLog });
+      } catch (e) {
+        clearTimeout(timer);
+        if (e && e.name === "AbortError") {
+          resolve({ ok: false, reason: "timeout", tentativas });
+          return;
+        }
+        resolve({ ok: false, reason: "network", tentativas });
       }
-      clearTimeout(timer);
-      resolve({ ok: false, status: ultimoStatus, reason: ultimoMotivo, tentativas });
     })();
   });
 }
