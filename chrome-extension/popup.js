@@ -77,67 +77,250 @@ async function detectRoute() {
 // Executado NO contexto da aba do Meli (sem acesso ao escopo do popup).
 function fetchRouteDetailInPage(routeId) {
   return new Promise((resolve) => {
+    const routeIdText = String(routeId);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 30000);
 
-    // Descobre a URL real do route-detail já usada pela página do Meli,
-    // em vez de adivinhar o caminho. O Meli varia entre /logistics/...,
-    // /logistics/api/... e /api/..., e o path pode mudar sem aviso.
-    function descobrirUrl() {
+    function safeUrlForLog(url) {
       try {
-        const entries = performance.getEntriesByType("resource") || [];
-        const comRouteDetail = entries
-          .map((e) => e.name)
-          .filter((n) => typeof n === "string" && n.indexOf("route-detail") !== -1);
-        const comRouteId = comRouteDetail.filter((n) => n.indexOf(String(routeId)) !== -1);
-        const escolhida = comRouteId[comRouteId.length - 1] || comRouteDetail[comRouteDetail.length - 1] || null;
-        if (!escolhida) return null;
-        const u = new URL(escolhida, window.location.origin);
-        u.searchParams.set("routeId", String(routeId));
-        return u.pathname + "?" + u.searchParams.toString();
+        const u = new URL(url, window.location.href);
+        ["access_token", "token", "jwt", "authorization"].forEach((k) => {
+          if (u.searchParams.has(k)) u.searchParams.set(k, "***");
+        });
+        return u.href;
+      } catch {
+        return String(url).slice(0, 180);
+      }
+    }
+
+    function isObject(v) {
+      return v !== null && typeof v === "object";
+    }
+
+    function isRoutePayload(v) {
+      if (!isObject(v) || !Array.isArray(v.stops)) return false;
+      const id = v.id ?? v.routeId ?? v.route_id;
+      return id === undefined || id === null || String(id) === routeIdText;
+    }
+
+    function clonePayload(v) {
+      try {
+        return JSON.parse(JSON.stringify(v));
       } catch {
         return null;
       }
     }
 
-    const candidatas = [];
-    const descoberta = descobrirUrl();
-    if (descoberta) candidatas.push(descoberta);
-    // Fallbacks conhecidos (compatibilidade).
-    candidatas.push(
-      "/logistics/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId),
-      "/logistics/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId),
-      "/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId),
-    );
-    const urls = Array.from(new Set(candidatas));
+    function findRoutePayload(root) {
+      const seen = new WeakSet();
+      const stack = [root];
+      let visited = 0;
+      while (stack.length && visited < 8000) {
+        const cur = stack.pop();
+        visited += 1;
+        if (!isObject(cur)) continue;
+        if (seen.has(cur)) continue;
+        seen.add(cur);
+        if (isRoutePayload(cur)) {
+          const cloned = clonePayload(cur);
+          if (cloned) return cloned;
+        }
+        if (Array.isArray(cur)) {
+          for (let i = Math.min(cur.length - 1, 300); i >= 0; i -= 1) stack.push(cur[i]);
+          continue;
+        }
+        for (const key of Object.keys(cur).slice(0, 250)) {
+          try {
+            const value = cur[key];
+            if (isObject(value)) stack.push(value);
+          } catch {
+            // ignora getters protegidos da página.
+          }
+        }
+      }
+      return null;
+    }
+
+    function payloadJaCarregadoNaPagina() {
+      const nomesGlobais = [
+        "__PRELOADED_STATE__",
+        "__INITIAL_STATE__",
+        "__NEXT_DATA__",
+        "__APOLLO_STATE__",
+        "__REDUX_STATE__",
+        "__MELI_STATE__",
+        "__MELI_CONTEXT__",
+        "__ROUTE_DETAIL__",
+      ];
+      for (const nome of nomesGlobais) {
+        try {
+          const payload = findRoutePayload(window[nome]);
+          if (payload) return { payload, fonte: nome };
+        } catch {
+          // continua procurando.
+        }
+      }
+
+      try {
+        const scripts = Array.from(document.querySelectorAll('script[type="application/json"], script:not([src])'));
+        for (const script of scripts) {
+          const text = script.textContent || "";
+          if (!text.includes(routeIdText) || !text.includes("stops")) continue;
+          try {
+            const parsed = JSON.parse(text);
+            const payload = findRoutePayload(parsed);
+            if (payload) return { payload, fonte: "script-json" };
+          } catch {
+            // scripts inline nem sempre são JSON puro.
+          }
+        }
+      } catch {
+        // ignora leitura de scripts.
+      }
+
+      for (const storage of [window.sessionStorage, window.localStorage]) {
+        try {
+          for (let i = 0; i < storage.length && i < 80; i += 1) {
+            const key = storage.key(i);
+            if (!key) continue;
+            const text = storage.getItem(key) || "";
+            if (!text.includes(routeIdText) || !text.includes("stops")) continue;
+            try {
+              const parsed = JSON.parse(text);
+              const payload = findRoutePayload(parsed);
+              if (payload) return { payload, fonte: "storage:" + key };
+            } catch {
+              // continua.
+            }
+          }
+        } catch {
+          // storage pode estar bloqueado.
+        }
+      }
+      return null;
+    }
+
+    function hasRouteIdentifier(u) {
+      if (u.pathname.includes(routeIdText)) return true;
+      for (const [key, value] of u.searchParams.entries()) {
+        if (/route|id|route_id|routeId/i.test(key) && String(value) === routeIdText) return true;
+      }
+      return false;
+    }
+
+    function normalizeCandidateUrl(raw) {
+      try {
+        const current = new URL(window.location.href);
+        const u = new URL(raw, window.location.href);
+        const looksLikeRouteDetail = /route[-_]?detail|monitoring-distribution|detail/i.test(u.href);
+        if (looksLikeRouteDetail && !hasRouteIdentifier(u)) {
+          u.searchParams.set("routeId", routeIdText);
+        }
+        const site = current.searchParams.get("site");
+        if (site && !u.searchParams.has("site")) u.searchParams.set("site", site);
+        return u.href;
+      } catch {
+        return null;
+      }
+    }
+
+    function scoreEntry(entry) {
+      const name = String(entry.name || "").toLowerCase();
+      let score = 0;
+      if (name.includes(routeIdText)) score += 80;
+      if (name.includes("route-detail") || name.includes("route_detail")) score += 70;
+      if (name.includes("monitoring-distribution")) score += 35;
+      if (name.includes("/api/") || name.includes("api.")) score += 20;
+      if (name.includes("detail")) score += 15;
+      if (name.includes("route")) score += 10;
+      if (entry.initiatorType === "fetch" || entry.initiatorType === "xmlhttprequest") score += 25;
+      if (/\.(js|css|png|jpg|jpeg|svg|gif|woff|woff2)(\?|$)/i.test(name)) score -= 200;
+      return score;
+    }
+
+    function descobrirUrls() {
+      const urls = [];
+      try {
+        const entries = performance.getEntriesByType("resource") || [];
+        entries
+          .map((entry) => ({ entry, score: scoreEntry(entry) }))
+          .filter(({ score }) => score > 20)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 30)
+          .forEach(({ entry }) => {
+            const normalized = normalizeCandidateUrl(entry.name);
+            if (normalized) urls.push(normalized);
+          });
+      } catch {
+        // performance pode estar indisponível em alguns contextos.
+      }
+
+      const current = new URL(window.location.href);
+      const siteParam = current.searchParams.get("site") ? "&site=" + encodeURIComponent(current.searchParams.get("site")) : "";
+      [
+        "/logistics/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
+        "/logistics/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
+        "/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
+        "/logistics/monitoring-distribution/api/route-detail?routeId=" + encodeURIComponent(routeIdText) + siteParam,
+        "/logistics/monitoring-distribution/route-detail?id=" + encodeURIComponent(routeIdText) + siteParam,
+        "/logistics/monitoring-distribution/route-detail?route_id=" + encodeURIComponent(routeIdText) + siteParam,
+      ].forEach((raw) => {
+        const normalized = normalizeCandidateUrl(raw);
+        if (normalized) urls.push(normalized);
+      });
+
+      return Array.from(new Set(urls));
+    }
 
     (async () => {
+      const cached = payloadJaCarregadoNaPagina();
+      if (cached && cached.payload) {
+        clearTimeout(timer);
+        resolve({ ok: true, payload: cached.payload, urlUsada: cached.fonte });
+        return;
+      }
+
+      const urls = descobrirUrls();
+      const tentativas = [];
       let ultimoStatus = null;
       let ultimoMotivo = null;
+
       for (const url of urls) {
         try {
           const r = await fetch(url, {
             method: "GET",
             credentials: "include",
-            headers: { Accept: "application/json" },
+            cache: "no-store",
+            headers: {
+              Accept: "application/json, text/plain, */*",
+              "X-Requested-With": "XMLHttpRequest",
+            },
             signal: ctrl.signal,
           });
           const ct = (r.headers.get("content-type") || "").toLowerCase();
           const text = await r.text();
+          tentativas.push({ url: safeUrlForLog(url), status: r.status, contentType: ct.slice(0, 80) });
+
           if (!r.ok) {
             ultimoStatus = r.status;
-            ultimoMotivo = null;
+            ultimoMotivo = r.status === 404 ? "not_found" : "http";
             continue;
           }
-          if (!ct.includes("json")) {
+          if (!ct.includes("json") && !text.trim().startsWith("{") && !text.trim().startsWith("[")) {
             ultimoStatus = r.status;
             ultimoMotivo = "content_type";
             continue;
           }
           try {
             const parsed = JSON.parse(text);
+            const payload = isRoutePayload(parsed) ? parsed : findRoutePayload(parsed);
+            if (!payload) {
+              ultimoStatus = r.status;
+              ultimoMotivo = "payload_shape";
+              continue;
+            }
             clearTimeout(timer);
-            resolve({ ok: true, payload: parsed, urlUsada: url });
+            resolve({ ok: true, payload, urlUsada: safeUrlForLog(url) });
             return;
           } catch {
             ultimoStatus = r.status;
@@ -147,14 +330,15 @@ function fetchRouteDetailInPage(routeId) {
         } catch (e) {
           if (e && e.name === "AbortError") {
             clearTimeout(timer);
-            resolve({ ok: false, reason: "timeout" });
+            resolve({ ok: false, reason: "timeout", tentativas });
             return;
           }
           ultimoMotivo = "network";
+          tentativas.push({ url: safeUrlForLog(url), status: "falha", contentType: "network" });
         }
       }
       clearTimeout(timer);
-      resolve({ ok: false, status: ultimoStatus, reason: ultimoMotivo, tentativas: urls });
+      resolve({ ok: false, status: ultimoStatus, reason: ultimoMotivo, tentativas });
     })();
   });
 }
@@ -168,6 +352,34 @@ async function captureFromMeli() {
     args: [detectedRouteId],
   });
   return res && res.result ? res.result : { ok: false, reason: "script" };
+}
+
+async function captureFromMeliNetwork() {
+  if (!detectedRouteId || !activeTabId) return null;
+  try {
+    return await chrome.runtime.sendMessage({
+      type: "captureRouteDetailWithDebugger",
+      tabId: activeTabId,
+      routeId: detectedRouteId,
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      reason: "debugger_error",
+      message: e && e.message ? e.message : "Falha na captura de rede.",
+    };
+  }
+}
+
+function renderCaptureDiagnostics(capt) {
+  const tentativas = Array.isArray(capt.tentativas) ? capt.tentativas.slice(-6) : [];
+  if (tentativas.length === 0) return;
+  const linhas = tentativas.map((t, i) => {
+    const status = t.status ?? "—";
+    const url = String(t.url || "").replace(/^https:\/\/envios\.adminml\.com/, "");
+    return `${i + 1}. ${status} — ${url}`;
+  });
+  showResult(["Diagnóstico da captura:", ...linhas].join("\n"));
 }
 
 // Lê a sessão Supabase em uma aba jmroutes.app (via chrome.scripting).
@@ -258,19 +470,37 @@ async function importar(confirmar) {
     let payload = capturedPayload;
     if (!payload) {
       setStatusLoading("Capturando dados do Meli…");
-      const capt = await captureFromMeli();
+      let capt = await captureFromMeli();
+      if (!capt.ok) {
+        setStatusLoading("Localizando request real do Meli…");
+        const rede = await captureFromMeliNetwork();
+        if (rede && rede.ok) capt = rede;
+        else if (rede && Array.isArray(rede.tentativas)) capt.tentativas = rede.tentativas;
+        else if (rede && rede.lastCandidate) {
+          capt.tentativas = [{ url: rede.lastCandidate.url, status: rede.lastCandidate.status || "capturado", contentType: "debugger" }];
+        }
+      }
       if (!capt.ok) {
         if (capt.status === 401 || capt.status === 403) {
           setStatus("Faça login no Mercado Livre e tente novamente.", "error");
         } else if (capt.status === 404) {
-          setStatus("Rota não encontrada no Meli.", "error");
+          setStatus("Endpoint da rota não encontrado no Meli.", "error");
         } else if (capt.reason === "timeout") {
           setStatus("Tempo esgotado ao consultar o Meli.", "error");
         } else if (capt.reason === "network") {
           setStatus("Não foi possível conectar ao Meli.", "error");
+        } else if (capt.reason === "payload_shape") {
+          setStatus("O Meli respondeu, mas em formato diferente do esperado.", "error");
+        } else if (capt.reason === "not_found") {
+          setStatus("Endpoint da rota não encontrado no Meli.", "error");
+        } else if (capt.reason === "debugger_unavailable") {
+          setStatus("Chrome não permitiu capturar a rede da aba do Meli.", "error");
+        } else if (capt.reason === "debugger_timeout") {
+          setStatus("Não encontrei o JSON da rota durante o recarregamento.", "error");
         } else {
           setStatus("Não foi possível capturar a rota. Tente novamente.", "error");
         }
+        renderCaptureDiagnostics(capt);
         return;
       }
       payload = capt.payload;
