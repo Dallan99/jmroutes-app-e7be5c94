@@ -354,6 +354,23 @@ async function captureFromMeli() {
   return res && res.result ? res.result : { ok: false, reason: "script" };
 }
 
+async function captureFromMeliNetwork() {
+  if (!detectedRouteId || !activeTabId) return null;
+  try {
+    return await chrome.runtime.sendMessage({
+      type: "captureRouteDetailWithDebugger",
+      tabId: activeTabId,
+      routeId: detectedRouteId,
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      reason: "debugger_error",
+      message: e && e.message ? e.message : "Falha na captura de rede.",
+    };
+  }
+}
+
 function renderCaptureDiagnostics(capt) {
   const tentativas = Array.isArray(capt.tentativas) ? capt.tentativas.slice(-6) : [];
   if (tentativas.length === 0) return;
@@ -453,7 +470,16 @@ async function importar(confirmar) {
     let payload = capturedPayload;
     if (!payload) {
       setStatusLoading("Capturando dados do Meli…");
-      const capt = await captureFromMeli();
+      let capt = await captureFromMeli();
+      if (!capt.ok) {
+        setStatusLoading("Localizando request real do Meli…");
+        const rede = await captureFromMeliNetwork();
+        if (rede && rede.ok) capt = rede;
+        else if (rede && Array.isArray(rede.tentativas)) capt.tentativas = rede.tentativas;
+        else if (rede && rede.lastCandidate) {
+          capt.tentativas = [{ url: rede.lastCandidate.url, status: rede.lastCandidate.status || "capturado", contentType: "debugger" }];
+        }
+      }
       if (!capt.ok) {
         if (capt.status === 401 || capt.status === 403) {
           setStatus("Faça login no Mercado Livre e tente novamente.", "error");
@@ -467,6 +493,10 @@ async function importar(confirmar) {
           setStatus("O Meli respondeu, mas em formato diferente do esperado.", "error");
         } else if (capt.reason === "not_found") {
           setStatus("Endpoint da rota não encontrado no Meli.", "error");
+        } else if (capt.reason === "debugger_unavailable") {
+          setStatus("Chrome não permitiu capturar a rede da aba do Meli.", "error");
+        } else if (capt.reason === "debugger_timeout") {
+          setStatus("Não encontrei o JSON da rota durante o recarregamento.", "error");
         } else {
           setStatus("Não foi possível capturar a rota. Tente novamente.", "error");
         }

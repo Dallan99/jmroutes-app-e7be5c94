@@ -54,7 +54,8 @@ Em `chrome://extensions`, clicar no botão de **reload** do card da extensão.
 
 - A extensão lê a URL da aba ativa.
 - Aceita apenas `envios.adminml.com/logistics/monitoring-distribution/detail/{routeId}`.
-- Usa `chrome.scripting.executeScript` para executar `fetch("/logistics/monitoring-distribution/route-detail?routeId=…", { credentials: "include" })` **dentro da aba do Meli**, reaproveitando a sessão do usuário.
+- Primeiro tenta localizar o payload já carregado na página e consultar as URLs reais vistas em `performance.getEntriesByType("resource")`.
+- Se o Meli retornar 404 ou mudar o endpoint, usa um fallback pontual com `chrome.debugger` para observar o request real de rede durante um reload da aba e ler o JSON retornado pela própria página.
 - Valida `payload.id` e `payload.stops`.
 - O payload permanece apenas em memória durante a vida do popup.
 

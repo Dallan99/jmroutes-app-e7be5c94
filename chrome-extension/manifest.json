@@ -22,7 +22,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "permissions": ["activeTab", "scripting", "storage", "tabs", "debugger"],
   "host_permissions": [
     "https://envios.adminml.com/*",
     "https://jmroutes.app/*",
