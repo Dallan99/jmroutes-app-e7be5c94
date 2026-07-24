@@ -79,35 +79,83 @@ function fetchRouteDetailInPage(routeId) {
   return new Promise((resolve) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 30000);
-    fetch("/logistics/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId), {
-      method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-      signal: ctrl.signal,
-    })
-      .then(async (r) => {
-        clearTimeout(timer);
-        const ct = r.headers.get("content-type") || "";
-        const text = await r.text();
-        if (!r.ok) {
-          resolve({ ok: false, status: r.status });
-          return;
-        }
-        if (!ct.toLowerCase().includes("json")) {
-          resolve({ ok: false, status: r.status, reason: "content_type" });
-          return;
-        }
+
+    // Descobre a URL real do route-detail já usada pela página do Meli,
+    // em vez de adivinhar o caminho. O Meli varia entre /logistics/...,
+    // /logistics/api/... e /api/..., e o path pode mudar sem aviso.
+    function descobrirUrl() {
+      try {
+        const entries = performance.getEntriesByType("resource") || [];
+        const comRouteDetail = entries
+          .map((e) => e.name)
+          .filter((n) => typeof n === "string" && n.indexOf("route-detail") !== -1);
+        const comRouteId = comRouteDetail.filter((n) => n.indexOf(String(routeId)) !== -1);
+        const escolhida = comRouteId[comRouteId.length - 1] || comRouteDetail[comRouteDetail.length - 1] || null;
+        if (!escolhida) return null;
+        const u = new URL(escolhida, window.location.origin);
+        u.searchParams.set("routeId", String(routeId));
+        return u.pathname + "?" + u.searchParams.toString();
+      } catch {
+        return null;
+      }
+    }
+
+    const candidatas = [];
+    const descoberta = descobrirUrl();
+    if (descoberta) candidatas.push(descoberta);
+    // Fallbacks conhecidos (compatibilidade).
+    candidatas.push(
+      "/logistics/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId),
+      "/logistics/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId),
+      "/api/monitoring-distribution/route-detail?routeId=" + encodeURIComponent(routeId),
+    );
+    const urls = Array.from(new Set(candidatas));
+
+    (async () => {
+      let ultimoStatus = null;
+      let ultimoMotivo = null;
+      for (const url of urls) {
         try {
-          const parsed = JSON.parse(text);
-          resolve({ ok: true, payload: parsed });
-        } catch {
-          resolve({ ok: false, status: r.status, reason: "parse" });
+          const r = await fetch(url, {
+            method: "GET",
+            credentials: "include",
+            headers: { Accept: "application/json" },
+            signal: ctrl.signal,
+          });
+          const ct = (r.headers.get("content-type") || "").toLowerCase();
+          const text = await r.text();
+          if (!r.ok) {
+            ultimoStatus = r.status;
+            ultimoMotivo = null;
+            continue;
+          }
+          if (!ct.includes("json")) {
+            ultimoStatus = r.status;
+            ultimoMotivo = "content_type";
+            continue;
+          }
+          try {
+            const parsed = JSON.parse(text);
+            clearTimeout(timer);
+            resolve({ ok: true, payload: parsed, urlUsada: url });
+            return;
+          } catch {
+            ultimoStatus = r.status;
+            ultimoMotivo = "parse";
+            continue;
+          }
+        } catch (e) {
+          if (e && e.name === "AbortError") {
+            clearTimeout(timer);
+            resolve({ ok: false, reason: "timeout" });
+            return;
+          }
+          ultimoMotivo = "network";
         }
-      })
-      .catch((e) => {
-        clearTimeout(timer);
-        resolve({ ok: false, reason: e && e.name === "AbortError" ? "timeout" : "network" });
-      });
+      }
+      clearTimeout(timer);
+      resolve({ ok: false, status: ultimoStatus, reason: ultimoMotivo, tentativas: urls });
+    })();
   });
 }
 
