@@ -79,6 +79,17 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
         return new Response(null, { status: 204, headers: corsHeaders(origin) });
       },
 
+      GET: async ({ request }) => {
+        const origin = request.headers.get("origin");
+        return json(
+          { ok: false, codigo: "metodo_nao_permitido", mensagem: "Use POST para importar rotas." },
+          405,
+          origin,
+        );
+      },
+
+
+
       POST: async ({ request }) => {
         const origin = request.headers.get("origin");
 
