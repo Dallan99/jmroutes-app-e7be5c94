@@ -434,10 +434,10 @@ async function importar(confirmar) {
         }
       }
       if (!capt.ok) {
-        if (capt.status === 401 || capt.status === 403) {
-          setStatus("Faça login no Mercado Livre e tente novamente.", "error");
-        } else if (capt.status === 404) {
-          setStatus("Endpoint da rota não encontrado no Meli.", "error");
+        if (capt.status === 401 || capt.status === 403 || capt.reason === "sessao_expirada") {
+          setStatus("Sua sessão do Mercado Livre expirou. Saia e entre novamente.", "error");
+        } else if (capt.status === 404 || capt.reason === "not_found") {
+          setStatus("Endpoint da rota não encontrado.", "error");
         } else if (capt.reason === "timeout") {
           setStatus("Tempo esgotado ao consultar o Meli.", "error");
         } else if (capt.reason === "network") {
