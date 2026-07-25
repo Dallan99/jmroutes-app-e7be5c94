@@ -1,8 +1,6 @@
-// JM Routes Importador — popup.
-// - Botão "Importar rota aberta": mantém o fluxo v0.1.
-// - Card "Sincronizar base": conversa com background.js via runtime messages
-//   e reflete o estado do ciclo em tempo real (progresso, próxima sync, problemas).
-// - Não armazena payloads, tokens, cookies ou dados pessoais.
+// JM Routes Importador — popup v0.2.1
+// - Rota aberta: mantém fluxo v0.1 (endpoint route-detail, mesmo comportamento).
+// - Sincronização multi-base: apenas UI; a lógica roda no background.js.
 
 const JMROUTES_ORIGIN = "https://jmroutes.app";
 const IMPORT_ENDPOINT = JMROUTES_ORIGIN + "/api/public/meli/importar-rota-bruta";
@@ -24,8 +22,10 @@ const els = {
   divDif: $("divDif"),
   result: $("result"),
   // sync
-  syncBase: $("syncBase"),
+  selBase: $("selBase"),
   syncFase: $("syncFase"),
+  syncBaseAtual: $("syncBaseAtual"),
+  syncPagina: $("syncPagina"),
   syncMensagem: $("syncMensagem"),
   syncProgressBar: $("syncProgressBar"),
   syncProgressFill: $("syncProgressFill"),
@@ -44,6 +44,8 @@ const els = {
   selConcorrencia: $("selConcorrencia"),
   btnSincronizar: $("btnSincronizar"),
   btnCancelar: $("btnCancelar"),
+  resumoPorBase: $("resumoPorBase"),
+  resumoPorBaseList: $("resumoPorBaseList"),
   syncProblemas: $("syncProblemas"),
   syncProblemasList: $("syncProblemasList"),
 };
@@ -238,7 +240,7 @@ async function importar(confirmar) {
 }
 
 // ============================================================
-// Sincronização em lote / contínua (controlada pelo background)
+// Sincronização multi-base (UI)
 // ============================================================
 function fmtHora(ts) {
   if (!ts) return "—";
@@ -257,13 +259,49 @@ function atualizarProxima(proximaEm) {
   proximaTimer = setInterval(tick, 1000);
 }
 
+function renderResumoPorBase(porBase) {
+  if (!Array.isArray(porBase) || porBase.length === 0) {
+    els.resumoPorBase.classList.add("hidden");
+    els.resumoPorBaseList.innerHTML = "";
+    return;
+  }
+  const teveAtividade = porBase.some((b) => b.encontradas > 0 || b.processadas > 0 || b.erros > 0);
+  if (!teveAtividade) {
+    els.resumoPorBase.classList.add("hidden");
+    return;
+  }
+  els.resumoPorBase.classList.remove("hidden");
+  els.resumoPorBaseList.innerHTML = porBase.map((b) => `
+    <div class="base-item">
+      <div class="base-title">${escapeHtml(b.facilityId)} — ${escapeHtml(b.nome)} <span class="mono base-sc">(${escapeHtml(b.serviceCenterId)})</span></div>
+      <div class="base-stats mono">
+        Enc: <b>${b.encontradas}</b> · Ativ: <b>${b.ativas}</b> · Suc: <b>${b.sucesso}</b> · Div: <b>${b.divergencias}</b> · Err: <b>${b.erros}</b><br/>
+        Pág: <b>${b.paginas}</b> · Ins: <b>${b.pacotes_inseridos}</b> · Atu: <b>${b.pacotes_atualizados}</b> · Inal: <b>${b.pacotes_inalterados}</b>
+      </div>
+      ${b.mensagem ? `<div class="base-msg">${escapeHtml(b.mensagem)}</div>` : ""}
+    </div>
+  `).join("");
+}
+
 function renderState(s) {
   if (!s) return;
   els.chkContinuo.checked = !!s.continuous;
   els.selConcorrencia.value = String(s.concurrency || 4);
-  els.syncBase.textContent = s.base || "—";
+  if (s.baseSelecionada && els.selBase.value !== s.baseSelecionada) {
+    els.selBase.value = s.baseSelecionada;
+  }
   const p = s.progress || {};
   els.syncFase.textContent = p.fase || "parado";
+
+  if (p.baseAtual) {
+    const total = p.baseAtualTotal || 1;
+    els.syncBaseAtual.textContent =
+      `${p.baseAtualIdx || 1}/${total} — ${p.baseAtual.facilityId} · ${p.baseAtual.nome} (${p.baseAtual.serviceCenterId})`;
+  } else {
+    els.syncBaseAtual.textContent = "—";
+  }
+  els.syncPagina.textContent = p.paginaAtual ? String(p.paginaAtual) : "—";
+
   els.syncEncontradas.textContent = p.encontradas ?? 0;
   els.syncAtivas.textContent = p.ativas ?? 0;
   els.syncProcessadas.textContent = p.processadas ?? 0;
@@ -276,8 +314,9 @@ function renderState(s) {
   els.syncUltima.textContent = fmtHora(p.ultimaSync);
   atualizarProxima(p.proximaEm);
 
-  const rodando = s.running || p.fase === "sincronizando" || p.fase === "listando" || p.fase === "descobrindo";
+  const rodando = s.running || ["listando", "sincronizando"].includes(p.fase);
   els.btnSincronizar.disabled = rodando;
+  els.selBase.disabled = rodando;
   els.btnCancelar.classList.toggle("hidden", !rodando);
   els.syncProgressBar.classList.toggle("hidden", !rodando);
   const pct = p.total > 0 ? Math.round((p.processadas / p.total) * 100) : 0;
@@ -291,6 +330,8 @@ function renderState(s) {
     els.syncMensagem.classList.add("hidden");
   }
 
+  renderResumoPorBase(p.porBase);
+
   const probs = Array.isArray(p.problemas) ? p.problemas : [];
   if (probs.length === 0) {
     els.syncProblemas.classList.add("hidden");
@@ -298,7 +339,7 @@ function renderState(s) {
   } else {
     els.syncProblemas.classList.remove("hidden");
     els.syncProblemasList.innerHTML = probs.slice(-20).map((x) =>
-      `<li>${escapeHtml(String(x.routeId))} — ${escapeHtml(String(x.motivo))}</li>`
+      `<li>${escapeHtml(x.base || "")} · ${escapeHtml(String(x.routeId))} — ${escapeHtml(String(x.motivo))}</li>`
     ).join("");
   }
 }
@@ -330,6 +371,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   els.selConcorrencia.addEventListener("change", (e) => {
     chrome.runtime.sendMessage({ type: "jm/setConcurrency", value: Number(e.target.value) }).catch(() => {});
+  });
+  els.selBase.addEventListener("change", (e) => {
+    chrome.runtime.sendMessage({ type: "jm/setBase", value: e.target.value }).catch(() => {});
   });
 
   fetchState();

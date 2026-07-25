@@ -37,15 +37,35 @@
       </section>
 
       <section class="card">
-        <h1 class="title">Sincronizar base</h1>
+        <h1 class="title">Sincronizar bases JM</h1>
 
-        <div class="row">
-          <span class="label">Base:</span>
-          <span id="syncBase" class="route">—</span>
+        <div class="row small">
+          <span class="label">Bases JM:</span>
+          <span class="mono">Ibiúna, Guarujá, Embu-Guaçu e Franco da Rocha</span>
         </div>
+
+        <div class="row small">
+          <label class="label" for="selBase">Base:</label>
+          <select id="selBase" class="select">
+            <option value="TODAS">Todas as bases JM</option>
+            <option value="ESP15">ESP15 — Ibiúna (SSP20)</option>
+            <option value="ESP16">ESP16 — Guarujá (SSP15)</option>
+            <option value="ESP17">ESP17 — Embu-Guaçu (SSP34)</option>
+            <option value="ESP18">ESP18 — Franco da Rocha (SSP25)</option>
+          </select>
+        </div>
+
         <div class="row">
           <span class="label">Estado:</span>
           <span id="syncFase" class="mono">parado</span>
+        </div>
+        <div class="row small">
+          <span class="label">Base atual:</span>
+          <span id="syncBaseAtual" class="mono">—</span>
+        </div>
+        <div class="row small">
+          <span class="label">Página:</span>
+          <span id="syncPagina" class="mono">—</span>
         </div>
         <div id="syncProgressBar" class="progress hidden">
           <div id="syncProgressFill" class="progress-fill"></div>
@@ -79,7 +99,7 @@
         </label>
 
         <div class="row small">
-          <label class="label" for="selConcorrencia">Concorrência:</label>
+          <label class="label" for="selConcorrencia">Concorrência (por base):</label>
           <select id="selConcorrencia" class="select">
             <option value="2">2</option>
             <option value="4" selected>4</option>
@@ -87,8 +107,13 @@
           </select>
         </div>
 
-        <button id="btnSincronizar" class="btn btn-primary">Sincronizar todas as rotas</button>
+        <button id="btnSincronizar" class="btn btn-primary">Sincronizar</button>
         <button id="btnCancelar" class="btn btn-danger hidden">Cancelar sincronização</button>
+
+        <div id="resumoPorBase" class="por-base hidden">
+          <div class="div-title">Resumo por base</div>
+          <div id="resumoPorBaseList"></div>
+        </div>
 
         <div id="syncProblemas" class="problems hidden">
           <div class="div-title">Rotas com problema</div>
@@ -97,7 +122,7 @@
       </section>
     </main>
 
-    <footer class="ftr">v0.2.0</footer>
+    <footer class="ftr">v0.2.1</footer>
 
     <script src="popup.js"></script>
   </body>

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JM Routes Importador",
-  "version": "0.2.0",
-  "description": "Importa a rota aberta ou sincroniza todas as rotas da base do Mercado Livre para o JMRoutes.",
+  "version": "0.2.1",
+  "description": "Importa a rota aberta ou sincroniza todas as rotas das bases JM (ESP15/ESP16/ESP17/ESP18) do Mercado Livre para o JMRoutes.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "JM Routes Importador",
