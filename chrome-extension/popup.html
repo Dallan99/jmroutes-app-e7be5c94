@@ -18,33 +18,86 @@
     </header>
 
     <main>
-      <h1 class="title">Importar rota aberta do Meli</h1>
+      <section class="card">
+        <h1 class="title">Rota aberta</h1>
+        <div class="row">
+          <span class="label">Rota detectada:</span>
+          <span id="routeId" class="route">—</span>
+        </div>
+        <div id="status" class="status status-idle">Aguardando…</div>
+        <div id="divergencia" class="divergencia hidden">
+          <div class="div-title">Divergência encontrada</div>
+          <div>Total informado pelo Meli: <b id="divMeli">—</b></div>
+          <div>Total extraído: <b id="divExtr">—</b></div>
+          <div>Diferença: <b id="divDif">—</b></div>
+        </div>
+        <div id="result" class="result hidden"></div>
+        <button id="btnImportar" class="btn btn-primary" disabled>Importar rota aberta</button>
+        <button id="btnConfirmar" class="btn btn-secondary hidden">Confirmar e importar</button>
+      </section>
 
-      <div class="row">
-        <span class="label">Rota detectada:</span>
-        <span id="routeId" class="route">—</span>
-      </div>
+      <section class="card">
+        <h1 class="title">Sincronizar base</h1>
 
-      <div id="status" class="status status-idle">Aguardando…</div>
+        <div class="row">
+          <span class="label">Base:</span>
+          <span id="syncBase" class="route">—</span>
+        </div>
+        <div class="row">
+          <span class="label">Estado:</span>
+          <span id="syncFase" class="mono">parado</span>
+        </div>
+        <div id="syncProgressBar" class="progress hidden">
+          <div id="syncProgressFill" class="progress-fill"></div>
+        </div>
+        <div id="syncMensagem" class="status status-idle hidden"></div>
 
-      <div id="divergencia" class="divergencia hidden">
-        <div class="div-title">Divergência encontrada</div>
-        <div>Total informado pelo Meli: <b id="divMeli">—</b></div>
-        <div>Total extraído: <b id="divExtr">—</b></div>
-        <div>Diferença: <b id="divDif">—</b></div>
-      </div>
+        <div class="grid">
+          <div><span class="label">Encontradas:</span> <b id="syncEncontradas">0</b></div>
+          <div><span class="label">Ativas:</span> <b id="syncAtivas">0</b></div>
+          <div><span class="label">Processadas:</span> <b id="syncProcessadas">0</b></div>
+          <div><span class="label">Sucesso:</span> <b id="syncSucesso">0</b></div>
+          <div><span class="label">Divergências:</span> <b id="syncDiv">0</b></div>
+          <div><span class="label">Erros:</span> <b id="syncErros">0</b></div>
+          <div><span class="label">Inseridos:</span> <b id="syncIns">0</b></div>
+          <div><span class="label">Atualizados:</span> <b id="syncAtu">0</b></div>
+          <div><span class="label">Inalterados:</span> <b id="syncInal">0</b></div>
+        </div>
 
-      <div id="result" class="result hidden"></div>
+        <div class="row small">
+          <span class="label">Última:</span>
+          <span id="syncUltima" class="mono">—</span>
+        </div>
+        <div class="row small">
+          <span class="label">Próxima em:</span>
+          <span id="syncProxima" class="mono">—</span>
+        </div>
 
-      <button id="btnImportar" class="btn btn-primary" disabled>
-        Importar rota aberta
-      </button>
-      <button id="btnConfirmar" class="btn btn-secondary hidden">
-        Confirmar e importar
-      </button>
+        <label class="check">
+          <input type="checkbox" id="chkContinuo" />
+          Atualização contínua a cada 30 segundos
+        </label>
+
+        <div class="row small">
+          <label class="label" for="selConcorrencia">Concorrência:</label>
+          <select id="selConcorrencia" class="select">
+            <option value="2">2</option>
+            <option value="4" selected>4</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+
+        <button id="btnSincronizar" class="btn btn-primary">Sincronizar todas as rotas</button>
+        <button id="btnCancelar" class="btn btn-danger hidden">Cancelar sincronização</button>
+
+        <div id="syncProblemas" class="problems hidden">
+          <div class="div-title">Rotas com problema</div>
+          <ul id="syncProblemasList"></ul>
+        </div>
+      </section>
     </main>
 
-    <footer class="ftr">v0.1.0</footer>
+    <footer class="ftr">v0.2.0</footer>
 
     <script src="popup.js"></script>
   </body>

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JM Routes Importador",
-  "version": "0.1.0",
-  "description": "Importa a rota aberta do Mercado Livre para o JMRoutes.",
+  "version": "0.2.0",
+  "description": "Importa a rota aberta ou sincroniza todas as rotas da base do Mercado Livre para o JMRoutes.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "JM Routes Importador",
@@ -22,7 +22,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["activeTab", "scripting", "storage", "tabs", "debugger"],
+  "permissions": ["activeTab", "scripting", "storage", "tabs", "debugger", "alarms"],
   "host_permissions": [
     "https://envios.adminml.com/*",
     "https://jmroutes.app/*",
