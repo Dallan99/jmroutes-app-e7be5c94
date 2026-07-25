@@ -62,3 +62,11 @@ main { padding: 12px 16px 4px; }
 
 .spinner { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #94a3b8; border-top-color: transparent; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.por-base { margin-top: 8px; background: #0b1224; border: 1px solid #334155; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+.base-item { padding: 6px 0; border-bottom: 1px solid #1e293b; }
+.base-item:last-child { border-bottom: 0; }
+.base-title { font-weight: 700; color: #fbbf24; font-size: 12px; margin-bottom: 2px; }
+.base-sc { color: #94a3b8; font-weight: 500; font-size: 11px; }
+.base-stats { color: #cbd5e1; font-size: 11px; line-height: 1.5; }
+.base-msg { color: #fca5a5; font-size: 11px; margin-top: 2px; }
