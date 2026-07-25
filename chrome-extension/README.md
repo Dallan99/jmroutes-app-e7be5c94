@@ -1,101 +1,75 @@
-# JM Routes Importador — Extensão Chrome (v0.1.0)
+# JM Routes Importador — Extensão Chrome (v0.2.0)
 
-Primeira versão funcional. Importa **uma rota aberta** do Mercado Livre para o
-JMRoutes reutilizando a lógica já existente (`meliImportarRotaBruta`).
+Importa **a rota aberta** no Mercado Livre e agora sincroniza **todas as rotas ativas da base**
+(com opção de repetir automaticamente a cada 30 s).
 
 ## 1. Requisitos
 
-- Google Chrome / Chromium recente (MV3).
-- Usuário com sessão ativa em:
-  - `https://envios.adminml.com/` (Mercado Livre)
-  - `https://jmroutes.app/` (JMRoutes) com perfil **admin**, **gerente** ou **supervisor**.
+- Chrome/Chromium recente (MV3).
+- Sessão ativa em:
+  - `https://envios.adminml.com/`
+  - `https://jmroutes.app/` (perfil admin/gerente/supervisor).
 
-## 2. Estrutura
+## 2. Instalação (desenvolvedor)
 
-```
-chrome-extension/
-  manifest.json
-  popup.html / popup.css / popup.js
-  background.js
-  icons/icon16.png icon32.png icon48.png icon128.png
-  README.md
-```
+1. `chrome://extensions` → **Modo do desenvolvedor**.
+2. **Carregar sem compactação** → selecione a pasta `chrome-extension/`.
+3. Fixe a extensão.
 
-## 3. Instalação (carregar sem compactação)
+## 3. Uso — Rota aberta
 
-1. Abrir `chrome://extensions`.
-2. Ativar **Modo do desenvolvedor**.
-3. Clicar em **Carregar sem compactação**.
-4. Selecionar a pasta `chrome-extension/`.
-5. Fixar a extensão na barra do Chrome.
+Igual à v0.1. Abra a rota, clique no ícone → **Importar rota aberta**.
 
-## 4. Como usar
+## 4. Uso — Sincronizar base
 
-1. Fazer login no Mercado Livre.
-2. Fazer login no JMRoutes (`https://jmroutes.app`).
-3. Abrir a rota no Meli:
-   `https://envios.adminml.com/logistics/monitoring-distribution/detail/{routeId}?site=MLB`
-4. Clicar no ícone da extensão.
-5. Conferir o `routeId` detectado.
-6. Clicar em **Importar rota aberta**.
-7. Se houver divergência entre totais, clicar em **Confirmar e importar**.
+1. Abra a página `https://envios.adminml.com/logistics/monitoring-distribution` com os filtros da base desejada.
+2. Deixe uma aba do JMRoutes autenticada.
+3. Clique no ícone da extensão.
+4. Em **Sincronizar base**:
+   - **Sincronizar todas as rotas**: executa um único ciclo.
+   - **Atualização contínua a cada 30 segundos**: ativa o loop; o service worker continua rodando mesmo com o popup fechado.
+   - **Concorrência**: 2 / 4 (padrão) / 6.
+   - **Cancelar sincronização**: interrompe o ciclo atual.
 
-## 5. Recarregar a extensão após alterações
+O popup mostra: base detectada, rotas encontradas/ativas/processadas, sucesso, divergências, erros,
+pacotes inseridos/atualizados/inalterados, última sincronização, próximo ciclo em X segundos e lista
+de rotas com problema.
 
-Em `chrome://extensions`, clicar no botão de **reload** do card da extensão.
+## 5. Como funciona
 
-## 6. Logs
+- **Lista**: a extensão inspeciona `performance.getEntriesByType("resource")` na aba do Meli
+  e reutiliza a URL real de `get-routes-list` (preservando base/service center, filtros, datas, status).
+  Paginação detectada automaticamente entre `page`, `offset` e `from`, respeitando `size`/`limit`,
+  `totalDocuments`, `hasNext`, `last`. Limites: 20 páginas, 500 rotas, deduplicação por `routeId` numérico,
+  interrupção quando a próxima página repete os mesmos IDs.
+- **Rotas ativas**: `finishDate === 0` **e** `executedFinishDate === 0`; em caso de dúvida, inclui.
+- **Detalhe**: `GET .../monitoring-route/route-detail?routeId=…&siteId=MLB` executado no contexto da aba do Meli (sessão do usuário; sem cookies/tokens manuais).
+- **Envio**: `POST https://jmroutes.app/api/public/meli/importar-rota-bruta` com `Authorization: Bearer <access_token>` da sessão Supabase do próprio usuário logado em `jmroutes.app` (nunca persistido).
+- **Concorrência**: fila com 4 workers padrão + 250 ms entre itens.
+- **Loop 30 s**: `chrome.alarms` reagendado ao final de cada ciclo → nunca sobrepõe. Se o ciclo demorar > 30 s, o próximo só começa depois que o anterior terminar.
+- **Backoff**: >30% de erros no ciclo pausa o modo contínuo. Sessão Meli/JMRoutes expirada também pausa.
+- **Divergência**: nunca confirmada automaticamente — a rota entra em "problemas".
 
-- **Popup:** clicar com o botão direito no ícone → *Inspecionar popup* → aba *Console*.
-- **Service worker:** em `chrome://extensions`, no card, clicar em *Inspecionar visualizações → service worker*.
-- **Página do Meli:** DevTools comum da aba onde a rota está aberta.
+## 6. Segurança
 
-## 7. Como funciona a captura da rota
+- Sem `service_role`, sem token fixo, sem `cookies` permission, sem leitura direta de cookies.
+- `chrome.storage.local` guarda apenas: `continuous`, `concurrency`, `ultimaSync`. Nunca payload, token, nomes, endereços ou sessão.
+- Logs sem dados pessoais.
 
-- A extensão lê a URL da aba ativa.
-- Aceita apenas `envios.adminml.com/logistics/monitoring-distribution/detail/{routeId}`.
-- Primeiro tenta localizar o payload já carregado na página e consultar as URLs reais vistas em `performance.getEntriesByType("resource")`.
-- Se o Meli retornar 404 ou mudar o endpoint, usa um fallback pontual com `chrome.debugger` para observar o request real de rede durante um reload da aba e ler o JSON retornado pela própria página.
-- Valida `payload.id` e `payload.stops`.
-- O payload permanece apenas em memória durante a vida do popup.
+## 7. Recarregar após alterações
 
-## 8. Como funciona a autenticação com o JMRoutes
+`chrome://extensions` → clique no ícone de reload do card.
 
-- A extensão **não usa** `service_role`, tokens fixos, senhas, refresh tokens ou leitura direta de cookies.
-- Ao enviar a rota, ela pede ao Chrome para ler, na aba `jmroutes.app`, o valor do `localStorage["sb-<project-ref>-auth-token"]` (sessão Supabase do próprio usuário logado) via `chrome.scripting.executeScript`.
-- Extrai apenas o `access_token` e o envia como `Authorization: Bearer <token>` para o endpoint público:
-  `POST https://jmroutes.app/api/public/meli/importar-rota-bruta`
-- Se nenhuma aba do JMRoutes estiver aberta, a extensão abre uma. Caso o usuário não esteja logado, mostra:
-  *“Faça login no JMRoutes e tente novamente.”*
-- O token nunca é persistido no `chrome.storage`, apenas mantido em memória durante a chamada.
-
-## 9. Como funciona o envio ao JMRoutes
-
-- Endpoint: `POST /api/public/meli/importar-rota-bruta` (server route do TanStack Start).
-- O endpoint valida o Bearer token com a Supabase e chama o mesmo helper usado pela server function `meliImportarRotaBruta` (`src/lib/meli-import-bruto.ts`), que roda a RPC `meli_importar_rota` sob a identidade do usuário.
-- CORS restrito às origens `chrome-extension://…`, `jmroutes.app`, `www.jmroutes.app`, `*.lovable.app` e `localhost`.
-
-## 10. Limitações da versão 0.1.0
-
-- Importa somente a rota **atualmente aberta** no navegador.
-- Não sincroniza várias rotas nem faz agendamento.
-- Não roda em segundo plano nem periodicamente.
-- Não usa Playwright, não lê cookies e não captura lista de rotas.
-- Ícones são placeholders — substituir por arte oficial futuramente.
-- Em ambiente de homologação (`*.lovable.app`), ajustar `IMPORT_ENDPOINT` em `popup.js` conforme necessário.
-
-## 11. Como empacotar futuramente
-
-Para gerar `.zip` de distribuição:
+## 8. Empacotar
 
 ```
 cd chrome-extension
-zip -r ../jm-routes-importador-0.1.0.zip .
+zip -r ../jm-routes-importador-0.2.0.zip .
 ```
 
-Publicação na Chrome Web Store fica para versão futura.
+## 9. Limitações v0.2.0
 
-## 12. Ambientes
-
-- **Produção:** endpoints apontam para `https://jmroutes.app`.
-- **Desenvolvimento/Homologação:** adicionar host permission adicional e ajustar `IMPORT_ENDPOINT` / `JMROUTES_ORIGIN` em `popup.js`. Não deixar `Access-Control-Allow-Origin` amplo em produção.
+- Sincroniza a base **atualmente aberta** no Meli (uma aba por vez).
+- Não implementa Playwright.
+- Se a URL real da lista ainda não estiver em `performance`, o popup pede para recarregar a página do Meli.
+- Divergência exige tratamento manual pelo módulo Integração Meli do JMRoutes.

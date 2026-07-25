@@ -1,7 +1,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  width: 340px;
+  width: 360px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #0f172a;
   color: #e2e8f0;
@@ -18,50 +18,47 @@ body {
 .brand-title { font-weight: 700; font-size: 14px; }
 .brand-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: #94a3b8; }
 
-main { padding: 14px 16px; }
-.title { font-size: 14px; margin: 0 0 12px; font-weight: 600; }
+main { padding: 12px 16px 4px; }
+.card { border: 1px solid #1e293b; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #0b1224; }
+.title { font-size: 13px; margin: 0 0 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #cbd5e1; }
 
-.row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.row.small { font-size: 12px; }
 .label { color: #94a3b8; }
 .route { font-family: ui-monospace, monospace; color: #fbbf24; font-weight: 600; }
+.mono { font-family: ui-monospace, monospace; }
 
-.status {
-  padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px;
-  background: #1e293b; border: 1px solid #334155;
-}
+.status { padding: 8px 10px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; background: #1e293b; border: 1px solid #334155; }
 .status-idle { color: #94a3b8; }
 .status-info { color: #93c5fd; border-color: #1d4ed8; }
 .status-error { color: #fca5a5; border-color: #b91c1c; background: #450a0a; }
 .status-success { color: #86efac; border-color: #15803d; background: #052e16; }
 .status-warn { color: #fcd34d; border-color: #a16207; background: #422006; }
 
-.btn {
-  width: 100%; padding: 10px 12px; border-radius: 8px; border: 0;
-  font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 6px;
-}
+.btn { width: 100%; padding: 9px 12px; border-radius: 8px; border: 0; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 6px; }
 .btn-primary { background: #f59e0b; color: #0f172a; }
 .btn-primary:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
 .btn-secondary { background: #1d4ed8; color: white; }
+.btn-danger { background: #b91c1c; color: white; }
 
-.divergencia {
-  background: #422006; border: 1px solid #a16207; color: #fde68a;
-  padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 10px;
-}
+.divergencia { background: #422006; border: 1px solid #a16207; color: #fde68a; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; }
 .div-title { font-weight: 700; margin-bottom: 4px; }
+.result { background: #052e16; border: 1px solid #15803d; color: #bbf7d0; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; white-space: pre-line; }
 
-.result {
-  background: #052e16; border: 1px solid #15803d; color: #bbf7d0;
-  padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 10px;
-  white-space: pre-line;
-}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12px; margin: 6px 0 10px; }
+
+.progress { height: 6px; background: #1e293b; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #fbbf24); width: 0%; transition: width 0.2s; }
+
+.check { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 6px 0; color: #cbd5e1; }
+.select { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+
+.problems { margin-top: 8px; background: #1e1b3a; border: 1px solid #4c1d95; color: #ddd6fe; padding: 8px 10px; border-radius: 8px; font-size: 12px; }
+.problems ul { margin: 4px 0 0; padding-left: 18px; }
+.problems li { font-family: ui-monospace, monospace; }
 
 .hidden { display: none !important; }
+.ftr { padding: 6px 16px 12px; color: #475569; font-size: 10px; text-align: right; }
 
-.ftr { padding: 8px 16px 12px; color: #475569; font-size: 10px; text-align: right; }
-
-.spinner {
-  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-  border: 2px solid #94a3b8; border-top-color: transparent;
-  animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px;
-}
+.spinner { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #94a3b8; border-top-color: transparent; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
