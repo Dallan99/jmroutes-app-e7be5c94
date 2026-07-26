@@ -1,4 +1,4 @@
-// JM Routes Importador — service worker v0.2.1
+// JM Routes Importador — service worker v0.2.2
 // - Sincronização multi-base JM (ESP15..ESP18) via POST get-routes-list.
 // - Consulta cada base separadamente (o Meli mostra no máximo 3 estações na tela;
 //   respeitamos o limite operacional e nunca enviamos 4 SSPs juntos).
@@ -702,9 +702,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       case "jm/getState":
         sendResponse({ state: snapshot() });
         break;
+      case "JM_START_SYNC":
       case "jm/syncOnce":
-        if (!state.running) executarCiclo();
-        sendResponse({ ok: true });
+        if (state.running) {
+          sendResponse({ ok: false, error: "Já existe uma sincronização em andamento." });
+        } else {
+          // Dispara assíncrono; o próprio ciclo publica o estado por broadcast.
+          Promise.resolve().then(() => { executarCiclo().catch(() => {}); });
+          sendResponse({ ok: true });
+        }
         break;
       case "jm/cancel":
         cancelarCiclo();
