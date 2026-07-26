@@ -314,8 +314,13 @@ function renderState(s) {
   els.syncUltima.textContent = fmtHora(p.ultimaSync);
   atualizarProxima(p.proximaEm);
 
-  const rodando = s.running || ["listando", "sincronizando"].includes(p.fase);
+  const rodando = s.running || ["listando", "sincronizando", "iniciando"].includes(p.fase);
   els.btnSincronizar.disabled = rodando;
+  if (rodando) {
+    els.btnSincronizar.textContent = p.fase === "listando" ? "Listando…" : (p.fase === "sincronizando" ? "Sincronizando…" : "Iniciando…");
+  } else {
+    els.btnSincronizar.textContent = els.btnSincronizar.dataset.textoOriginal || "Sincronizar";
+  }
   els.selBase.disabled = rodando;
   els.btnCancelar.classList.toggle("hidden", !rodando);
   els.syncProgressBar.classList.toggle("hidden", !rodando);
