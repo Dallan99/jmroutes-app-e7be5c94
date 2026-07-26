@@ -1,4 +1,4 @@
-// JM Routes Importador — popup v0.2.1
+// JM Routes Importador — popup v0.2.2
 // - Rota aberta: mantém fluxo v0.1 (endpoint route-detail, mesmo comportamento).
 // - Sincronização multi-base: apenas UI; a lógica roda no background.js.
 
