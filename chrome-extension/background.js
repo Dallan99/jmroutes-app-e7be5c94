@@ -1,4 +1,4 @@
-// JM Routes Importador — service worker v0.2.1
+// JM Routes Importador — service worker v0.2.2
 // - Sincronização multi-base JM (ESP15..ESP18) via POST get-routes-list.
 // - Consulta cada base separadamente (o Meli mostra no máximo 3 estações na tela;
 //   respeitamos o limite operacional e nunca enviamos 4 SSPs juntos).
