@@ -360,8 +360,28 @@ document.addEventListener("DOMContentLoaded", () => {
   els.btnImportar.addEventListener("click", () => importar(false));
   els.btnConfirmar.addEventListener("click", () => importar(true));
 
-  els.btnSincronizar.addEventListener("click", () => {
-    chrome.runtime.sendMessage({ type: "jm/syncOnce" }).catch(() => {});
+  els.btnSincronizar.addEventListener("click", async () => {
+    // Feedback visual imediato (antes de qualquer resposta do background).
+    els.btnSincronizar.disabled = true;
+    els.btnSincronizar.dataset.textoOriginal = els.btnSincronizar.textContent || "Sincronizar";
+    els.btnSincronizar.textContent = "Iniciando…";
+    els.syncFase.textContent = "iniciando";
+    els.syncMensagem.classList.remove("hidden");
+    els.syncMensagem.className = "status status-info";
+    els.syncMensagem.innerHTML = '<span class="spinner"></span>Iniciando sincronização…';
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: "jm/syncOnce" });
+      if (!resp) throw new Error("O background da extensão não respondeu.");
+      if (resp.ok === false) throw new Error(resp.error || resp.mensagem || "Não foi possível iniciar a sincronização.");
+      // A partir daqui, os broadcasts jm/state assumem a UI.
+    } catch (e) {
+      const msg = (e && e.message) ? String(e.message) : "Erro interno da extensão.";
+      els.syncMensagem.className = "status status-error";
+      els.syncMensagem.textContent = msg;
+      els.syncFase.textContent = "erro";
+      els.btnSincronizar.disabled = false;
+      els.btnSincronizar.textContent = els.btnSincronizar.dataset.textoOriginal || "Sincronizar";
+    }
   });
   els.btnCancelar.addEventListener("click", () => {
     chrome.runtime.sendMessage({ type: "jm/cancel" }).catch(() => {});
