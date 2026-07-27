@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ieqvzndvkzozqvseubuc.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "jmroutes-mcp",
+      "version": "0.1.0",
+      "title": "JMRoutes MCP"
+    },
+    "tools": [
+      {
+        "name": "meu_perfil",
+        "title": "Meu perfil",
+        "description": "Retorna o perfil, papéis (admin/supervisor/gerente/operador) e bases permitidas do usuário autenticado no JMRoutes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_bases",
+        "title": "Listar bases operacionais",
+        "description": "Lista as bases operacionais (ex.: ESP15, ESP16, ESP17, ESP18) visíveis para o usuário autenticado, respeitando RLS.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "resumo_operacional",
+        "title": "Resumo operacional do dia",
+        "description": "Retorna um resumo do dia operacional para as bases visíveis ao usuário: rotas na escala, recebimentos e transferências. Se `dia` for omitido, usa a data atual.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dia": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Dia operacional no formato YYYY-MM-DD (opcional; padrão: hoje)."
+            },
+            "base_codigo": {
+              "type": "string",
+              "description": "Código da base (ex.: ESP16). Opcional; se omitido, considera todas as bases visíveis."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

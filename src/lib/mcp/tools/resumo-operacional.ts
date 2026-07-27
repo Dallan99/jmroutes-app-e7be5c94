@@ -7,7 +7,7 @@ export default defineTool({
   name: "resumo_operacional",
   title: "Resumo operacional do dia",
   description:
-    "Retorna um resumo do dia operacional para as bases visíveis ao usuário: total de rotas na escala, recebidos, triados, devoluções e transferências. Se `dia` for omitido, usa a data atual.",
+    "Retorna um resumo do dia operacional para as bases visíveis ao usuário: rotas na escala, recebimentos e transferências. Se `dia` for omitido, usa a data atual.",
   inputSchema: {
     dia: z
       .string()
@@ -17,7 +17,7 @@ export default defineTool({
     base_codigo: z
       .string()
       .optional()
-      .describe("Código da base (ex.: ESP16). Opcional; se omitido, retorna todas as bases visíveis."),
+      .describe("Código da base (ex.: ESP16). Opcional; se omitido, considera todas as bases visíveis."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ dia, base_codigo }, ctx) => {
@@ -43,26 +43,20 @@ export default defineTool({
     }
 
     const baseIds = bases.map((b) => b.id);
-    const [rotas, recebidos, triados, devolucoes, transferencias] = await Promise.all([
-      sb.from("escala_rotas").select("id, base_id", { count: "exact", head: true }).in("base_id", baseIds).eq("dia_operacional", diaOp),
-      sb.from("recebimentos").select("id, base_id", { count: "exact", head: true }).in("base_id", baseIds).eq("dia_operacional", diaOp),
-      sb.from("triagem_itens").select("id, base_id", { count: "exact", head: true }).in("base_id", baseIds).eq("dia_operacional", diaOp),
-      sb.from("devolucoes").select("id, base_id", { count: "exact", head: true }).in("base_id", baseIds).eq("dia_operacional", diaOp),
-      sb.from("transferencias").select("id, base_origem_id", { count: "exact", head: true }).in("base_origem_id", baseIds).eq("dia_operacional", diaOp),
+    const [escalas, recebimentos, transferencias] = await Promise.all([
+      sb.from("escalas").select("id", { count: "exact", head: true }).in("base_id", baseIds).eq("data_referencia", diaOp),
+      sb.from("recebimentos").select("id", { count: "exact", head: true }).in("base_id", baseIds).eq("data_operacional", diaOp),
+      sb.from("transferencias").select("id", { count: "exact", head: true }).in("base_id", baseIds).eq("data_operacional", diaOp),
     ]);
 
     const resumo = {
       dia_operacional: diaOp,
       bases: bases.map((b) => ({ codigo: b.codigo, nome: b.nome })),
       totais: {
-        rotas_escala: rotas.count ?? null,
-        recebimentos: recebidos.count ?? null,
-        triagens: triados.count ?? null,
-        devolucoes: devolucoes.count ?? null,
+        escalas: escalas.count ?? null,
+        recebimentos: recebimentos.count ?? null,
         transferencias: transferencias.count ?? null,
       },
-      observacao:
-        "Totais agregados sobre as bases visíveis (filtro por base opcional). Alguns módulos podem usar tabelas específicas; para detalhamento use a UI ou peça uma tool dedicada.",
     };
 
     return {
