@@ -45,11 +45,22 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Acesso ao sistema de recebimento de rotas." },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   component: AuthPage,
 });
 
+function safeNext(next: string | undefined): string | null {
+  if (!next) return null;
+  // Only allow same-origin relative paths like "/.lovable/oauth/consent?..."
+  if (!next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -63,9 +74,13 @@ function AuthPage() {
   useEffect(() => {
     setHydrated(true);
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/inicio", replace: true });
+      if (data.session) {
+        const target = safeNext(next);
+        if (target) window.location.href = target;
+        else navigate({ to: "/inicio", replace: true });
+      }
     });
-  }, [navigate]);
+  }, [navigate, next]);
 
   if (!hydrated) return null;
 
@@ -83,8 +98,11 @@ function AuthPage() {
       /* nunca bloqueia login por auditoria */
     }
     toast.success("Bem-vindo!");
-    navigate({ to: "/inicio", replace: true });
+    const target = safeNext(next);
+    if (target) window.location.href = target;
+    else navigate({ to: "/inicio", replace: true });
   }
+
 
   async function enviarResetSenha(e: React.FormEvent) {
     e.preventDefault();
