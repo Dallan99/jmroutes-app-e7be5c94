@@ -462,24 +462,71 @@ async function getJmroutesAccessToken() {
   } catch { return null; }
 }
 
-async function enviarJmroutes(payload, token) {
+function retryAfterMs(resp) {
+  try {
+    const h = resp && resp.headers ? resp.headers.get("retry-after") : null;
+    if (!h) return null;
+    const secs = Number(String(h).trim());
+    if (Number.isFinite(secs) && secs >= 0) {
+      return Math.min(secs * 1000, RETRY_AFTER_MAX_MS);
+    }
+    const when = Date.parse(String(h));
+    if (Number.isFinite(when)) {
+      return Math.min(Math.max(when - Date.now(), 0), RETRY_AFTER_MAX_MS);
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+async function enviarJmroutesUmaVez(payload, token, extras) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), SEND_TIMEOUT_MS);
   try {
     const r = await fetch(IMPORT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ payload, confirmar_divergencia: false }),
+      body: JSON.stringify({
+        payload,
+        confirmar_divergencia: false,
+        base_codigo: extras && extras.base_codigo ? extras.base_codigo : null,
+        sync_batch_id: extras && extras.sync_batch_id ? extras.sync_batch_id : null,
+      }),
       signal: ctrl.signal,
     });
     clearTimeout(timer);
     let body = null;
     try { body = await r.json(); } catch { body = null; }
-    return { httpOk: r.ok, status: r.status, body };
+    return { httpOk: r.ok, status: r.status, body, retryAfterMs: retryAfterMs(r) };
   } catch (e) {
     clearTimeout(timer);
-    return { httpOk: false, body: { ok: false, codigo: e && e.name === "AbortError" ? "timeout" : "rede" } };
+    return {
+      httpOk: false,
+      status: 0,
+      body: { ok: false, codigo: e && e.name === "AbortError" ? "timeout" : "rede" },
+      retryAfterMs: null,
+    };
   }
+}
+
+// Retry com Retry-After (429/503) ou backoff 3s -> 6s -> 12s (máx. 3 tentativas).
+// 401/403 nunca é retentado — indica sessão expirada.
+async function enviarJmroutes(payload, token, extras, isCancelled) {
+  let tentativa = 0;
+  let ultima = null;
+  while (tentativa <= MAX_RETRIES) {
+    ultima = await enviarJmroutesUmaVez(payload, token, extras);
+    if (isCancelled && isCancelled()) return ultima;
+    const s = ultima.status;
+    if (s === 401 || s === 403) return ultima;
+    const deveRetentar =
+      s === 429 || s === 503 || (s >= 500 && s < 600) || s === 0;
+    if (!deveRetentar) return ultima;
+    if (tentativa === MAX_RETRIES) return ultima;
+    const espera = ultima.retryAfterMs != null ? ultima.retryAfterMs : RETRY_BACKOFF_MS[tentativa];
+    await sleep(espera);
+    tentativa += 1;
+  }
+  return ultima;
 }
 
 // ============================================================
