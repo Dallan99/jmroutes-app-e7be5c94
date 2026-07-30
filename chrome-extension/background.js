@@ -719,12 +719,26 @@ async function executarCiclo() {
     for (let i = 0; i < bases.length; i += 1) {
       if (isCancelled()) { prog.fase = "cancelado"; broadcast(); return { ok: false }; }
       prog.baseAtualIdx = i + 1;
-      const r = await sincronizarBase(tab.id, bases[i], token, isCancelled);
+      const baseAtual = bases[i];
+      // Circuit breaker: base em pausa por excesso de falhas.
+      const pausaRestante = state.basesPausadas[baseAtual.facilityId] || 0;
+      if (pausaRestante > 0) {
+        state.basesPausadas[baseAtual.facilityId] = pausaRestante - 1;
+        const resumoPausado = prog.porBase.find((r) => r.facilityId === baseAtual.facilityId);
+        if (resumoPausado) {
+          resumoPausado.mensagem =
+            "Base em pausa por excesso de falhas (" + (pausaRestante - 1) + " ciclo(s) restante(s)).";
+        }
+        broadcast();
+        continue;
+      }
+      const r = await sincronizarBase(tab.id, baseAtual, token, isCancelled);
       if (r.cancelled) { prog.fase = "cancelado"; broadcast(); return { ok: false }; }
       if (r.sessaoMeliCaida) { sessaoMeliCaida = true; break; }
       if (r.sessaoJmroutesCaida) { sessaoJmroutesCaida = true; break; }
       // r.erroBase: registrado no resumo da base, continua para as próximas
     }
+
 
     // Backoff automático
     if (prog.total > 0 && prog.erros / prog.total > 0.3) {
