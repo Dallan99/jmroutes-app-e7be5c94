@@ -680,9 +680,12 @@ async function executarCiclo() {
   const t0 = Date.now();
   state.progress = novoProgresso();
   state.progress.baseSelecionada = state.baseSelecionada;
+  state.progress.syncBatchId = novoSyncBatchId();
+  state.progress.ciclosPulados = state.ciclosPulados;
   const prog = state.progress;
   prog.fase = "listando";
   broadcast();
+
 
   try {
     const tab = await findMeliTab();
