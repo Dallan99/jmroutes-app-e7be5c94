@@ -850,7 +850,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ ok: true, state: snapshot() });
         break;
       case "jm/setConcurrency":
-        if ([2, 4, 6].includes(message.value)) {
+        if ([1, 2, 4, 6].includes(message.value)) {
           state.concurrency = message.value;
           await saveConfig();
         }
