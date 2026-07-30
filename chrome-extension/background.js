@@ -1,9 +1,12 @@
-// JM Routes Importador — service worker v0.2.2
+// JM Routes Importador — service worker v0.3.0
 // - Sincronização multi-base JM (ESP15..ESP18) via POST get-routes-list.
 // - Consulta cada base separadamente (o Meli mostra no máximo 3 estações na tela;
 //   respeitamos o limite operacional e nunca enviamos 4 SSPs juntos).
-// - Modo contínuo com chrome.alarms — sem sobreposição de ciclos.
+// - Modo contínuo com chrome.alarms — sem sobreposição de ciclos (ciclo_pulado).
+// - Rate limit client-side: concorrência 1, espaçamento 500ms + jitter,
+//   retry com Retry-After / backoff 3s-6s-12s, circuit breaker por base (>30%).
 // - Sem cookies/tokens/payloads/dados pessoais em storage. Apenas configs e stats agregadas.
+
 
 self.addEventListener("install", () => { self.skipWaiting?.(); });
 self.addEventListener("activate", () => { self.clients?.claim?.(); });
@@ -34,9 +37,25 @@ const CYCLE_INTERVAL_MS = 30_000;
 const MAX_ROTAS_POR_BASE = 500;
 const MAX_PAGINAS = 20;
 const PAGE_SIZE = 50;
-const DEFAULT_CONCURRENCY = 4;
-const ITEM_SPACING_MS = 250;
+// Fase 1 — rate limit client-side (sem backend).
+const WORKERS_DEFAULT = 1;
+const DEFAULT_CONCURRENCY = WORKERS_DEFAULT;
+const ITEM_SPACING_MS = 500;
+const ITEM_JITTER_MS = 250;
 const SEND_TIMEOUT_MS = 60_000;
+const RETRY_BACKOFF_MS = [3_000, 6_000, 12_000];
+const MAX_RETRIES = RETRY_BACKOFF_MS.length;
+const RETRY_AFTER_MAX_MS = 60_000;
+const CIRCUIT_FAIL_RATIO = 0.3;
+const CIRCUIT_PAUSE_CICLOS = 2;
+
+function randomInt(max) {
+  return Math.floor(Math.random() * (max + 1));
+}
+function espacamento() {
+  return ITEM_SPACING_MS + randomInt(ITEM_JITTER_MS);
+}
+
 
 // ============================================================
 // Estado em memória (não persistido)
@@ -81,6 +100,8 @@ function novoProgresso() {
     ultimaSync: null,
     proximaEm: null,
     duracaoMs: null,
+    ciclosPulados: 0,
+    syncBatchId: null,
     mensagem: "",
   };
 }
@@ -92,8 +113,18 @@ const state = {
   baseSelecionada: BASE_TODAS,
   cancelToken: 0,
   meliTabId: null,
+  ciclosPulados: 0,
+  // circuit breaker: facilityId -> ciclos restantes de pausa
+  basesPausadas: {},
   progress: novoProgresso(),
 };
+
+function novoSyncBatchId() {
+  try {
+    if (self.crypto && self.crypto.randomUUID) return self.crypto.randomUUID();
+  } catch { /* ignore */ }
+  return "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
 
 // ============================================================
 // Persistência (apenas config e stats agregadas)
@@ -102,7 +133,7 @@ async function loadConfig() {
   try {
     const c = await chrome.storage.local.get(["continuous", "concurrency", "baseSelecionada", "ultimaSync"]);
     if (typeof c.continuous === "boolean") state.continuous = c.continuous;
-    if ([2, 4, 6].includes(c.concurrency)) state.concurrency = c.concurrency;
+    if ([1, 2, 4, 6].includes(c.concurrency)) state.concurrency = c.concurrency;
     if (typeof c.baseSelecionada === "string") state.baseSelecionada = c.baseSelecionada;
     if (typeof c.ultimaSync === "number") state.progress.ultimaSync = c.ultimaSync;
   } catch { /* ignore */ }
@@ -118,6 +149,15 @@ async function saveConfig() {
   } catch { /* ignore */ }
 }
 
+// Progresso volátil, para o popup reabrir sem perder estado.
+async function salvarProgressoSessao() {
+  try {
+    if (!chrome.storage.session) return;
+    await chrome.storage.session.set({ progress: state.progress });
+  } catch { /* ignore */ }
+}
+
+
 // ============================================================
 // Broadcast
 // ============================================================
@@ -128,8 +168,11 @@ function snapshot() {
     concurrency: state.concurrency,
     baseSelecionada: state.baseSelecionada,
     bases: BASES_JM,
+    ciclosPulados: state.ciclosPulados,
+    basesPausadas: { ...state.basesPausadas },
     progress: {
       ...state.progress,
+      ciclosPulados: state.ciclosPulados,
       problemas: state.progress.problemas.slice(-40),
       porBase: state.progress.porBase.map((r) => ({ ...r, problemas: r.problemas.slice(-20) })),
     },
@@ -137,6 +180,7 @@ function snapshot() {
 }
 function broadcast() {
   chrome.runtime.sendMessage({ type: "jm/state", state: snapshot() }).catch(() => {});
+  salvarProgressoSessao();
 }
 
 // ============================================================
@@ -418,24 +462,71 @@ async function getJmroutesAccessToken() {
   } catch { return null; }
 }
 
-async function enviarJmroutes(payload, token) {
+function retryAfterMs(resp) {
+  try {
+    const h = resp && resp.headers ? resp.headers.get("retry-after") : null;
+    if (!h) return null;
+    const secs = Number(String(h).trim());
+    if (Number.isFinite(secs) && secs >= 0) {
+      return Math.min(secs * 1000, RETRY_AFTER_MAX_MS);
+    }
+    const when = Date.parse(String(h));
+    if (Number.isFinite(when)) {
+      return Math.min(Math.max(when - Date.now(), 0), RETRY_AFTER_MAX_MS);
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+async function enviarJmroutesUmaVez(payload, token, extras) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), SEND_TIMEOUT_MS);
   try {
     const r = await fetch(IMPORT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ payload, confirmar_divergencia: false }),
+      body: JSON.stringify({
+        payload,
+        confirmar_divergencia: false,
+        base_codigo: extras && extras.base_codigo ? extras.base_codigo : null,
+        sync_batch_id: extras && extras.sync_batch_id ? extras.sync_batch_id : null,
+      }),
       signal: ctrl.signal,
     });
     clearTimeout(timer);
     let body = null;
     try { body = await r.json(); } catch { body = null; }
-    return { httpOk: r.ok, status: r.status, body };
+    return { httpOk: r.ok, status: r.status, body, retryAfterMs: retryAfterMs(r) };
   } catch (e) {
     clearTimeout(timer);
-    return { httpOk: false, body: { ok: false, codigo: e && e.name === "AbortError" ? "timeout" : "rede" } };
+    return {
+      httpOk: false,
+      status: 0,
+      body: { ok: false, codigo: e && e.name === "AbortError" ? "timeout" : "rede" },
+      retryAfterMs: null,
+    };
   }
+}
+
+// Retry com Retry-After (429/503) ou backoff 3s -> 6s -> 12s (máx. 3 tentativas).
+// 401/403 nunca é retentado — indica sessão expirada.
+async function enviarJmroutes(payload, token, extras, isCancelled) {
+  let tentativa = 0;
+  let ultima = null;
+  while (tentativa <= MAX_RETRIES) {
+    ultima = await enviarJmroutesUmaVez(payload, token, extras);
+    if (isCancelled && isCancelled()) return ultima;
+    const s = ultima.status;
+    if (s === 401 || s === 403) return ultima;
+    const deveRetentar =
+      s === 429 || s === 503 || (s >= 500 && s < 600) || s === 0;
+    if (!deveRetentar) return ultima;
+    if (tentativa === MAX_RETRIES) return ultima;
+    const espera = ultima.retryAfterMs != null ? ultima.retryAfterMs : RETRY_BACKOFF_MS[tentativa];
+    await sleep(espera);
+    tentativa += 1;
+  }
+  return ultima;
 }
 
 // ============================================================
@@ -505,11 +596,16 @@ async function sincronizarBase(tabId, base, token, isCancelled) {
         prog.problemas.push({ routeId, motivo, base: base.facilityId });
         if (detalhe?.reason === "sessao_expirada") { sessaoMeliCaida = true; broadcast(); return; }
         broadcast();
-        await sleep(ITEM_SPACING_MS);
+        await sleep(espacamento());
         continue;
       }
 
-      const env = await enviarJmroutes(detalhe.payload, token);
+      const env = await enviarJmroutes(
+        detalhe.payload,
+        token,
+        { base_codigo: base.facilityId, sync_batch_id: prog.syncBatchId },
+        isCancelled,
+      );
       if (isCancelled()) return;
       resumo.processadas += 1;
       prog.processadas += 1;
@@ -519,7 +615,7 @@ async function sincronizarBase(tabId, base, token, isCancelled) {
         resumo.erros += 1; prog.erros += 1;
         resumo.problemas.push({ routeId, motivo: "sem resposta do JMRoutes" });
         prog.problemas.push({ routeId, motivo: "sem resposta do JMRoutes", base: base.facilityId });
-      } else if (env.status === 401 || env.body.codigo === "nao_autenticado") {
+      } else if (env.status === 401 || env.status === 403 || env.body.codigo === "nao_autenticado") {
         sessaoJmroutesCaida = true;
         resumo.erros += 1; prog.erros += 1;
         resumo.problemas.push({ routeId, motivo: "sessão JMRoutes expirada" });
@@ -547,13 +643,20 @@ async function sincronizarBase(tabId, base, token, isCancelled) {
         prog.problemas.push({ routeId, motivo, base: base.facilityId });
       }
       broadcast();
-      await sleep(ITEM_SPACING_MS);
+      await sleep(espacamento());
     }
   }
 
   const workers = [];
   for (let i = 0; i < state.concurrency; i += 1) workers.push(worker());
   await Promise.all(workers);
+
+  // Circuit breaker: >30% de falhas nesta base pausa a base por 2 ciclos.
+  if (resumo.processadas > 0 && resumo.erros / resumo.processadas > CIRCUIT_FAIL_RATIO) {
+    state.basesPausadas[base.facilityId] = CIRCUIT_PAUSE_CICLOS;
+    resumo.mensagem = "Base pausada por " + CIRCUIT_PAUSE_CICLOS + " ciclos (mais de 30% de falhas).";
+    broadcast();
+  }
 
   return { sessaoMeliCaida, sessaoJmroutesCaida };
 }
@@ -577,9 +680,12 @@ async function executarCiclo() {
   const t0 = Date.now();
   state.progress = novoProgresso();
   state.progress.baseSelecionada = state.baseSelecionada;
+  state.progress.syncBatchId = novoSyncBatchId();
+  state.progress.ciclosPulados = state.ciclosPulados;
   const prog = state.progress;
   prog.fase = "listando";
   broadcast();
+
 
   try {
     const tab = await findMeliTab();
@@ -613,12 +719,26 @@ async function executarCiclo() {
     for (let i = 0; i < bases.length; i += 1) {
       if (isCancelled()) { prog.fase = "cancelado"; broadcast(); return { ok: false }; }
       prog.baseAtualIdx = i + 1;
-      const r = await sincronizarBase(tab.id, bases[i], token, isCancelled);
+      const baseAtual = bases[i];
+      // Circuit breaker: base em pausa por excesso de falhas.
+      const pausaRestante = state.basesPausadas[baseAtual.facilityId] || 0;
+      if (pausaRestante > 0) {
+        state.basesPausadas[baseAtual.facilityId] = pausaRestante - 1;
+        const resumoPausado = prog.porBase.find((r) => r.facilityId === baseAtual.facilityId);
+        if (resumoPausado) {
+          resumoPausado.mensagem =
+            "Base em pausa por excesso de falhas (" + (pausaRestante - 1) + " ciclo(s) restante(s)).";
+        }
+        broadcast();
+        continue;
+      }
+      const r = await sincronizarBase(tab.id, baseAtual, token, isCancelled);
       if (r.cancelled) { prog.fase = "cancelado"; broadcast(); return { ok: false }; }
       if (r.sessaoMeliCaida) { sessaoMeliCaida = true; break; }
       if (r.sessaoJmroutesCaida) { sessaoJmroutesCaida = true; break; }
       // r.erroBase: registrado no resumo da base, continua para as próximas
     }
+
 
     // Backoff automático
     if (prog.total > 0 && prog.erros / prog.total > 0.3) {
@@ -672,9 +792,17 @@ function cancelarCiclo() {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== "jm-sync-cycle") return;
   if (!state.continuous) return;
-  if (state.running) return;
+  if (state.running) {
+    // Nunca sobrepor ciclos: registra e aguarda o próximo alarme.
+    state.ciclosPulados += 1;
+    state.progress.ciclosPulados = state.ciclosPulados;
+    broadcast();
+    chrome.alarms.create("jm-sync-cycle", { delayInMinutes: CYCLE_INTERVAL_MS / 60000 });
+    return;
+  }
   executarCiclo();
 });
+
 
 async function ativarContinuo() {
   state.continuous = true;
@@ -722,7 +850,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ ok: true, state: snapshot() });
         break;
       case "jm/setConcurrency":
-        if ([2, 4, 6].includes(message.value)) {
+        if ([1, 2, 4, 6].includes(message.value)) {
           state.concurrency = message.value;
           await saveConfig();
         }

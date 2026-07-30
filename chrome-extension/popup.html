@@ -101,11 +101,14 @@
         <div class="row small">
           <label class="label" for="selConcorrencia">Concorrência (por base):</label>
           <select id="selConcorrencia" class="select">
+            <option value="1" selected>1 (recomendado)</option>
             <option value="2">2</option>
-            <option value="4" selected>4</option>
+            <option value="4">4</option>
             <option value="6">6</option>
           </select>
         </div>
+        <div class="row small" id="rowRateLimit"></div>
+
 
         <button id="btnSincronizar" class="btn btn-primary">Sincronizar</button>
         <button id="btnCancelar" class="btn btn-danger hidden">Cancelar sincronização</button>

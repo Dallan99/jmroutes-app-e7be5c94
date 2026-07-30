@@ -286,7 +286,7 @@ function renderResumoPorBase(porBase) {
 function renderState(s) {
   if (!s) return;
   els.chkContinuo.checked = !!s.continuous;
-  els.selConcorrencia.value = String(s.concurrency || 4);
+  els.selConcorrencia.value = String(s.concurrency || 1);
   if (s.baseSelecionada && els.selBase.value !== s.baseSelecionada) {
     els.selBase.value = s.baseSelecionada;
   }
@@ -313,6 +313,16 @@ function renderState(s) {
   els.syncInal.textContent = p.pacotes_inalterados ?? 0;
   els.syncUltima.textContent = fmtHora(p.ultimaSync);
   atualizarProxima(p.proximaEm);
+
+  const rowRate = document.getElementById("rowRateLimit");
+  if (rowRate) {
+    const pausadas = Object.entries(s.basesPausadas || {})
+      .filter(([, n]) => Number(n) > 0)
+      .map(([b, n]) => `${b} (${n})`);
+    const partes = [`Ciclos pulados: ${s.ciclosPulados ?? p.ciclosPulados ?? 0}`];
+    if (pausadas.length) partes.push(`Bases pausadas: ${pausadas.join(", ")}`);
+    rowRate.textContent = partes.join(" · ");
+  }
 
   const rodando = s.running || ["listando", "sincronizando", "iniciando"].includes(p.fase);
   els.btnSincronizar.disabled = rodando;
