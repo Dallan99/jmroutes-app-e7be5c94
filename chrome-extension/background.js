@@ -596,11 +596,16 @@ async function sincronizarBase(tabId, base, token, isCancelled) {
         prog.problemas.push({ routeId, motivo, base: base.facilityId });
         if (detalhe?.reason === "sessao_expirada") { sessaoMeliCaida = true; broadcast(); return; }
         broadcast();
-        await sleep(ITEM_SPACING_MS);
+        await sleep(espacamento());
         continue;
       }
 
-      const env = await enviarJmroutes(detalhe.payload, token);
+      const env = await enviarJmroutes(
+        detalhe.payload,
+        token,
+        { base_codigo: base.facilityId, sync_batch_id: prog.syncBatchId },
+        isCancelled,
+      );
       if (isCancelled()) return;
       resumo.processadas += 1;
       prog.processadas += 1;
