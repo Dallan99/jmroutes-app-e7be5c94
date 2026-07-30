@@ -168,8 +168,11 @@ function snapshot() {
     concurrency: state.concurrency,
     baseSelecionada: state.baseSelecionada,
     bases: BASES_JM,
+    ciclosPulados: state.ciclosPulados,
+    basesPausadas: { ...state.basesPausadas },
     progress: {
       ...state.progress,
+      ciclosPulados: state.ciclosPulados,
       problemas: state.progress.problemas.slice(-40),
       porBase: state.progress.porBase.map((r) => ({ ...r, problemas: r.problemas.slice(-20) })),
     },
@@ -177,6 +180,7 @@ function snapshot() {
 }
 function broadcast() {
   chrome.runtime.sendMessage({ type: "jm/state", state: snapshot() }).catch(() => {});
+  salvarProgressoSessao();
 }
 
 // ============================================================
