@@ -792,9 +792,17 @@ function cancelarCiclo() {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== "jm-sync-cycle") return;
   if (!state.continuous) return;
-  if (state.running) return;
+  if (state.running) {
+    // Nunca sobrepor ciclos: registra e aguarda o próximo alarme.
+    state.ciclosPulados += 1;
+    state.progress.ciclosPulados = state.ciclosPulados;
+    broadcast();
+    chrome.alarms.create("jm-sync-cycle", { delayInMinutes: CYCLE_INTERVAL_MS / 60000 });
+    return;
+  }
   executarCiclo();
 });
+
 
 async function ativarContinuo() {
   state.continuous = true;
