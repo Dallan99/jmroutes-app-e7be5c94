@@ -1,9 +1,12 @@
-// JM Routes Importador — service worker v0.2.2
+// JM Routes Importador — service worker v0.3.0
 // - Sincronização multi-base JM (ESP15..ESP18) via POST get-routes-list.
 // - Consulta cada base separadamente (o Meli mostra no máximo 3 estações na tela;
 //   respeitamos o limite operacional e nunca enviamos 4 SSPs juntos).
-// - Modo contínuo com chrome.alarms — sem sobreposição de ciclos.
+// - Modo contínuo com chrome.alarms — sem sobreposição de ciclos (ciclo_pulado).
+// - Rate limit client-side: concorrência 1, espaçamento 500ms + jitter,
+//   retry com Retry-After / backoff 3s-6s-12s, circuit breaker por base (>30%).
 // - Sem cookies/tokens/payloads/dados pessoais em storage. Apenas configs e stats agregadas.
+
 
 self.addEventListener("install", () => { self.skipWaiting?.(); });
 self.addEventListener("activate", () => { self.clients?.claim?.(); });
