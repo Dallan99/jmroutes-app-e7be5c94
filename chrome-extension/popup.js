@@ -286,7 +286,7 @@ function renderResumoPorBase(porBase) {
 function renderState(s) {
   if (!s) return;
   els.chkContinuo.checked = !!s.continuous;
-  els.selConcorrencia.value = String(s.concurrency || 4);
+  els.selConcorrencia.value = String(s.concurrency || 1);
   if (s.baseSelecionada && els.selBase.value !== s.baseSelecionada) {
     els.selBase.value = s.baseSelecionada;
   }
