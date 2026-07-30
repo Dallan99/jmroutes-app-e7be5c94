@@ -37,9 +37,25 @@ const CYCLE_INTERVAL_MS = 30_000;
 const MAX_ROTAS_POR_BASE = 500;
 const MAX_PAGINAS = 20;
 const PAGE_SIZE = 50;
-const DEFAULT_CONCURRENCY = 4;
-const ITEM_SPACING_MS = 250;
+// Fase 1 — rate limit client-side (sem backend).
+const WORKERS_DEFAULT = 1;
+const DEFAULT_CONCURRENCY = WORKERS_DEFAULT;
+const ITEM_SPACING_MS = 500;
+const ITEM_JITTER_MS = 250;
 const SEND_TIMEOUT_MS = 60_000;
+const RETRY_BACKOFF_MS = [3_000, 6_000, 12_000];
+const MAX_RETRIES = RETRY_BACKOFF_MS.length;
+const RETRY_AFTER_MAX_MS = 60_000;
+const CIRCUIT_FAIL_RATIO = 0.3;
+const CIRCUIT_PAUSE_CICLOS = 2;
+
+function randomInt(max) {
+  return Math.floor(Math.random() * (max + 1));
+}
+function espacamento() {
+  return ITEM_SPACING_MS + randomInt(ITEM_JITTER_MS);
+}
+
 
 // ============================================================
 // Estado em memória (não persistido)
