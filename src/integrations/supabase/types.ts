@@ -57,6 +57,8 @@ export type Database = {
           codigo: string
           created_at: string
           id: string
+          meli_service_center_id: string | null
+          meli_site_id: string | null
           nome: string
           uf: string
         }
@@ -66,6 +68,8 @@ export type Database = {
           codigo: string
           created_at?: string
           id?: string
+          meli_service_center_id?: string | null
+          meli_site_id?: string | null
           nome: string
           uf: string
         }
@@ -75,6 +79,8 @@ export type Database = {
           codigo?: string
           created_at?: string
           id?: string
+          meli_service_center_id?: string | null
+          meli_site_id?: string | null
           nome?: string
           uf?: string
         }
@@ -759,6 +765,36 @@ export type Database = {
         }
         Relationships: []
       }
+      meli_ocorrencia_codigos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string
+          peso: number
+          responsabilidade: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao: string
+          peso?: number
+          responsabilidade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          peso?: number
+          responsabilidade?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meli_pacotes: {
         Row: {
           bairro: string | null
@@ -768,11 +804,14 @@ export type Database = {
           destinatario: string | null
           endereco: string | null
           id: string
+          occurrence_code: string | null
           ordem: number | null
           printed_label: string | null
           rota_id: string
           shipment_id: string | null
           status: string | null
+          stop_id: string | null
+          substatus: string | null
           tracking_id: string
           uf: string | null
           updated_at: string
@@ -785,11 +824,14 @@ export type Database = {
           destinatario?: string | null
           endereco?: string | null
           id?: string
+          occurrence_code?: string | null
           ordem?: number | null
           printed_label?: string | null
           rota_id: string
           shipment_id?: string | null
           status?: string | null
+          stop_id?: string | null
+          substatus?: string | null
           tracking_id: string
           uf?: string | null
           updated_at?: string
@@ -802,11 +844,14 @@ export type Database = {
           destinatario?: string | null
           endereco?: string | null
           id?: string
+          occurrence_code?: string | null
           ordem?: number | null
           printed_label?: string | null
           rota_id?: string
           shipment_id?: string | null
           status?: string | null
+          stop_id?: string | null
+          substatus?: string | null
           tracking_id?: string
           uf?: string | null
           updated_at?: string
@@ -823,45 +868,94 @@ export type Database = {
       }
       meli_rotas: {
         Row: {
+          base_id: string | null
           carrier: string | null
           cluster: string | null
           created_at: string
           data_rota: string | null
+          delivered_total: number | null
+          driver_id: string | null
+          driver_name: string | null
+          executed_finish_date: string | null
           facility: string | null
+          finish_date: string | null
           id: string
+          init_date: string | null
+          last_synced_at: string | null
+          occurrence_total: number | null
           origem_importacao: string | null
+          pending_total: number | null
           route_id: string
+          route_status: string | null
+          route_substatus: string | null
+          stops_total: number | null
           total_impressos: number
           total_pacotes: number
           updated_at: string
+          vehicle_license: string | null
         }
         Insert: {
+          base_id?: string | null
           carrier?: string | null
           cluster?: string | null
           created_at?: string
           data_rota?: string | null
+          delivered_total?: number | null
+          driver_id?: string | null
+          driver_name?: string | null
+          executed_finish_date?: string | null
           facility?: string | null
+          finish_date?: string | null
           id?: string
+          init_date?: string | null
+          last_synced_at?: string | null
+          occurrence_total?: number | null
           origem_importacao?: string | null
+          pending_total?: number | null
           route_id: string
+          route_status?: string | null
+          route_substatus?: string | null
+          stops_total?: number | null
           total_impressos?: number
           total_pacotes?: number
           updated_at?: string
+          vehicle_license?: string | null
         }
         Update: {
+          base_id?: string | null
           carrier?: string | null
           cluster?: string | null
           created_at?: string
           data_rota?: string | null
+          delivered_total?: number | null
+          driver_id?: string | null
+          driver_name?: string | null
+          executed_finish_date?: string | null
           facility?: string | null
+          finish_date?: string | null
           id?: string
+          init_date?: string | null
+          last_synced_at?: string | null
+          occurrence_total?: number | null
           origem_importacao?: string | null
+          pending_total?: number | null
           route_id?: string
+          route_status?: string | null
+          route_substatus?: string | null
+          stops_total?: number | null
           total_impressos?: number
           total_pacotes?: number
           updated_at?: string
+          vehicle_license?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "meli_rotas_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meli_rotas_origem_importacao_fkey"
             columns: ["origem_importacao"]
@@ -1772,6 +1866,7 @@ export type Database = {
         Returns: Json
       }
       meli_pode_operar: { Args: never; Returns: boolean }
+      meli_sync_status: { Args: never; Returns: Json }
       registrar_evento_transferencia: {
         Args: {
           p_etapa: string
