@@ -100,6 +100,8 @@ function novoProgresso() {
     ultimaSync: null,
     proximaEm: null,
     duracaoMs: null,
+    ciclosPulados: 0,
+    syncBatchId: null,
     mensagem: "",
   };
 }
@@ -111,8 +113,18 @@ const state = {
   baseSelecionada: BASE_TODAS,
   cancelToken: 0,
   meliTabId: null,
+  ciclosPulados: 0,
+  // circuit breaker: facilityId -> ciclos restantes de pausa
+  basesPausadas: {},
   progress: novoProgresso(),
 };
+
+function novoSyncBatchId() {
+  try {
+    if (self.crypto && self.crypto.randomUUID) return self.crypto.randomUUID();
+  } catch { /* ignore */ }
+  return "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
 
 // ============================================================
 // Persistência (apenas config e stats agregadas)
@@ -121,7 +133,7 @@ async function loadConfig() {
   try {
     const c = await chrome.storage.local.get(["continuous", "concurrency", "baseSelecionada", "ultimaSync"]);
     if (typeof c.continuous === "boolean") state.continuous = c.continuous;
-    if ([2, 4, 6].includes(c.concurrency)) state.concurrency = c.concurrency;
+    if ([1, 2, 4, 6].includes(c.concurrency)) state.concurrency = c.concurrency;
     if (typeof c.baseSelecionada === "string") state.baseSelecionada = c.baseSelecionada;
     if (typeof c.ultimaSync === "number") state.progress.ultimaSync = c.ultimaSync;
   } catch { /* ignore */ }
@@ -136,6 +148,15 @@ async function saveConfig() {
     });
   } catch { /* ignore */ }
 }
+
+// Progresso volátil, para o popup reabrir sem perder estado.
+async function salvarProgressoSessao() {
+  try {
+    if (!chrome.storage.session) return;
+    await chrome.storage.session.set({ progress: state.progress });
+  } catch { /* ignore */ }
+}
+
 
 // ============================================================
 // Broadcast
