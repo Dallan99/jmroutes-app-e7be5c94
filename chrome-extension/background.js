@@ -615,7 +615,7 @@ async function sincronizarBase(tabId, base, token, isCancelled) {
         resumo.erros += 1; prog.erros += 1;
         resumo.problemas.push({ routeId, motivo: "sem resposta do JMRoutes" });
         prog.problemas.push({ routeId, motivo: "sem resposta do JMRoutes", base: base.facilityId });
-      } else if (env.status === 401 || env.body.codigo === "nao_autenticado") {
+      } else if (env.status === 401 || env.status === 403 || env.body.codigo === "nao_autenticado") {
         sessaoJmroutesCaida = true;
         resumo.erros += 1; prog.erros += 1;
         resumo.problemas.push({ routeId, motivo: "sessão JMRoutes expirada" });
@@ -643,13 +643,20 @@ async function sincronizarBase(tabId, base, token, isCancelled) {
         prog.problemas.push({ routeId, motivo, base: base.facilityId });
       }
       broadcast();
-      await sleep(ITEM_SPACING_MS);
+      await sleep(espacamento());
     }
   }
 
   const workers = [];
   for (let i = 0; i < state.concurrency; i += 1) workers.push(worker());
   await Promise.all(workers);
+
+  // Circuit breaker: >30% de falhas nesta base pausa a base por 2 ciclos.
+  if (resumo.processadas > 0 && resumo.erros / resumo.processadas > CIRCUIT_FAIL_RATIO) {
+    state.basesPausadas[base.facilityId] = CIRCUIT_PAUSE_CICLOS;
+    resumo.mensagem = "Base pausada por " + CIRCUIT_PAUSE_CICLOS + " ciclos (mais de 30% de falhas).";
+    broadcast();
+  }
 
   return { sessaoMeliCaida, sessaoJmroutesCaida };
 }
