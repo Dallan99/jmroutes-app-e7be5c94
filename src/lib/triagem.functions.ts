@@ -448,7 +448,18 @@ export const biparTriagem = createServerFn({ method: "POST" })
       };
     };
 
+    // 4.b) Fase 2 — pacotes vindos da Integração Meli só podem ser triados
+    // após a bipagem física no Recebimento. Planilhas antigas (sem vínculo
+    // Meli) seguem o comportamento anterior, sem trava.
+    if (escala.meli_pacote_id && escala.recebido !== true) {
+      const msg =
+        `Pacote ${escala.shipment} ainda não foi recebido fisicamente — bipe primeiro no Recebimento.`;
+      await log("nao_recebido", msg, escala.base_id, escala.id);
+      return { resultado: "nao_recebido", mensagem: msg, hora, rota: await build() };
+    }
+
     // 5) Duplicado
+
     if (escala.triado) {
       const msg = `Shipment ${escala.shipment} já foi triado.`;
       await log("duplicado", msg, escala.base_id, escala.id);
