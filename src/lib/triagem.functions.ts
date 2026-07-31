@@ -304,16 +304,19 @@ export const biparTriagem = createServerFn({ method: "POST" })
       triado: boolean;
       base_id: string | null;
       importacao_id: string | null;
+      recebido?: boolean | null;
+      meli_pacote_id?: string | null;
     } | null = null;
     if (impAtiva) {
       const { data: row } = await supabase
         .from("escalas")
-        .select("id, shipment, planejada, otimizada, cidade, cep, triado, base_id, importacao_id")
+        .select("id, shipment, planejada, otimizada, cidade, cep, triado, base_id, importacao_id, recebido, meli_pacote_id")
         .eq("importacao_id", impAtiva.id)
         .eq("shipment", data.codigo)
         .maybeSingle();
       escala = row ?? null;
     }
+
 
     // 3) Não achou? Verifica se pertence a outra Base ativa
     if (!escala) {
