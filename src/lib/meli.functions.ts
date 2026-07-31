@@ -159,7 +159,19 @@ export type MeliImportBrutoResult = MeliImportResult & {
     duplicados_removidos: number;
   };
   alerta_divergencia?: boolean;
+  publicacao?: {
+    status: "ok" | "erro";
+    erro?: string;
+    base_id?: string;
+    data_operacional?: string;
+    importacao_id?: string;
+    esperados_inseridos?: number;
+    esperados_atualizados?: number;
+    total_importacao?: number;
+    facility?: string | null;
+  };
 };
+
 
 /**
  * Recebe o JSON bruto do endpoint route-detail do Mercado Livre
