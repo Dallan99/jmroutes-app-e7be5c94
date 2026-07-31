@@ -182,3 +182,50 @@ export const meliImportarRotaBruta = createServerFn({ method: "POST" })
     });
   });
 
+
+const publicarSchema = z.object({
+  rota_id: z.string().uuid(),
+  data_operacional: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
+export type MeliPublicarResult = {
+  status: "ok" | "erro";
+  erro?: string;
+  facility?: string | null;
+  rota_id?: string;
+  route_id?: string;
+  base_id?: string;
+  data_operacional?: string;
+  importacao_id?: string;
+  esperados_inseridos?: number;
+  esperados_atualizados?: number;
+  total_importacao?: number;
+};
+
+/**
+ * Fase 2 — publica uma rota já importada do Meli como carga esperada do dia
+ * na base correta (mapeamento facility → bases.meli_service_center_id).
+ * Os pacotes entram como não recebidos / não triados; registros existentes
+ * têm apenas dados descritivos atualizados (nunca bipagens ou triagens).
+ */
+export const meliPublicarRotaOperacional = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => publicarSchema.parse(data))
+  .handler(async ({ data, context }): Promise<MeliPublicarResult> => {
+    const { data: res, error } = await (
+      context.supabase as unknown as {
+        rpc: (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+      }
+    ).rpc("meli_publicar_rota_operacional", {
+      p_rota_id: data.rota_id,
+      p_data_operacional: data.data_operacional ?? null,
+    });
+    if (error) return { status: "erro", erro: error.message };
+    return res as MeliPublicarResult;
+  });
