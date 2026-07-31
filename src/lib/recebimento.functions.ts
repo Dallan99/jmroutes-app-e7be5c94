@@ -5,7 +5,14 @@ import { z } from "zod";
 const bipSchema = z.object({
   codigo: z.string().trim().min(3).max(120).transform((s) => s.replace(/[^0-9A-Za-z]/g, "")),
   tempoDesdeUltimaMs: z.number().int().nonnegative().optional(),
+  // Fase 2 — contexto operacional usado apenas para o fallback de pacotes Meli.
+  baseId: z.string().uuid().optional(),
+  dataOperacional: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
+
 
 export type BipResult = {
   resultado:
