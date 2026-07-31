@@ -5,7 +5,14 @@ import { z } from "zod";
 const bipSchema = z.object({
   codigo: z.string().trim().min(3).max(120).transform((s) => s.replace(/[^0-9A-Za-z]/g, "")),
   tempoDesdeUltimaMs: z.number().int().nonnegative().optional(),
+  // Fase 2 — contexto operacional usado apenas para o fallback de pacotes Meli.
+  baseId: z.string().uuid().optional(),
+  dataOperacional: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
+
 
 export type BipResult = {
   resultado:
@@ -100,11 +107,63 @@ export const bipar = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!volume) {
+      // 1.a) Fase 2 — pacote publicado pela Integração Meli como carga esperada.
+      if (data.baseId && data.dataOperacional) {
+        const { receberEscalaMeli } = await import("./recebimento-escala.server");
+        const meli = await receberEscalaMeli(supabase as never, {
+          codigo: data.codigo,
+          baseId: data.baseId,
+          dataOperacional: data.dataOperacional,
+          userId,
+          hora,
+        });
+        if (meli) {
+          await logResult(
+            meli.resultado,
+            meli.mensagem,
+            null,
+            null,
+            meli.baseId ?? data.baseId,
+          );
+          return {
+            resultado: meli.resultado,
+            mensagem: meli.mensagem,
+            hora,
+            rota: {
+              id: meli.escalaId,
+              codigo: meli.rotaCodigo,
+              cidade: "",
+              motorista: null,
+              placa: null,
+              base_codigo: null,
+              base_nome: null,
+              base_origem_codigo: null,
+              pack_id: null,
+              nf: null,
+              rota_final: meli.rotaCodigo,
+              destinatario_nome: null,
+              destinatario_cep: null,
+              destinatario_endereco: null,
+              data_prevista: data.dataOperacional,
+              janela_despacho: null,
+              quantidade_prevista: meli.previstos,
+              quantidade_recebida: meli.recebidos,
+              percentual: meli.previstos
+                ? Math.round((meli.recebidos / meli.previstos) * 100)
+                : 0,
+              status: "em_recebimento",
+            },
+            volume: { codigo: data.codigo, sequencia: 1, total: 1 },
+          };
+        }
+      }
+
       // talvez o código seja o código da rota inteira — tratamos como inexistente para volume
       const msg = "Código não encontrado.";
       await logResult("inexistente", msg, null, null, null);
       return { resultado: "inexistente", mensagem: msg, hora };
     }
+
 
     // 2) Busca rota com joins
     const { data: rota } = await supabase

@@ -370,6 +370,7 @@ export type Database = {
           id: string
           importacao_id: string | null
           importado_por: string | null
+          meli_pacote_id: string | null
           modal: string | null
           nro_rota: string | null
           numero: string | null
@@ -420,6 +421,7 @@ export type Database = {
           id?: string
           importacao_id?: string | null
           importado_por?: string | null
+          meli_pacote_id?: string | null
           modal?: string | null
           nro_rota?: string | null
           numero?: string | null
@@ -470,6 +472,7 @@ export type Database = {
           id?: string
           importacao_id?: string | null
           importado_por?: string | null
+          meli_pacote_id?: string | null
           modal?: string | null
           nro_rota?: string | null
           numero?: string | null
@@ -1866,6 +1869,10 @@ export type Database = {
         Returns: Json
       }
       meli_pode_operar: { Args: never; Returns: boolean }
+      meli_publicar_rota_operacional: {
+        Args: { p_data_operacional?: string; p_rota_id: string }
+        Returns: Json
+      }
       meli_sync_status: { Args: never; Returns: Json }
       registrar_evento_transferencia: {
         Args: {

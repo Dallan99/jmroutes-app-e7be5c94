@@ -42,14 +42,32 @@ export async function importarRotaBrutaComClient(
     };
   }
 
-  const { data: res, error } = await (supabase as unknown as {
+  const rpc = (supabase as unknown as {
     rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-  }).rpc("meli_importar_rota", {
+  }).rpc;
+  const { data: res, error } = await rpc.call(supabase, "meli_importar_rota", {
     p_payload: normalizado,
     p_arquivo_nome: opts.arquivo_nome,
   });
   if (error) {
     return { status: "erro", erro: error.message, resumo };
   }
-  return { ...(res as MeliImportResult), resumo };
+
+  const importado = res as MeliImportResult;
+
+  // Fase 2 — publica a rota como carga esperada do dia na base correta.
+  // Falha aqui não invalida a importação: o payload já está persistido.
+  let publicacao: MeliImportBrutoResult["publicacao"];
+  if (importado.status === "ok" && importado.rota_id) {
+    const { data: pub, error: pubErro } = await rpc.call(
+      supabase,
+      "meli_publicar_rota_operacional",
+      { p_rota_id: importado.rota_id, p_data_operacional: null },
+    );
+    publicacao = pubErro
+      ? { status: "erro", erro: pubErro.message }
+      : (pub as NonNullable<MeliImportBrutoResult["publicacao"]>);
+  }
+
+  return { ...importado, resumo, publicacao };
 }
