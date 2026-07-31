@@ -59,6 +59,7 @@ function RecebimentoPage() {
   const qc = useQueryClient();
   const biparFn = useServerFn(bipar);
   const listaFn = useServerFn(ultimasLeituras);
+  const { base: baseAtual, diaOperacional } = useBaseOperacional();
   const inputRef = useRef<HTMLInputElement>(null);
   const lastBipRef = useRef<{ codigo: string; ts: number } | null>(null);
   const [codigo, setCodigo] = useState("");
@@ -70,8 +71,16 @@ function RecebimentoPage() {
   const mutation = useMutation({
     mutationFn: (cod: string) => {
       const tempo = lastBipRef.current ? Date.now() - lastBipRef.current.ts : undefined;
-      return biparFn({ data: { codigo: cod, tempoDesdeUltimaMs: tempo } });
+      return biparFn({
+        data: {
+          codigo: cod,
+          tempoDesdeUltimaMs: tempo,
+          baseId: baseAtual?.id,
+          dataOperacional: diaOperacional ?? undefined,
+        },
+      });
     },
+
     onSuccess: (res) => {
       setLast(res);
       qc.invalidateQueries({ queryKey: ["ultimas-leituras"] });
