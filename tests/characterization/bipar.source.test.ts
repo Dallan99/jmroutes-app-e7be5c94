@@ -24,7 +24,10 @@ describe("recebimento.bipar — caracterização do código atual", () => {
     expect(src).toMatch(/logResult\("outra_base",\s*msg,\s*r\.id,\s*volume\.id,\s*r\.base_id\)/);
   });
 
-  it("volume ausente é classificado como 'inexistente' (inclui efeito de RLS)", () => {
-    expect(src).toMatch(/if\s*\(!volume\)[\s\S]{0,400}resultado:\s*"inexistente"/);
+  it("volume ausente cai no fallback Meli e, sem correspondência, em 'inexistente'", () => {
+    // Fase 2: pacotes publicados pela Integração Meli são recebidos via escalas.
+    expect(src).toMatch(/if\s*\(!volume\)[\s\S]{0,600}receberEscalaMeli/);
+    expect(src).toMatch(/if\s*\(!volume\)[\s\S]{0,3000}resultado:\s*"inexistente"/);
   });
+
 });
