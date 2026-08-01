@@ -1,6 +1,14 @@
 // Normalização de payloads do endpoint route-detail do Mercado Livre
 // para o formato aceito pela RPC meli_importar_rota.
 
+export type ClassificacaoRisco = {
+  area_risco: boolean;
+  motivo_area_risco: string | null;
+  codigo_area_risco: string | null;
+  origem_area_risco: "rota" | "parada" | "pacote" | "ocorrencia" | null;
+  valor_original_area_risco: unknown;
+};
+
 export type PacoteNormalizado = {
   tracking_id: string;
   shipment_id: string | null;
@@ -11,9 +19,12 @@ export type PacoteNormalizado = {
   uf: string | null;
   cep: string | null;
   status: string | null;
+  substatus: string | null;
+  occurrence_code: string | null;
+  stop_id: string | null;
   printed_label: string | null;
   ordem: number | null;
-};
+} & ClassificacaoRisco;
 
 export type PayloadNormalizado = {
   route_id: string;
@@ -24,6 +35,13 @@ export type PayloadNormalizado = {
   status: string | null;
   substatus: string | null;
   pacotes: PacoteNormalizado[];
+} & {
+  rota_area_risco: boolean;
+  area_risco_parcial: boolean;
+  motivo_area_risco: string | null;
+  codigo_area_risco: string | null;
+  origem_area_risco: ClassificacaoRisco["origem_area_risco"];
+  valor_original_area_risco: unknown;
 };
 
 export type ResumoNormalizacao = {
@@ -36,6 +54,10 @@ export type ResumoNormalizacao = {
   diferenca: number | null;
   descartados_sem_tracking: number;
   duplicados_removidos: number;
+  pacotes_area_risco: number;
+  rota_area_risco: boolean;
+  area_risco_parcial: boolean;
+  campos_risco_detectados: string[];
 };
 
 type AnyRec = Record<string, unknown>;
@@ -54,7 +76,6 @@ function unixParaData(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const n = typeof v === "number" ? v : Number(v);
   if (!Number.isFinite(n)) {
-    // pode já vir como string ISO
     if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
     return null;
   }
@@ -63,6 +84,133 @@ function unixParaData(v: unknown): string | null {
   if (isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ÁREA DE RISCO
+// O Mercado Livre não usa um nome de campo único e documentado. A detecção abaixo
+// é conservadora: varre chaves candidatas conhecidas em cada nível (rota, parada,
+// pacote) e SEMPRE guarda o valor original em valor_original_area_risco para
+// auditoria. Nenhum campo é inventado: quando nada é encontrado, area_risco=false
+// e os demais campos ficam nulos. `campos_risco_detectados` no resumo permite
+// diagnosticar qual chave real veio no payload.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CHAVES_RISCO = [
+  "riskZone",
+  "risk_zone",
+  "riskArea",
+  "risk_area",
+  "isRiskZone",
+  "isRiskArea",
+  "dangerousArea",
+  "dangerous_area",
+  "dangerZone",
+  "danger_zone",
+  "restrictedArea",
+  "restricted_area",
+  "conflictZone",
+  "conflict_zone",
+  "areaDeRisco",
+  "area_de_risco",
+  "areaRisco",
+  "area_risco",
+  "zonaDeRisco",
+  "zona_risco",
+  "hasRiskZone",
+  "zoneType",
+  "zone_type",
+  "areaType",
+  "area_type",
+  "securityLevel",
+  "security_level",
+];
+
+const VALORES_RISCO = new Set([
+  "true",
+  "1",
+  "yes",
+  "y",
+  "risk",
+  "risk_zone",
+  "risk_area",
+  "riskzone",
+  "riskarea",
+  "dangerous",
+  "danger",
+  "high_risk",
+  "high",
+  "restricted",
+  "conflict",
+  "area_de_risco",
+  "zona_de_risco",
+  "red",
+]);
+
+const CODIGOS_OCORRENCIA_RISCO = new Set([
+  "risk_area",
+  "risk_zone",
+  "dangerous_area",
+  "blocked_by_keyword",
+  "conflict_zone",
+  "restricted_area",
+]);
+
+function valorIndicaRisco(v: unknown): boolean {
+  if (v === true) return true;
+  if (typeof v === "number") return v > 0;
+  if (typeof v === "string") return VALORES_RISCO.has(v.trim().toLowerCase());
+  return false;
+}
+
+/** Procura qualquer chave candidata de risco em um objeto (nível raso + objetos aninhados diretos). */
+function detectarRisco(
+  obj: AnyRec,
+  origem: NonNullable<ClassificacaoRisco["origem_area_risco"]>,
+  camposDetectados: Set<string>,
+): ClassificacaoRisco {
+  const vazio: ClassificacaoRisco = {
+    area_risco: false,
+    motivo_area_risco: null,
+    codigo_area_risco: null,
+    origem_area_risco: null,
+    valor_original_area_risco: null,
+  };
+  for (const chave of CHAVES_RISCO) {
+    if (!(chave in obj)) continue;
+    const valor = obj[chave];
+    camposDetectados.add(`${origem}.${chave}`);
+    if (!valorIndicaRisco(valor)) continue;
+    return {
+      area_risco: true,
+      motivo_area_risco: s(obj["riskReason"] ?? obj["risk_reason"] ?? obj["zoneName"] ?? chave),
+      codigo_area_risco: s(obj["riskCode"] ?? obj["risk_code"] ?? valor) ?? chave,
+      origem_area_risco: origem,
+      valor_original_area_risco: { [chave]: valor },
+    };
+  }
+  return vazio;
+}
+
+function riscoPorOcorrencia(codigo: string | null, camposDetectados: Set<string>): ClassificacaoRisco | null {
+  const c = (codigo ?? "").trim().toLowerCase();
+  if (!c || !CODIGOS_OCORRENCIA_RISCO.has(c)) return null;
+  camposDetectados.add(`ocorrencia.${c}`);
+  return {
+    area_risco: true,
+    motivo_area_risco: "Ocorrência de área de risco",
+    codigo_area_risco: c,
+    origem_area_risco: "ocorrencia",
+    valor_original_area_risco: { occurrence_code: codigo },
+  };
+}
+
+const RISCO_VAZIO: ClassificacaoRisco = {
+  area_risco: false,
+  motivo_area_risco: null,
+  codigo_area_risco: null,
+  origem_area_risco: null,
+  valor_original_area_risco: null,
+};
 
 /** Detecta se o payload já está no formato normalizado (com route_id/meli_route_id + pacotes[]). */
 export function jaNormalizado(payload: AnyRec): boolean {
@@ -76,11 +224,25 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
   payload: PayloadNormalizado;
   resumo: ResumoNormalizacao;
 } {
+  const camposRisco = new Set<string>();
+
   // Se já veio normalizado, apenas retorna com resumo calculado.
   if (jaNormalizado(payloadInput)) {
     const p = payloadInput as AnyRec;
     const pacotes = asArr(p.pacotes).map((pk) => {
       const r = asRec(pk);
+      const oc = s(r.occurrence_code);
+      const riscoPacote = r.area_risco === true || r.pacote_area_risco === true;
+      const risco: ClassificacaoRisco = riscoPacote
+        ? {
+            area_risco: true,
+            motivo_area_risco: s(r.motivo_area_risco),
+            codigo_area_risco: s(r.codigo_area_risco),
+            origem_area_risco:
+              (s(r.origem_area_risco) as ClassificacaoRisco["origem_area_risco"]) ?? "pacote",
+            valor_original_area_risco: r.valor_original_area_risco ?? null,
+          }
+        : (riscoPorOcorrencia(oc, camposRisco) ?? RISCO_VAZIO);
       return {
         tracking_id: s(r.tracking_id) ?? "",
         shipment_id: s(r.shipment_id),
@@ -91,8 +253,12 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
         uf: s(r.uf),
         cep: s(r.cep),
         status: s(r.status),
+        substatus: s(r.substatus),
+        occurrence_code: oc,
+        stop_id: s(r.stop_id),
         printed_label: s(r.printed_label),
         ordem: typeof r.ordem === "number" && Number.isInteger(r.ordem) ? r.ordem : null,
+        ...risco,
       } as PacoteNormalizado;
     });
     const semTracking = pacotes.filter((x) => !x.tracking_id).length;
@@ -102,6 +268,11 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
     const finais = Array.from(dedup.values());
 
     const routeId = s(p.route_id) ?? s(p.meli_route_id) ?? "";
+    const riscoRota = detectarRisco(p, "rota", camposRisco);
+    const comRisco = finais.filter((x) => x.area_risco).length;
+    const rotaIntegral = riscoRota.area_risco || (finais.length > 0 && comRisco === finais.length);
+    const parcial = !rotaIntegral && comRisco > 0;
+
     return {
       payload: {
         route_id: routeId,
@@ -112,6 +283,12 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
         status: s(p.status),
         substatus: s(p.substatus),
         pacotes: finais,
+        rota_area_risco: rotaIntegral,
+        area_risco_parcial: parcial,
+        motivo_area_risco: riscoRota.motivo_area_risco,
+        codigo_area_risco: riscoRota.codigo_area_risco,
+        origem_area_risco: riscoRota.origem_area_risco,
+        valor_original_area_risco: riscoRota.valor_original_area_risco,
       },
       resumo: {
         route_id: routeId,
@@ -123,6 +300,10 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
         diferenca: null,
         descartados_sem_tracking: semTracking,
         duplicados_removidos: validos.length - finais.length,
+        pacotes_area_risco: comRisco,
+        rota_area_risco: rotaIntegral,
+        area_risco_parcial: parcial,
+        campos_risco_detectados: [...camposRisco],
       },
     };
   }
@@ -130,6 +311,7 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
   // Formato bruto do route-detail do Meli.
   const stops = asArr(payloadInput.stops);
   const brutos: PacoteNormalizado[] = [];
+  const riscoRota = detectarRisco(payloadInput, "rota", camposRisco);
 
   for (const stopRaw of stops) {
     const stop = asRec(stopRaw);
@@ -137,6 +319,11 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
       typeof stop.sequence === "number" && Number.isInteger(stop.sequence)
         ? (stop.sequence as number)
         : null;
+    const stopId = s(stop.id) ?? s(stop.stopId) ?? s(stop.stop_id);
+    // Risco no nível da parada marca somente os pacotes daquela parada.
+    const riscoParada = detectarRisco(stop, "parada", camposRisco);
+    const riscoParadaEndereco = detectarRisco(asRec(stop.address ?? stop.location), "parada", camposRisco);
+
     for (const orderRaw of asArr(stop.orders)) {
       const order = asRec(orderRaw);
       for (const unitRaw of asArr(order.transportUnits)) {
@@ -151,6 +338,25 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
             .filter((x): x is string => !!x)
             .join(", ") || null;
 
+        const occurrenceCode =
+          s(entity.occurrenceCode) ??
+          s(entity.occurrence_code) ??
+          s(unit.occurrenceCode) ??
+          s(asRec(entity.occurrence).code) ??
+          null;
+
+        const riscoPacote = detectarRisco(entity, "pacote", camposRisco);
+        const riscoUnit = detectarRisco(unit, "pacote", camposRisco);
+        const riscoReceiver = detectarRisco(receiver, "pacote", camposRisco);
+        const riscoOcorrencia = riscoPorOcorrencia(occurrenceCode, camposRisco);
+
+        const risco =
+          [riscoPacote, riscoUnit, riscoReceiver, riscoParada, riscoParadaEndereco].find(
+            (r) => r.area_risco,
+          ) ??
+          riscoOcorrencia ??
+          (riscoRota.area_risco ? { ...riscoRota } : RISCO_VAZIO);
+
         brutos.push({
           tracking_id: s(entityId) ?? s(receiver.shipment_id) ?? "",
           shipment_id: s(shipmentId),
@@ -160,13 +366,13 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
           cidade: s(receiver.city),
           uf: s(receiver.state),
           cep: s(receiver.zip_code),
-          status:
-            s(entity.substatus) ??
-            s(unit.frontStatus) ??
-            s(unit.status) ??
-            s(entity.status),
+          status: s(unit.frontStatus) ?? s(unit.status) ?? s(entity.status),
+          substatus: s(entity.substatus) ?? s(unit.substatus),
+          occurrence_code: occurrenceCode,
+          stop_id: stopId,
           printed_label: s(unit.printedLabel),
           ordem,
+          ...risco,
         });
       }
     }
@@ -190,6 +396,10 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
   const cluster = s(payloadInput.cluster);
   const facility = s(payloadInput.serviceCenterId);
 
+  const comRisco = finais.filter((x) => x.area_risco).length;
+  const rotaIntegral = riscoRota.area_risco || (finais.length > 0 && comRisco === finais.length);
+  const parcial = !rotaIntegral && comRisco > 0;
+
   return {
     payload: {
       route_id: routeId,
@@ -200,6 +410,12 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
       status: s(payloadInput.status),
       substatus: s(payloadInput.substatus),
       pacotes: finais,
+      rota_area_risco: rotaIntegral,
+      area_risco_parcial: parcial,
+      motivo_area_risco: riscoRota.motivo_area_risco,
+      codigo_area_risco: riscoRota.codigo_area_risco,
+      origem_area_risco: riscoRota.origem_area_risco,
+      valor_original_area_risco: riscoRota.valor_original_area_risco,
     },
     resumo: {
       route_id: routeId,
@@ -211,6 +427,10 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
       diferenca: totalInformado != null ? finais.length - totalInformado : null,
       descartados_sem_tracking: semTracking,
       duplicados_removidos: validos.length - finais.length,
+      pacotes_area_risco: comRisco,
+      rota_area_risco: rotaIntegral,
+      area_risco_parcial: parcial,
+      campos_risco_detectados: [...camposRisco],
     },
   };
 }
