@@ -800,15 +800,21 @@ export type Database = {
       }
       meli_pacotes: {
         Row: {
+          area_risco_detectado_em: string | null
           bairro: string | null
           cep: string | null
           cidade: string | null
+          codigo_area_risco: string | null
           created_at: string
           destinatario: string | null
           endereco: string | null
           id: string
+          last_synced_at: string | null
+          motivo_area_risco: string | null
           occurrence_code: string | null
           ordem: number | null
+          origem_area_risco: string | null
+          pacote_area_risco: boolean
           printed_label: string | null
           rota_id: string
           shipment_id: string | null
@@ -818,17 +824,24 @@ export type Database = {
           tracking_id: string
           uf: string | null
           updated_at: string
+          valor_original_area_risco: Json | null
         }
         Insert: {
+          area_risco_detectado_em?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_area_risco?: string | null
           created_at?: string
           destinatario?: string | null
           endereco?: string | null
           id?: string
+          last_synced_at?: string | null
+          motivo_area_risco?: string | null
           occurrence_code?: string | null
           ordem?: number | null
+          origem_area_risco?: string | null
+          pacote_area_risco?: boolean
           printed_label?: string | null
           rota_id: string
           shipment_id?: string | null
@@ -838,17 +851,24 @@ export type Database = {
           tracking_id: string
           uf?: string | null
           updated_at?: string
+          valor_original_area_risco?: Json | null
         }
         Update: {
+          area_risco_detectado_em?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_area_risco?: string | null
           created_at?: string
           destinatario?: string | null
           endereco?: string | null
           id?: string
+          last_synced_at?: string | null
+          motivo_area_risco?: string | null
           occurrence_code?: string | null
           ordem?: number | null
+          origem_area_risco?: string | null
+          pacote_area_risco?: boolean
           printed_label?: string | null
           rota_id?: string
           shipment_id?: string | null
@@ -858,6 +878,7 @@ export type Database = {
           tracking_id?: string
           uf?: string | null
           updated_at?: string
+          valor_original_area_risco?: Json | null
         }
         Relationships: [
           {
@@ -871,9 +892,12 @@ export type Database = {
       }
       meli_rotas: {
         Row: {
+          area_risco_detectado_em: string | null
+          area_risco_parcial: boolean
           base_id: string | null
           carrier: string | null
           cluster: string | null
+          codigo_area_risco: string | null
           created_at: string
           data_rota: string | null
           delivered_total: number | null
@@ -885,9 +909,12 @@ export type Database = {
           id: string
           init_date: string | null
           last_synced_at: string | null
+          motivo_area_risco: string | null
           occurrence_total: number | null
+          origem_area_risco: string | null
           origem_importacao: string | null
           pending_total: number | null
+          rota_area_risco: boolean
           route_id: string
           route_status: string | null
           route_substatus: string | null
@@ -895,12 +922,16 @@ export type Database = {
           total_impressos: number
           total_pacotes: number
           updated_at: string
+          valor_original_area_risco: Json | null
           vehicle_license: string | null
         }
         Insert: {
+          area_risco_detectado_em?: string | null
+          area_risco_parcial?: boolean
           base_id?: string | null
           carrier?: string | null
           cluster?: string | null
+          codigo_area_risco?: string | null
           created_at?: string
           data_rota?: string | null
           delivered_total?: number | null
@@ -912,9 +943,12 @@ export type Database = {
           id?: string
           init_date?: string | null
           last_synced_at?: string | null
+          motivo_area_risco?: string | null
           occurrence_total?: number | null
+          origem_area_risco?: string | null
           origem_importacao?: string | null
           pending_total?: number | null
+          rota_area_risco?: boolean
           route_id: string
           route_status?: string | null
           route_substatus?: string | null
@@ -922,12 +956,16 @@ export type Database = {
           total_impressos?: number
           total_pacotes?: number
           updated_at?: string
+          valor_original_area_risco?: Json | null
           vehicle_license?: string | null
         }
         Update: {
+          area_risco_detectado_em?: string | null
+          area_risco_parcial?: boolean
           base_id?: string | null
           carrier?: string | null
           cluster?: string | null
+          codigo_area_risco?: string | null
           created_at?: string
           data_rota?: string | null
           delivered_total?: number | null
@@ -939,9 +977,12 @@ export type Database = {
           id?: string
           init_date?: string | null
           last_synced_at?: string | null
+          motivo_area_risco?: string | null
           occurrence_total?: number | null
+          origem_area_risco?: string | null
           origem_importacao?: string | null
           pending_total?: number | null
+          rota_area_risco?: boolean
           route_id?: string
           route_status?: string | null
           route_substatus?: string | null
@@ -949,6 +990,7 @@ export type Database = {
           total_impressos?: number
           total_pacotes?: number
           updated_at?: string
+          valor_original_area_risco?: Json | null
           vehicle_license?: string | null
         }
         Relationships: [
@@ -1849,6 +1891,22 @@ export type Database = {
         Returns: boolean
       }
       inventario_global_access: { Args: { _user_id: string }; Returns: boolean }
+      meli_dashboard_operacional: {
+        Args: {
+          p_base_id?: string
+          p_data?: string
+          p_motorista?: string
+          p_risco?: string
+          p_rota?: string
+          p_status?: string
+          p_transportadora?: string
+        }
+        Returns: Json
+      }
+      meli_dashboard_pacotes_rota: {
+        Args: { p_limit?: number; p_rota_id: string }
+        Returns: Json
+      }
       meli_detalhar_rota: {
         Args: { p_limit?: number; p_offset?: number; p_rota_id: string }
         Returns: Json
@@ -1872,6 +1930,14 @@ export type Database = {
       meli_publicar_rota_operacional: {
         Args: { p_data_operacional?: string; p_rota_id: string }
         Returns: Json
+      }
+      meli_status_normalizado: {
+        Args: {
+          p_occurrence_code: string
+          p_status: string
+          p_substatus: string
+        }
+        Returns: string
       }
       meli_sync_status: { Args: never; Returns: Json }
       registrar_evento_transferencia: {
