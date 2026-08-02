@@ -88,10 +88,18 @@ function DashboardPage() {
   const op = opcoesQuery.data;
 
   function setF<K extends keyof DashboardFilters>(k: K, v: DashboardFilters[K]) {
+    if (k === "date" && typeof v === "string" && v) salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, v);
     setFilters((prev) => ({ ...prev, [k]: v }));
   }
+  function definirData(dia: string) {
+    setF("date", dia as DashboardFilters["date"]);
+  }
   function clearAll() {
-    setFilters({ date: null, base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null });
+    setFilters({
+      date: hojeOperacional(),
+      base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
+    });
+    salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, hojeOperacional());
   }
 
   const activeFiltersCount = Object.values(cleanFilters).filter(Boolean).length;
@@ -156,6 +164,21 @@ function DashboardPage() {
             ]} />
         </div>
       </Card>
+
+      {/* ── Visão principal: Operação Meli em tempo real ── */}
+      <MeliDashboardSection
+        data={filters.date ?? hojeOperacional()}
+        onDataChange={definirData}
+        bases={op?.bases ?? []}
+      />
+
+      {/* ── Indicadores internos JM (Recebimento / Triagem) ── */}
+      <div className="pt-2">
+        <h2 className="font-display text-xl font-bold tracking-tight">Indicadores internos JM</h2>
+        <p className="text-sm text-muted-foreground">
+          Recebimento físico na base e triagem da operação — não confundir com entrega ao destinatário.
+        </p>
+      </div>
 
       {/* KPIs — Rotas */}
       <SectionLabel>Rotas</SectionLabel>
