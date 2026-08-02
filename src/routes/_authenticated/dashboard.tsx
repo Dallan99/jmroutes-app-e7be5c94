@@ -3,6 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
+import { MeliDashboardSection } from "@/components/meli-dashboard";
+import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
+
+const CHAVE_DIA_DASHBOARD = "jm.dia.dashboard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +48,12 @@ function DashboardPage() {
   const fetchOpcoes = useServerFn(dashboardFiltrosOpcoes);
   const fetchDados = useServerFn(dashboardData);
 
-  const [filters, setFilters] = useState<DashboardFilters>({
-    date: null, base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
-  });
+  // Abre sempre no dia operacional atual (America/Sao_Paulo), salvo escolha
+  // explícita feita nesta mesma sessão e no mesmo dia.
+  const [filters, setFilters] = useState<DashboardFilters>(() => ({
+    date: diaOperacionalInicial(CHAVE_DIA_DASHBOARD),
+    base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
+  }));
   const cleanFilters = useMemo(() => {
     const c: DashboardFilters = {};
     for (const [k, v] of Object.entries(filters)) if (v) (c as any)[k] = v;
@@ -81,10 +88,18 @@ function DashboardPage() {
   const op = opcoesQuery.data;
 
   function setF<K extends keyof DashboardFilters>(k: K, v: DashboardFilters[K]) {
+    if (k === "date" && typeof v === "string" && v) salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, v);
     setFilters((prev) => ({ ...prev, [k]: v }));
   }
+  function definirData(dia: string) {
+    setF("date", dia as DashboardFilters["date"]);
+  }
   function clearAll() {
-    setFilters({ date: null, base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null });
+    setFilters({
+      date: hojeOperacional(),
+      base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
+    });
+    salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, hojeOperacional());
   }
 
   const activeFiltersCount = Object.values(cleanFilters).filter(Boolean).length;
@@ -149,6 +164,21 @@ function DashboardPage() {
             ]} />
         </div>
       </Card>
+
+      {/* ── Visão principal: Operação Meli em tempo real ── */}
+      <MeliDashboardSection
+        data={filters.date ?? hojeOperacional()}
+        onDataChange={definirData}
+        bases={op?.bases ?? []}
+      />
+
+      {/* ── Indicadores internos JM (Recebimento / Triagem) ── */}
+      <div className="pt-2">
+        <h2 className="font-display text-xl font-bold tracking-tight">Indicadores internos JM</h2>
+        <p className="text-sm text-muted-foreground">
+          Recebimento físico na base e triagem da operação — não confundir com entrega ao destinatário.
+        </p>
+      </div>
 
       {/* KPIs — Rotas */}
       <SectionLabel>Rotas</SectionLabel>
