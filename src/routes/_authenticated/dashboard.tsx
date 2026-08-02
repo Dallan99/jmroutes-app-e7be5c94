@@ -3,6 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
+import { MeliDashboardSection } from "@/components/meli-dashboard";
+import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
+
+const CHAVE_DIA_DASHBOARD = "jm.dia.dashboard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +48,12 @@ function DashboardPage() {
   const fetchOpcoes = useServerFn(dashboardFiltrosOpcoes);
   const fetchDados = useServerFn(dashboardData);
 
-  const [filters, setFilters] = useState<DashboardFilters>({
-    date: null, base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
-  });
+  // Abre sempre no dia operacional atual (America/Sao_Paulo), salvo escolha
+  // explícita feita nesta mesma sessão e no mesmo dia.
+  const [filters, setFilters] = useState<DashboardFilters>(() => ({
+    date: diaOperacionalInicial(CHAVE_DIA_DASHBOARD),
+    base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
+  }));
   const cleanFilters = useMemo(() => {
     const c: DashboardFilters = {};
     for (const [k, v] of Object.entries(filters)) if (v) (c as any)[k] = v;
