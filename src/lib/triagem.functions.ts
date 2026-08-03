@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { normalizarCodigoTriagem, resumirRotasTriagem, rotaEfetivaTriagem } from "./triagem-domain";
+import { nomeOperacionalRota } from "./meli-status";
 
 // O PostgREST/Supabase limita respostas a 1.000 linhas por página neste projeto.
 // Usar range maior retorna só 1.000 e fazia a Triagem parar antes de carregar todas as rotas.
