@@ -568,6 +568,7 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
       shipment: string | null;
       planejada: string | null;
       otimizada: string | null;
+      nro_rota: string | null;
       triado: boolean | null;
     }> = [];
 
@@ -578,7 +579,7 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
       // apenas para leitura agregada em memória, sem alterar dados ou schema.
       const { data: pagina, error: paginaErro } = await supabaseAdmin
         .from("escalas")
-        .select("shipment, planejada, otimizada, triado")
+        .select("shipment, planejada, otimizada, nro_rota, triado")
         .eq("importacao_id", impAtiva.id)
         .not("shipment", "is", null)
         .neq("shipment", "")
@@ -600,7 +601,19 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
       }
     }
 
-    const resumo = resumirRotasTriagem(linhas) as RotaTriagemDia[];
+    // Nome operacional por rota técnica (nunca substitui a chave técnica).
+    const nomePorRota = new Map<string, string>();
+    for (const l of linhas) {
+      const chave = rotaEfetivaTriagem(l);
+      if (!chave || nomePorRota.has(chave)) continue;
+      const nome = nomeOperacionalRota({ nro_rota: l.nro_rota, route_id: chave });
+      nomePorRota.set(chave, nome);
+    }
+
+    const resumo = (resumirRotasTriagem(linhas) as RotaTriagemDia[]).map((r) => ({
+      ...r,
+      nome_operacional: nomePorRota.get(r.rota) ?? r.rota,
+    }));
 
     try {
       const { supabaseAdmin } = await import(
