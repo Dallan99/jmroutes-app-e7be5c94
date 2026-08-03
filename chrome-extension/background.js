@@ -872,9 +872,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
-// Bootstrap
-loadConfig().then(() => {
+// Bootstrap — sincronização automática, sem depender de clique.
+// Se o usuário nunca configurou nada, o modo contínuo já vem ligado.
+async function bootstrap() {
+  await loadConfig();
+  const cfg = await chrome.storage.local.get(["continuous"]);
+  if (typeof cfg.continuous !== "boolean") {
+    state.continuous = true;
+    await saveConfig();
+  }
   if (state.continuous) {
     chrome.alarms.create("jm-sync-cycle", { delayInMinutes: CYCLE_INTERVAL_MS / 60000 });
+    if (!state.running) executarCiclo();
   }
-});
+}
+
+bootstrap();
+chrome.runtime.onStartup.addListener(() => { bootstrap(); });
+chrome.runtime.onInstalled.addListener(() => { bootstrap(); });

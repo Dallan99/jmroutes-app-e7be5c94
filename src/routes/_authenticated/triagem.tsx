@@ -1323,6 +1323,7 @@ function labelRes(r: TriagemResult["resultado"]) {
 
 type RotaResumo = {
   rota: string;
+  nome_operacional?: string;
   previstos: number;
   triados: number;
   pendentes: number;
@@ -1428,7 +1429,9 @@ function RotasSelector({
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="font-mono font-bold text-sm truncate">{r.rota}</span>
+                  <span className="font-mono font-bold text-sm truncate" title={r.rota}>
+                    {r.nome_operacional ?? r.rota}
+                  </span>
                   <div className="flex items-center gap-1">
                     <Badge
                       className={`text-[10px] px-1.5 py-0 ${
