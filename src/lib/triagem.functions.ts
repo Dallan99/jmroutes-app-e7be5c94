@@ -527,6 +527,8 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
 
     type RotaTriagemDia = {
       rota: string;
+      /** Nome operacional (cluster do Meli / nº de rota da planilha). */
+      nome_operacional: string;
       previstos: number;
       triados: number;
       pendentes: number;
