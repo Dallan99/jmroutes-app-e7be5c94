@@ -1323,6 +1323,7 @@ function labelRes(r: TriagemResult["resultado"]) {
 
 type RotaResumo = {
   rota: string;
+  nome_operacional?: string;
   previstos: number;
   triados: number;
   pendentes: number;
