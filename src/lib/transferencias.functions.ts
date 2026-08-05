@@ -408,6 +408,7 @@ export const corrigirMarcoTransferencia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => corrigirMarcoSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validarCaminhoEvidencia(context.supabase as any, data.transferenciaId, data.storagePath);
     const { data: correcaoRpc, error: correcaoRpcError } = await (context.supabase as any).rpc(
       "corrigir_etapa_transferencia",
       {
