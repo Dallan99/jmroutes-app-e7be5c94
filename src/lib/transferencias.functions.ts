@@ -357,6 +357,7 @@ export const registrarMarcoTransferencia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => marcoSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validarCaminhoEvidencia(context.supabase as any, data.transferenciaId, data.storagePath);
     const { data: result, error } = await (context.supabase.rpc as any)("registrar_evento_transferencia_v2", {
       p_transferencia_id: data.transferenciaId,
       p_etapa: data.etapa,
