@@ -303,6 +303,43 @@ export const criarTransferencia = createServerFn({ method: "POST" })
     return result;
   });
 
+/**
+ * Segurança: o caminho no bucket "transferencias-evidencias" é usado pelas
+ * policies de storage (storage.foldername(name)[2] = transferencia_id).
+ * Como o caminho chega do cliente, ele é revalidado aqui contra a própria
+ * transferência: precisa ser exatamente
+ * `<base_id da transferência>/<transferencia_id>/<arquivo>`, sem subpastas
+ * extras nem travessia de diretório.
+ */
+async function validarCaminhoEvidencia(
+  supabase: { from: (t: string) => any },
+  transferenciaId: string,
+  storagePath: string | undefined,
+): Promise<void> {
+  if (!storagePath) return;
+  const caminho = storagePath.trim();
+  if (
+    caminho.includes("..") ||
+    caminho.startsWith("/") ||
+    !/^[A-Za-z0-9._/-]+$/.test(caminho)
+  ) {
+    throw new Error("Caminho de evidência inválido.");
+  }
+  const partes = caminho.split("/");
+  if (partes.length !== 3 || partes.some((p) => p.length === 0)) {
+    throw new Error("Caminho de evidência inválido.");
+  }
+  const { data: transferencia, error } = await supabase
+    .from("transferencias")
+    .select("id, base_id")
+    .eq("id", transferenciaId)
+    .single();
+  if (error || !transferencia) throw new Error("Transferência não encontrada.");
+  if (partes[0] !== transferencia.base_id || partes[1] !== transferenciaId) {
+    throw new Error("Caminho de evidência não corresponde à transferência.");
+  }
+}
+
 const marcoSchema = z.object({
   transferenciaId: z.string().uuid(),
   etapa: z.enum(["chegada_service", "saida_service", "chegada_xpt", "saida_xpt"]),
@@ -320,6 +357,7 @@ export const registrarMarcoTransferencia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => marcoSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validarCaminhoEvidencia(context.supabase as any, data.transferenciaId, data.storagePath);
     const { data: result, error } = await (context.supabase.rpc as any)("registrar_evento_transferencia_v2", {
       p_transferencia_id: data.transferenciaId,
       p_etapa: data.etapa,
@@ -370,6 +408,7 @@ export const corrigirMarcoTransferencia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => corrigirMarcoSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validarCaminhoEvidencia(context.supabase as any, data.transferenciaId, data.storagePath);
     const { data: correcaoRpc, error: correcaoRpcError } = await (context.supabase as any).rpc(
       "corrigir_etapa_transferencia",
       {
@@ -537,6 +576,7 @@ export const anexarEvidenciaTransferencia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => evidenciaSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validarCaminhoEvidencia(context.supabase as any, data.transferenciaId, data.storagePath);
     const { data: result, error } = await (context.supabase.rpc as any)("anexar_evidencia_transferencia_v2", {
       p_transferencia_id: data.transferenciaId,
       p_etapa: data.etapa,
