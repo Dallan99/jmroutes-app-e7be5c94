@@ -574,6 +574,7 @@ export const anexarEvidenciaTransferencia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => evidenciaSchema.parse(input))
   .handler(async ({ data, context }) => {
+    await validarCaminhoEvidencia(context.supabase as any, data.transferenciaId, data.storagePath);
     const { data: result, error } = await (context.supabase.rpc as any)("anexar_evidencia_transferencia_v2", {
       p_transferencia_id: data.transferenciaId,
       p_etapa: data.etapa,
