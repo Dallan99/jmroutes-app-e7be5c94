@@ -200,7 +200,7 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
             payload as Record<string, unknown>,
             {
               confirmar_divergencia: confirmar_divergencia === true,
-              arquivo_nome: "extensao-chrome",
+              arquivo_nome: ARQUIVO_POR_ORIGEM[origemImportacao],
             },
           );
 
