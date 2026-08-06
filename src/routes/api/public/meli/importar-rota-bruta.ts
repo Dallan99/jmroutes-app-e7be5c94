@@ -146,13 +146,36 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
         if (!body || typeof body !== "object" || Array.isArray(body)) {
           return json({ ok: false, codigo: "body_invalido", mensagem: "Body inválido." }, 400, origin);
         }
-        const { payload, confirmar_divergencia } = body as {
+        const { payload, confirmar_divergencia, origem } = body as {
           payload?: unknown;
           confirmar_divergencia?: unknown;
+          origem?: unknown;
         };
         if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
           return json({ ok: false, codigo: "payload_invalido", mensagem: "Campo 'payload' ausente ou inválido." }, 400, origin);
         }
+
+        // Campo opcional e aditivo: identifica quem enviou a rota.
+        // Default "extensao" — a extensão v0.3.1 continua funcionando sem alteração.
+        const ORIGENS_VALIDAS = ["extensao", "worker", "manual"] as const;
+        type OrigemImportacao = (typeof ORIGENS_VALIDAS)[number];
+        let origemImportacao: OrigemImportacao = "extensao";
+        if (origem !== undefined && origem !== null) {
+          if (typeof origem !== "string" || !ORIGENS_VALIDAS.includes(origem as OrigemImportacao)) {
+            return json(
+              { ok: false, codigo: "origem_invalida", mensagem: "Campo 'origem' inválido." },
+              400,
+              origin,
+            );
+          }
+          origemImportacao = origem as OrigemImportacao;
+        }
+        const ARQUIVO_POR_ORIGEM: Record<OrigemImportacao, string> = {
+          extensao: "extensao-chrome",
+          worker: "worker-meli",
+          manual: "envio-manual",
+        };
+
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
           global: {
@@ -177,7 +200,7 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
             payload as Record<string, unknown>,
             {
               confirmar_divergencia: confirmar_divergencia === true,
-              arquivo_nome: "extensao-chrome",
+              arquivo_nome: ARQUIVO_POR_ORIGEM[origemImportacao],
             },
           );
 

@@ -1,0 +1,8 @@
+node_modules
+dist
+data
+tests
+*.enc
+.env
+.env.*
+!.env.example
