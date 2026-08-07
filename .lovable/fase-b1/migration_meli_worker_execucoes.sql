@@ -56,6 +56,21 @@ CREATE INDEX IF NOT EXISTS idx_meli_worker_exec_base_data
 
 -- 5) RPC de registro. Contrato fechado: nenhum campo arbitrário,
 --    nenhuma credencial, cookie ou token. Não toca meli_rotas/meli_pacotes.
+--
+--    SECURITY DEFINER — revisão Fase B1.2:
+--    * todas as tabelas e funções chamadas são qualificadas com schema explícito
+--      (public.bases, public.meli_worker_execucoes, public.has_role,
+--      public.has_base_access, public.meli_pode_operar);
+--      as demais são built-ins de pg_catalog (upper, btrim, left, coalesce,
+--      extract, jsonb_build_object, now, auth.uid via schema auth explícito);
+--    * SET search_path = public é fixo na função, portanto o search_path do
+--      chamador não influencia a resolução de objetos;
+--    * como todas as referências são qualificadas, não existe caminho de
+--      resolução controlável pelo usuário (shadowing) mesmo que CREATE em
+--      public esteja concedido a algum papel neste banco;
+--    * a função não executa SQL dinâmico (nenhum EXECUTE/format), logo não há
+--      superfície de injeção de identificadores.
+--    Nenhuma policy fora desta migration é criada, alterada ou removida.
 CREATE OR REPLACE FUNCTION public.meli_worker_registrar_execucao(
   p_base_code text,
   p_worker_versao text,
