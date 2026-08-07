@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.meli_worker_execucoes (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   base_id uuid NOT NULL REFERENCES public.bases(id),
   origem text NOT NULL DEFAULT 'worker'
-    CHECK (origem IN ('worker', 'extensao', 'manual')),
+    CHECK (origem = 'worker'),
   worker_versao text,
   sync_batch_id uuid,
   iniciado_em timestamptz NOT NULL,
@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS public.meli_worker_execucoes (
   criado_em timestamptz NOT NULL DEFAULT now()
 );
 
--- 2) GRANTs (obrigatórios para o Data API alcançar a tabela)
+-- 2) GRANTs — leitura gerencial via Data API; gravação exclusivamente via RPC SECURITY DEFINER.
+--    Não há GRANT de escrita (INSERT/UPDATE/DELETE) para authenticated nem service_role.
 GRANT SELECT ON public.meli_worker_execucoes TO authenticated;
-GRANT ALL ON public.meli_worker_execucoes TO service_role;
 
 -- 3) RLS
 ALTER TABLE public.meli_worker_execucoes ENABLE ROW LEVEL SECURITY;
