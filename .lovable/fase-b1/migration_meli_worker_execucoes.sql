@@ -79,6 +79,7 @@ AS $$
 DECLARE
   v_base_id uuid;
   v_id uuid;
+  v_duracao_ms integer;
   v_uid uuid := auth.uid();
 BEGIN
   -- Sessão autenticada obrigatória (nunca anon, nunca service_role implícito).
