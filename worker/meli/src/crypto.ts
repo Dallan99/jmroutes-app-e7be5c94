@@ -2,7 +2,7 @@
 // Formato do arquivo: nonce(12) || ciphertext || tag(16)
 // AAD: "meli-storage-state:v1"
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { STORAGE_STATE_AAD } from "./config";
+import { STORAGE_STATE_AAD } from "./config.js";
 
 export const NONCE_BYTES = 12;
 export const TAG_BYTES = 16;

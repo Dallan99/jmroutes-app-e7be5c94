@@ -1,7 +1,7 @@
 // Priorização de rotas ativas e sincronização incremental.
 // Não classifica status de negócio (isso é do JMRoutes / meli_status_normalizado);
 // aqui é apenas heurística de ORDEM DE COLETA.
-import type { RotaLista } from "./list";
+import type { RotaLista } from "./list.js";
 
 const ATIVAS = ["in_route", "started", "in_progress", "on_route", "em_rota", "iniciada", "picking"];
 const FINALIZADAS = ["finished", "finalizada", "closed", "completed", "delivered", "cancelled", "canceled"];
