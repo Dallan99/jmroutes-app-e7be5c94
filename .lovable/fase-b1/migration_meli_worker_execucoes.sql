@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.meli_worker_execucoes (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   base_id uuid NOT NULL REFERENCES public.bases(id),
   origem text NOT NULL DEFAULT 'worker'
-    CHECK (origem IN ('worker', 'extensao', 'manual')),
+    CHECK (origem = 'worker'),
   worker_versao text,
   sync_batch_id uuid,
   iniciado_em timestamptz NOT NULL,
