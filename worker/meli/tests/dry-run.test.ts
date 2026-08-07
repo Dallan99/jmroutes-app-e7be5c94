@@ -51,10 +51,11 @@ describe("DRY_RUN", () => {
     expect(cfg.dryRun).toBe(true);
   });
 
-  it("consulta o AdminML mas nunca chama o endpoint de ingestão", async () => {
+  it("consulta o AdminML (lista + detalhe) mas nunca chama a ingestão do JMRoutes", async () => {
     const cfg = loadConfig({ ...ENV_BASE, DRY_RUN: "true" });
     const chamadas: string[] = [];
-    let fetchChamado = 0;
+    // Todo fetch é registrado por URL para distinguir AdminML de JMRoutes/Supabase.
+    const urlsFetch: string[] = [];
 
     const r = await executarCiclo({
       cfg,
@@ -62,19 +63,30 @@ describe("DRY_RUN", () => {
       accessToken: "",
       breaker: new CircuitBreaker(),
       dormir: async () => undefined,
-      fetchImpl: (async () => {
-        fetchChamado += 1;
+      fetchImpl: (async (input: RequestInfo | URL) => {
+        urlsFetch.push(String(input));
         return new Response("{}");
       }) as unknown as typeof fetch,
     });
 
-    expect(fetchChamado).toBe(0);
+    // AdminML: lista paginada e detalhe são permitidos.
+    expect(chamadas.some((u) => u.includes("get-routes-list"))).toBe(true);
+    expect(chamadas.some((u) => u.includes("route-detail"))).toBe(true);
+
+    // JMRoutes: ingestão e telemetria/Supabase ZERO.
+    expect(urlsFetch.filter((u) => u.includes("/api/public/meli/importar-rota-bruta"))).toEqual([]);
+    expect(urlsFetch.filter((u) => u.includes("supabase.co"))).toEqual([]);
+    expect(urlsFetch).toEqual([]);
+
     expect(r.dryRun).toBe(true);
     expect(r.resumo.rotas_encontradas).toBe(1);
+    expect(r.resumo.rotas_ativas).toBe(1);
     expect(r.resumo.rotas_consultadas).toBe(1);
     expect(r.resumo.pacotes_encontrados).toBe(3);
     expect(r.resumo.erros).toBe(0);
-    expect(chamadas.some((u) => u.includes("route-detail"))).toBe(true);
+    // Nada foi enviado: contadores de ingestão permanecem zerados.
+    expect(r.execucao.rotas_processadas).toBe(0);
+    expect(r.execucao.pacotes_enviados).toBe(0);
   });
 
   it("conta pacotes do payload bruto sem transformá-lo", () => {
