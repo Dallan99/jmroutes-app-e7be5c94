@@ -63,7 +63,7 @@ describe("DRY_RUN", () => {
       accessToken: "",
       breaker: new CircuitBreaker(),
       dormir: async () => undefined,
-      fetchImpl: (async (input: RequestInfo | URL) => {
+      fetchImpl: (async (input: unknown) => {
         urlsFetch.push(String(input));
         return new Response("{}");
       }) as unknown as typeof fetch,
