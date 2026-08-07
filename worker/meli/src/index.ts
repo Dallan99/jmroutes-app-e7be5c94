@@ -60,13 +60,47 @@ async function main() {
     service_center: cfg.serviceCenterId,
     site: cfg.siteId,
     intervalo_s: cfg.syncIntervalSeconds,
+    dry_run: cfg.dryRun,
   });
+
+  if (cfg.dryRun) {
+    logger.info(
+      "DRY_RUN ativo: consulta o AdminML, NÃO envia ao JMRoutes e NÃO grava telemetria.",
+    );
+  }
 
   const breaker = new CircuitBreaker();
   const estado = novoEstadoIncremental();
   let jmr: JmrSessao | null = null;
 
   while (!encerrando) {
+    if (cfg.dryRun) {
+      // Sem sessão AdminML válida NÃO tentamos login automático: apenas aguarda.
+      const sessaoSeca = await abrirSessaoAdminML(cfg);
+      if (sessaoSeca.status !== "ok") {
+        logger.warn("DRY_RUN sem sessão AdminML; nenhuma ação executada.", {
+          motivo: sessaoSeca.motivo,
+        });
+        await sleep(Math.max(cfg.syncIntervalSeconds, 300) * 1000);
+        continue;
+      }
+      try {
+        const r = await executarCiclo({
+          cfg,
+          transport: sessaoSeca.transport,
+          accessToken: "",
+          breaker,
+          estado,
+        });
+        logger.info("DRY_RUN resumo do ciclo.", { ...r.resumo, status: r.execucao.status });
+      } finally {
+        await sessaoSeca.fechar();
+      }
+      if (encerrando) break;
+      await sleep(cfg.syncIntervalSeconds * 1000);
+      continue;
+    }
+
     const auth = await garantirSessaoJmroutes(cfg, jmr);
     if (auth.status !== "ok") {
       jmr = null;

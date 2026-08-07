@@ -32,6 +32,8 @@ export type WorkerConfig = {
   sessionKeyBase64: string;
   sessionFilePath: string;
   syncIntervalSeconds: number;
+  /** DRY_RUN=true: consulta o AdminML, mas NÃO envia ao JMRoutes e NÃO grava telemetria. */
+  dryRun: boolean;
 };
 
 export class ConfigError extends Error {}
@@ -71,6 +73,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new ConfigError("WORKER_SESSION_KEY deve ser 32 bytes em base64 (AES-256-GCM).");
   }
 
+  const dryRun = (env["DRY_RUN"] ?? "").trim().toLowerCase() === "true";
+
   const intervalRaw = Number(env["SYNC_INTERVAL_SECONDS"] ?? 60);
   const syncIntervalSeconds =
     Number.isFinite(intervalRaw) && intervalRaw >= 15 ? Math.floor(intervalRaw) : 60;
@@ -82,10 +86,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     jmrBaseUrl: req(env, "JMR_BASE_URL").replace(/\/+$/, ""),
     supabaseUrl: req(env, "SUPABASE_URL").replace(/\/+$/, ""),
     supabaseAnonKey: req(env, "SUPABASE_ANON_KEY"),
-    workerEmail: req(env, "WORKER_EMAIL"),
-    workerPassword: req(env, "WORKER_PASSWORD"),
+    // Em DRY_RUN não há chamada ao JMRoutes; credenciais do usuário técnico
+    // deixam de ser obrigatórias justamente para permitir teste sem usuário criado.
+    workerEmail: dryRun ? (env["WORKER_EMAIL"] ?? "").trim() : req(env, "WORKER_EMAIL"),
+    workerPassword: dryRun ? (env["WORKER_PASSWORD"] ?? "").trim() : req(env, "WORKER_PASSWORD"),
     sessionKeyBase64,
     sessionFilePath: (env["SESSION_FILE_PATH"] ?? "/data/adminml-session.enc").trim(),
     syncIntervalSeconds,
+    dryRun,
   };
 }

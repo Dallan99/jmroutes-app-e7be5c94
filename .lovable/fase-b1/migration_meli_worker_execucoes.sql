@@ -79,9 +79,25 @@ AS $$
 DECLARE
   v_base_id uuid;
   v_id uuid;
+  v_uid uuid := auth.uid();
 BEGIN
+  -- Sessão autenticada obrigatória (nunca anon, nunca service_role implícito).
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('status', 'erro', 'erro', 'nao_autenticado');
+  END IF;
+
   IF NOT public.meli_pode_operar() THEN
     RETURN jsonb_build_object('status', 'erro', 'erro', 'sem_permissao');
+  END IF;
+
+  -- Fase B1: telemetria aceita SOMENTE a base piloto.
+  IF upper(btrim(coalesce(p_base_code, ''))) <> 'ESP16' THEN
+    RETURN jsonb_build_object('status', 'erro', 'erro', 'base_fora_do_piloto');
+  END IF;
+
+  -- Fase B1: origem aceita SOMENTE 'worker' (campo é apenas auditoria).
+  IF coalesce(p_origem, 'worker') <> 'worker' THEN
+    RETURN jsonb_build_object('status', 'erro', 'erro', 'origem_invalida');
   END IF;
 
   SELECT id INTO v_base_id
@@ -105,8 +121,13 @@ BEGIN
     RETURN jsonb_build_object('status', 'erro', 'erro', 'sessao_status_invalido');
   END IF;
 
-  IF coalesce(p_origem, 'worker') NOT IN ('worker', 'extensao', 'manual') THEN
-    RETURN jsonb_build_object('status', 'erro', 'erro', 'origem_invalida');
+  -- Validação real de acesso à base pelo usuário autenticado.
+  IF NOT (
+    public.has_role(v_uid, 'admin')
+    OR public.has_role(v_uid, 'gerente')
+    OR public.has_base_access(v_uid, v_base_id)
+  ) THEN
+    RETURN jsonb_build_object('status', 'erro', 'erro', 'sem_acesso_a_base');
   END IF;
 
   INSERT INTO public.meli_worker_execucoes (
@@ -116,7 +137,7 @@ BEGIN
     status, sessao_status, mensagem_segura
   ) VALUES (
     v_base_id,
-    coalesce(p_origem, 'worker'),
+    'worker',
     left(coalesce(p_worker_versao, ''), 40),
     p_sync_batch_id,
     coalesce(p_iniciado_em, now()),

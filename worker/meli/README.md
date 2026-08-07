@@ -104,3 +104,25 @@ já possui coleta Meli server-side, basta:
 4. rodar `npm run auth` localmente e transferir o arquivo cifrado para o volume;
 5. `docker build` e execução com volume `/data`;
 6. acompanhar `meli_worker_execucoes` durante 4–6 horas.
+
+## DRY_RUN (validação sem tocar o banco)
+
+`DRY_RUN=true`:
+
+- consulta o AdminML (lista + detalhe);
+- **não** chama `POST /api/public/meli/importar-rota-bruta`;
+- **não** grava telemetria e não altera nenhuma tabela;
+- **não** persiste payload completo;
+- **não** exige `WORKER_EMAIL`/`WORKER_PASSWORD` (usuário técnico ainda não existe);
+- sem sessão AdminML cifrada disponível, **não tenta login automático**: apenas
+  registra o motivo e aguarda o próximo intervalo;
+- ao fim de cada ciclo registra apenas o resumo: `rotas_encontradas`,
+  `rotas_ativas`, `rotas_consultadas`, `pacotes_encontrados`, `duracao_ms`, `erros`.
+
+## Operação (piloto, ainda sem deploy)
+
+- Startup: `npm run build && node dist/index.js` (imagem: `CMD ["node","dist/index.js"]`).
+- Autenticação manual (headful, uma vez): `npm run auth`.
+- Volume de sessão: `/data`, arquivo `SESSION_FILE_PATH=/data/adminml-session.enc`.
+- Memória mínima recomendada: **512 MB** (1 GB confortável, Chromium headless, concorrência 1).
+- Imagem base `mcr.microsoft.com/playwright:v1.49.1-jammy`: ~1,6–2,0 GB descompactada.

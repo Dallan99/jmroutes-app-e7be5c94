@@ -24,7 +24,32 @@ export type CicloDeps = {
   dormir?: (ms: number) => Promise<void>;
   fetchImpl?: typeof fetch;
   maxRotasPorCiclo?: number;
+  /** Sobrepõe cfg.dryRun (útil em teste). */
+  dryRun?: boolean;
 };
+
+/** Resumo de auditoria do ciclo — usado principalmente em DRY_RUN. */
+export type CicloResumo = {
+  rotas_encontradas: number;
+  rotas_ativas: number;
+  rotas_consultadas: number;
+  pacotes_encontrados: number;
+  duracao_ms: number;
+  erros: number;
+};
+
+/** Conta pacotes no payload BRUTO sem transformá-lo nem persistir nada. */
+export function contarPacotesBrutos(payload: Record<string, unknown>): number {
+  const stops = payload["stops"];
+  if (!Array.isArray(stops)) return 0;
+  let total = 0;
+  for (const stop of stops) {
+    if (!stop || typeof stop !== "object") continue;
+    const shipments = (stop as Record<string, unknown>)["shipments"];
+    total += Array.isArray(shipments) ? shipments.length : 1;
+  }
+  return total;
+}
 
 export type CicloResultado = {
   execucao: Execucao;
@@ -32,7 +57,29 @@ export type CicloResultado = {
   sessaoAdminMLExpirada: boolean;
   /** Sinaliza ao loop que a sessão JMRoutes precisa ser renovada. */
   jmroutesSemSessao: boolean;
+  /** Resumo do ciclo (sempre preenchido; é a única saída em DRY_RUN). */
+  resumo: CicloResumo;
+  /** true quando nada foi enviado ao JMRoutes nem gravado no banco. */
+  dryRun: boolean;
 };
+
+function resumoDe(
+  encontradas: number,
+  ativas: number,
+  consultadas: number,
+  pacotes: number,
+  inicio: number,
+  erros: number,
+): CicloResumo {
+  return {
+    rotas_encontradas: encontradas,
+    rotas_ativas: ativas,
+    rotas_consultadas: consultadas,
+    pacotes_encontrados: pacotes,
+    duracao_ms: Date.now() - inicio,
+    erros,
+  };
+}
 
 function montar(
   cfg: WorkerConfig,
@@ -66,6 +113,7 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
   const estado = deps.estado ?? novoEstadoIncremental();
   const batchId = randomUUID();
   const inicio = Date.now();
+  const dryRun = deps.dryRun ?? cfg.dryRun === true;
 
   if (!breaker.permite()) {
     return {
@@ -74,6 +122,8 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
       }),
       sessaoAdminMLExpirada: false,
       jmroutesSemSessao: false,
+      resumo: resumoDe(0, 0, 0, 0, inicio, 0),
+      dryRun,
     };
   }
 
@@ -92,6 +142,8 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
         }),
         sessaoAdminMLExpirada: true,
         jmroutesSemSessao: false,
+        resumo: resumoDe(0, 0, 0, 0, inicio, 0),
+        dryRun,
       };
     }
     breaker.registrarFalha(lista.motivo);
@@ -106,6 +158,8 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
       ),
       sessaoAdminMLExpirada: false,
       jmroutesSemSessao: false,
+      resumo: resumoDe(0, 0, 0, 0, inicio, 1),
+      dryRun,
     };
   }
 
@@ -115,7 +169,10 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
     deps.maxRotasPorCiclo ?? 500,
   );
 
+  const ativas = selecionadas.length;
+  let consultadas = 0;
   let processadas = 0;
+  let pacotesEncontrados = 0;
   let pacotes = 0;
   let erros = 0;
   let rateLimit = false;
@@ -138,6 +195,16 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
       if (detalhe.motivo === "rate_limit") rateLimit = true;
       ultimaMensagem = `detalhe ${rota.routeId}: ${detalhe.motivo}`;
       await dormir(jitter());
+      continue;
+    }
+
+    consultadas += 1;
+    pacotesEncontrados += contarPacotesBrutos(detalhe.valor);
+
+    if (dryRun) {
+      // Não chama o endpoint de ingestão, não altera banco, não grava payload.
+      registrarColeta(estado, rota);
+      await dormir(jitter(ADMINML.JITTER_MS));
       continue;
     }
 
@@ -169,15 +236,24 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
   let status: CicloStatus;
   if (semSessaoJmr) status = "jmroutes_sem_sessao";
   else if (sessaoExpirada) status = "sessao_expirada";
-  else if (rateLimit && processadas === 0) status = "rate_limit";
-  else if (erros > 0 && processadas > 0) status = "sucesso_parcial";
+  else if (rateLimit && processadas === 0 && consultadas === 0) status = "rate_limit";
+  else if (erros > 0 && (processadas > 0 || (dryRun && consultadas > 0))) status = "sucesso_parcial";
   else if (erros > 0) status = "erro";
   else status = "sucesso";
 
   if (status === "sucesso" || status === "sucesso_parcial") breaker.registrarSucesso();
   else if (status === "erro" || status === "rate_limit") breaker.registrarFalha(status);
 
-  logger.info("Ciclo processado.", { base: cfg.baseCode, encontradas, processadas, erros });
+  logger.info("Ciclo processado.", {
+    base: cfg.baseCode,
+    dry_run: dryRun,
+    encontradas,
+    ativas,
+    consultadas,
+    pacotes_encontrados: pacotesEncontrados,
+    processadas,
+    erros,
+  });
 
   return {
     execucao: montar(cfg, inicio, batchId, status, sessaoExpirada ? "expirada" : "ok", {
@@ -189,5 +265,7 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
     }),
     sessaoAdminMLExpirada: sessaoExpirada,
     jmroutesSemSessao: semSessaoJmr,
+    resumo: resumoDe(encontradas, ativas, consultadas, pacotesEncontrados, inicio, erros),
+    dryRun,
   };
 }
