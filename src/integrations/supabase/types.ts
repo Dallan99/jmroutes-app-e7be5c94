@@ -1039,6 +1039,71 @@ export type Database = {
           },
         ]
       }
+      meli_worker_execucoes: {
+        Row: {
+          base_id: string
+          criado_em: string
+          duracao_ms: number
+          erros: number
+          finalizado_em: string | null
+          id: string
+          iniciado_em: string
+          mensagem_segura: string | null
+          origem: string
+          pacotes_enviados: number
+          rotas_encontradas: number
+          rotas_processadas: number
+          sessao_status: string
+          status: string
+          sync_batch_id: string | null
+          worker_versao: string | null
+        }
+        Insert: {
+          base_id: string
+          criado_em?: string
+          duracao_ms?: number
+          erros?: number
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em: string
+          mensagem_segura?: string | null
+          origem?: string
+          pacotes_enviados?: number
+          rotas_encontradas?: number
+          rotas_processadas?: number
+          sessao_status?: string
+          status: string
+          sync_batch_id?: string | null
+          worker_versao?: string | null
+        }
+        Update: {
+          base_id?: string
+          criado_em?: string
+          duracao_ms?: number
+          erros?: number
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string
+          mensagem_segura?: string | null
+          origem?: string
+          pacotes_enviados?: number
+          rotas_encontradas?: number
+          rotas_processadas?: number
+          sessao_status?: string
+          status?: string
+          sync_batch_id?: string | null
+          worker_versao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_worker_execucoes_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motoristas: {
         Row: {
           ativo: boolean
@@ -1940,6 +2005,24 @@ export type Database = {
         Returns: string
       }
       meli_sync_status: { Args: never; Returns: Json }
+      meli_worker_registrar_execucao: {
+        Args: {
+          p_base_code: string
+          p_erros: number
+          p_finalizado_em: string
+          p_iniciado_em: string
+          p_mensagem_segura?: string
+          p_origem?: string
+          p_pacotes_enviados: number
+          p_rotas_encontradas: number
+          p_rotas_processadas: number
+          p_sessao_status: string
+          p_status: string
+          p_sync_batch_id: string
+          p_worker_versao: string
+        }
+        Returns: Json
+      }
       registrar_evento_transferencia: {
         Args: {
           p_etapa: string
