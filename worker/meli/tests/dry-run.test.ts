@@ -20,7 +20,7 @@ function resp(body: unknown, status = 200): MeliResposta {
 }
 
 const ROTA_DETALHE = {
-  id: "R1",
+  id: "9001",
   stops: [
     { shipments: [{ id: "a" }, { id: "b" }] },
     { shipments: [{ id: "c" }] },
@@ -33,7 +33,7 @@ function transporte(chamadas: string[]): MeliTransport {
     async post(url) {
       chamadas.push(url);
       return resp({
-        results: [{ routeId: "R1", status: "in_route" }],
+        results: [{ routeId: "9001", status: "in_route" }],
         paging: { total: 1, offset: 0, limit: 50 },
       });
     },
