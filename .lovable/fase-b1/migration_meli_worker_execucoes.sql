@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS public.meli_worker_execucoes (
   criado_em timestamptz NOT NULL DEFAULT now()
 );
 
--- 2) GRANTs (obrigatórios para o Data API alcançar a tabela)
+-- 2) GRANTs — leitura gerencial via Data API; gravação exclusivamente via RPC SECURITY DEFINER.
+--    Não há GRANT de escrita (INSERT/UPDATE/DELETE) para authenticated nem service_role.
 GRANT SELECT ON public.meli_worker_execucoes TO authenticated;
-GRANT ALL ON public.meli_worker_execucoes TO service_role;
 
 -- 3) RLS
 ALTER TABLE public.meli_worker_execucoes ENABLE ROW LEVEL SECURITY;
