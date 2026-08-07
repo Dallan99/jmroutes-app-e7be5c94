@@ -2,8 +2,8 @@
 // Transporte abstraído em `MeliTransport` para permitir, no futuro, substituir
 // Playwright por um endpoint corporativo autorizado (ex.: XPT) sem tocar no
 // pipeline de ingestão do JMRoutes.
-import { ADMINML } from "../config";
-import { logger } from "../logger";
+import { ADMINML } from "../config.js";
+import { logger } from "../logger.js";
 
 export type MeliResposta = {
   status: number;

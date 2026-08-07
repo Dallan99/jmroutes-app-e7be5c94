@@ -1,8 +1,8 @@
 // Login MANUAL (headful) no AdminML. O operador digita usuário, senha e MFA.
 // O worker nunca armazena senha: apenas o storageState resultante, cifrado.
-import { ADMINML } from "../config";
-import { logger } from "../logger";
-import { salvarSessao, type StorageState } from "./store";
+import { ADMINML } from "../config.js";
+import { logger } from "../logger.js";
+import { salvarSessao, type StorageState } from "./store.js";
 
 export type LoginOpts = {
   sessionFilePath: string;

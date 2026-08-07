@@ -1,19 +1,19 @@
 // Um ciclo de sincronização: lista -> seleção -> detalhe -> envio -> telemetria.
 // Concorrência 1, jitter entre chamadas, sem sobreposição de ciclos.
 import { randomUUID } from "node:crypto";
-import { ADMINML, type WorkerConfig } from "../config";
-import { logger, mensagemSegura } from "../logger";
-import { jitter, listarRotas, sleep, type MeliTransport } from "../meli/list";
-import { obterDetalheRota } from "../meli/detail";
+import { ADMINML, type WorkerConfig } from "../config.js";
+import { logger, mensagemSegura } from "../logger.js";
+import { jitter, listarRotas, sleep, type MeliTransport } from "../meli/list.js";
+import { obterDetalheRota } from "../meli/detail.js";
 import {
   novoEstadoIncremental,
   registrarColeta,
   selecionarRotas,
   type EstadoIncremental,
-} from "../meli/active-filter";
-import type { CircuitBreaker } from "../state/breaker";
-import { enviarRotaBruta } from "./send";
-import type { CicloStatus, Execucao, SessaoStatusTelemetria } from "../telemetry/report";
+} from "../meli/active-filter.js";
+import type { CircuitBreaker } from "../state/breaker.js";
+import { enviarRotaBruta } from "./send.js";
+import type { CicloStatus, Execucao, SessaoStatusTelemetria } from "../telemetry/report.js";
 
 export type CicloDeps = {
   cfg: WorkerConfig;

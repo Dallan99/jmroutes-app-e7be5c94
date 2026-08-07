@@ -1,7 +1,7 @@
 // Coleta do DETALHE bruto da rota. O payload NÃO é transformado aqui:
 // a normalização é responsabilidade do JMRoutes (src/lib/meli-normalize.ts).
-import { ADMINML } from "../config";
-import { executarComRetry, sleep, type MeliTransport, type Resultado } from "./list";
+import { ADMINML } from "../config.js";
+import { executarComRetry, sleep, type MeliTransport, type Resultado } from "./list.js";
 
 export type RotaBruta = Record<string, unknown>;
 

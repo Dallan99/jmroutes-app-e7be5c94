@@ -1,7 +1,7 @@
 // Telemetria do ciclo. Enviada via RPC dedicada (SECURITY DEFINER) com o
 // Bearer do usuário técnico. Nunca envia cookies, tokens, senhas ou payloads.
-import { WORKER_VERSAO, type WorkerConfig } from "../config";
-import { logger, mensagemSegura } from "../logger";
+import { WORKER_VERSAO, type WorkerConfig } from "../config.js";
+import { logger, mensagemSegura } from "../logger.js";
 
 export type CicloStatus =
   | "sucesso"

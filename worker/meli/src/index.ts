@@ -1,14 +1,14 @@
 // Loop principal do worker (Fase B1 — piloto ESP16/SSP15/MLB).
 // Sem setInterval: executa o ciclo, registra telemetria, aguarda o intervalo
 // e só então inicia o próximo ciclo (nunca há sobreposição).
-import { loadConfig, ConfigError, WORKER_VERSAO, type WorkerConfig } from "./config";
-import { logger } from "./logger";
-import { sleep } from "./meli/list";
-import { novoEstadoIncremental } from "./meli/active-filter";
-import { CircuitBreaker } from "./state/breaker";
-import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pipeline/auth";
-import { executarCiclo } from "./pipeline/cycle";
-import { registrarExecucao, type Execucao } from "./telemetry/report";
+import { loadConfig, ConfigError, WORKER_VERSAO, type WorkerConfig } from "./config.js";
+import { logger } from "./logger.js";
+import { sleep } from "./meli/list.js";
+import { novoEstadoIncremental } from "./meli/active-filter.js";
+import { CircuitBreaker } from "./state/breaker.js";
+import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pipeline/auth.js";
+import { executarCiclo } from "./pipeline/cycle.js";
+import { registrarExecucao, type Execucao } from "./telemetry/report.js";
 import { randomUUID } from "node:crypto";
 
 let encerrando = false;

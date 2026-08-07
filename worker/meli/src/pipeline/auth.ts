@@ -4,10 +4,10 @@
 //    XPT autorizado) pode substituir o Playwright sem alterar o pipeline.
 // B) JMRoutes: sessão Supabase do usuário técnico (Bearer). NUNCA service_role.
 import type { APIRequestContext, Browser } from "playwright";
-import { ADMINML, type WorkerConfig } from "../config";
-import { logger, mensagemSegura } from "../logger";
-import { carregarSessao } from "../session/store";
-import type { MeliResposta, MeliTransport } from "../meli/list";
+import { ADMINML, type WorkerConfig } from "../config.js";
+import { logger, mensagemSegura } from "../logger.js";
+import { carregarSessao } from "../session/store.js";
+import type { MeliResposta, MeliTransport } from "../meli/list.js";
 
 // ------------------------------------------------------------------
 // A) AdminML

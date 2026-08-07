@@ -1,8 +1,8 @@
 // Envio do payload BRUTO ao endpoint já existente do JMRoutes.
 // Nenhuma normalização, classificação de status, área de risco, upsert,
 // publicação operacional, Recebimento ou Triagem é replicada aqui.
-import { logger, mensagemSegura } from "../logger";
-import type { WorkerConfig } from "../config";
+import { logger, mensagemSegura } from "../logger.js";
+import type { WorkerConfig } from "../config.js";
 
 export const ENDPOINT_PATH = "/api/public/meli/importar-rota-bruta";
 

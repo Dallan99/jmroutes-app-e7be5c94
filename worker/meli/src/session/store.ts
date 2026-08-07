@@ -2,7 +2,7 @@
 // A sessão é decifrada SOMENTE em memória e nunca sai do processo.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { decryptJson, encryptJson } from "../crypto";
+import { decryptJson, encryptJson } from "../crypto.js";
 
 export type StorageState = {
   cookies?: unknown[];
