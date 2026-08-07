@@ -1,0 +1,45 @@
+# Fase B4 — piloto do worker Meli (ESP16 / SSP15) no Fly.io, em DRY_RUN.
+# Sem serviço HTTP público: o worker é um processo de background.
+# Uma única máquina, sem autoscaling e sem scale-to-zero.
+app = "jmroutes-meli-worker-esp16"
+primary_region = "gru"
+kill_signal = "SIGINT"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Variáveis NÃO sensíveis. Segredos (SUPABASE_ANON_KEY, WORKER_EMAIL,
+# WORKER_PASSWORD, WORKER_SESSION_KEY) vão apenas em `fly secrets set`.
+[env]
+  JMR_BASE_URL = "https://jmroutes.app"
+  SUPABASE_URL = "https://ieqvzndvkzozqvseubuc.supabase.co"
+  BASE_CODE = "ESP16"
+  SERVICE_CENTER_ID = "SSP15"
+  SITE_ID = "MLB"
+  SESSION_FILE_PATH = "/data/adminml-session.enc"
+  SYNC_INTERVAL_SECONDS = "60"
+  DRY_RUN = "true"
+  NODE_ENV = "production"
+
+# Volume persistente exclusivo para /data/adminml-session.enc (cifrado).
+[[mounts]]
+  source = "meli_session"
+  destination = "/data"
+
+[processes]
+  app = "node dist/index.js"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+  cpus = 1
+  cpu_kind = "shared"
+  processes = ["app"]
+
+[experimental]
+  auto_rollback = true
+
+# Processo sempre ativo: sem [http_service], portanto sem autostop/autostart.
+[deploy]
+  strategy = "immediate"
