@@ -130,6 +130,24 @@ BEGIN
     RETURN jsonb_build_object('status', 'erro', 'erro', 'sem_acesso_a_base');
   END IF;
 
+  -- Contadores: NULL é aceito (campo opcional não informado), negativo é REJEITADO.
+  -- Nunca converter silenciosamente para zero.
+  IF coalesce(p_rotas_encontradas, 0) < 0
+     OR coalesce(p_rotas_processadas, 0) < 0
+     OR coalesce(p_pacotes_enviados, 0) < 0
+     OR coalesce(p_erros, 0) < 0 THEN
+    RETURN jsonb_build_object('status', 'erro', 'erro', 'telemetria_invalida');
+  END IF;
+
+  -- duracao_ms é derivada dos timestamps; janela invertida é telemetria inválida.
+  v_duracao_ms := (
+    EXTRACT(EPOCH FROM (coalesce(p_finalizado_em, now()) - coalesce(p_iniciado_em, now()))) * 1000
+  )::int;
+
+  IF v_duracao_ms IS NULL OR v_duracao_ms < 0 THEN
+    RETURN jsonb_build_object('status', 'erro', 'erro', 'telemetria_invalida');
+  END IF;
+
   INSERT INTO public.meli_worker_execucoes (
     base_id, origem, worker_versao, sync_batch_id,
     iniciado_em, finalizado_em, duracao_ms,
@@ -142,14 +160,11 @@ BEGIN
     p_sync_batch_id,
     coalesce(p_iniciado_em, now()),
     p_finalizado_em,
-    GREATEST(0, coalesce(
-      (EXTRACT(EPOCH FROM (coalesce(p_finalizado_em, now()) - coalesce(p_iniciado_em, now()))) * 1000)::int,
-      0
-    )),
-    GREATEST(0, coalesce(p_rotas_encontradas, 0)),
-    GREATEST(0, coalesce(p_rotas_processadas, 0)),
-    GREATEST(0, coalesce(p_pacotes_enviados, 0)),
-    GREATEST(0, coalesce(p_erros, 0)),
+    v_duracao_ms,
+    coalesce(p_rotas_encontradas, 0),
+    coalesce(p_rotas_processadas, 0),
+    coalesce(p_pacotes_enviados, 0),
+    coalesce(p_erros, 0),
     p_status,
     coalesce(p_sessao_status, 'ok'),
     left(coalesce(p_mensagem_segura, ''), 240)
