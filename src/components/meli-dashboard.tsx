@@ -23,7 +23,7 @@ import {
 } from "recharts";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle, ArrowUpDown, CheckCircle2, Package, PackageX, RefreshCcw,
+  AlertTriangle, ArrowUpDown, CheckCircle2, Download, Package, PackageX, RefreshCcw,
   ShieldAlert, Timer, Truck, Tv, XCircle,
 } from "lucide-react";
 
@@ -62,6 +62,8 @@ export function MeliDashboardSection({
   const [ordem, setOrdem] = useState<Ordenacao>(null);
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
   const [drill, setDrill] = useState<SituacaoMeli | "total" | null>(null);
+  const [drillBase, setDrillBase] = useState<string>(NONE);
+  const [drillBusca, setDrillBusca] = useState("");
   const [pedidoStatus, setPedidoStatus] = useState<SituacaoMeli | "total">("total");
   const [buscaPedido, setBuscaPedido] = useState("");
   const [verRisco, setVerRisco] = useState(false);
@@ -191,12 +193,55 @@ export function MeliDashboardSection({
     : s === "cancelado" ? r.cancelado
     : 0;
 
+  const basesDoDrill = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rotas) if (r.base_codigo) set.add(r.base_codigo);
+    return Array.from(set).sort();
+  }, [rotas]);
+
   const rotasDoDrill = useMemo(() => {
     if (!drill) return [];
+    const termo = drillBusca.trim().toLowerCase();
     return rotas
       .filter((r) => contarStatus(r, drill) > 0)
+      .filter((r) => drillBase === NONE || (r.base_codigo ?? "") === drillBase)
+      .filter((r) => {
+        if (!termo) return true;
+        return [
+          r.nome_operacional, r.route_id, r.base_codigo, r.base_nome,
+          r.driver_name, r.vehicle_license,
+        ].some((v) => String(v ?? "").toLowerCase().includes(termo));
+      })
       .sort((a, b) => contarStatus(b, drill) - contarStatus(a, drill));
-  }, [rotas, drill]);
+  }, [rotas, drill, drillBase, drillBusca]);
+
+  const baixarCsvDrill = () => {
+    const cab = [
+      "Rota", "ID Meli", "Base", "Base nome", "Motorista", "Placa", "Total",
+      "Nao iniciados", "Em rota", "Entregues", "Insucessos", "Cancelados",
+      "Pacotes risco", "% Entrega", "Ultima sync",
+    ];
+    const linhas = rotasDoDrill.map((r) => [
+      r.nome_operacional, r.route_id, r.base_codigo ?? "", r.base_nome ?? "",
+      r.driver_name ?? "", r.vehicle_license ?? "", r.total, r.nao_iniciado,
+      r.em_rota, r.entregue, r.insucesso, r.cancelado, r.pacotes_risco,
+      `${r.perc_entrega}%`, hhmmss(r.last_synced_at),
+    ]);
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = "\uFEFF" + [cab, ...linhas].map((l) => l.map(esc).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meli-operacoes-${drill ?? "total"}-${data}${drillBase === NONE ? "" : `-${drillBase}`}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const abrirDrill = (s: SituacaoMeli | "total") => {
+    setDrillBase(baseId === NONE ? NONE : (bases.find((b) => b.id === baseId)?.codigo ?? NONE));
+    setDrillBusca("");
+    setDrill(s);
+  };
 
   const abrirPedidos = (rotaId: string, s: SituacaoMeli | "total") => {
     setDrill(null);
@@ -346,12 +391,12 @@ export function MeliDashboardSection({
 
         {/* Cards principais */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-          <Kpi label="Total de pacotes" valor={cards?.total} icon={Package} onClick={() => setDrill("total")} />
-          <Kpi label="Não iniciados" valor={cards?.nao_iniciado} icon={Timer} onClick={() => setDrill("nao_iniciado")} />
-          <Kpi label="Em rota" valor={cards?.em_rota} icon={Truck} tom="info" onClick={() => setDrill("em_rota")} />
-          <Kpi label="Entregues" valor={cards?.entregue} icon={CheckCircle2} tom="success" onClick={() => setDrill("entregue")} />
-          <Kpi label="Insucessos" valor={cards?.insucesso} icon={PackageX} tom="warning" onClick={() => setDrill("insucesso")} />
-          <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} onClick={() => setDrill("cancelado")} />
+          <Kpi label="Total de pacotes" valor={cards?.total} icon={Package} onClick={() => abrirDrill("total")} />
+          <Kpi label="Não iniciados" valor={cards?.nao_iniciado} icon={Timer} onClick={() => abrirDrill("nao_iniciado")} />
+          <Kpi label="Em rota" valor={cards?.em_rota} icon={Truck} tom="info" onClick={() => abrirDrill("em_rota")} />
+          <Kpi label="Entregues" valor={cards?.entregue} icon={CheckCircle2} tom="success" onClick={() => abrirDrill("entregue")} />
+          <Kpi label="Insucessos" valor={cards?.insucesso} icon={PackageX} tom="warning" onClick={() => abrirDrill("insucesso")} />
+          <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} onClick={() => abrirDrill("cancelado")} />
           <Kpi label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} icon={CheckCircle2} tom="success" />
         </div>
 
@@ -529,7 +574,36 @@ export function MeliDashboardSection({
                 <span className="ml-2 text-xs font-normal text-muted-foreground">{data}</span>
               </DialogTitle>
             </DialogHeader>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-44">
+                <Label>Base</Label>
+                <Select value={drillBase} onValueChange={setDrillBase}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Todas as bases</SelectItem>
+                    {basesDoDrill.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-56 flex-1">
+                <Label htmlFor="meli-drill-busca">Filtrar em todos os campos</Label>
+                <Input
+                  id="meli-drill-busca"
+                  value={drillBusca}
+                  onChange={(e) => setDrillBusca(e.target.value)}
+                  placeholder="Rota, ID Meli, base, motorista ou placa"
+                />
+              </div>
+              <Button type="button" variant="outline" onClick={baixarCsvDrill} disabled={rotasDoDrill.length === 0}>
+                <Download className="mr-2 h-4 w-4" aria-hidden />
+                Baixar CSV
+              </Button>
+              <p className="text-xs text-muted-foreground">{rotasDoDrill.length} operação(ões)</p>
+            </div>
             <ScrollArea className="max-h-[70vh] pr-3">
+
               {q.isPending && !d
                 ? <p className="p-4 text-sm text-muted-foreground">Carregando operações…</p>
                 : (
