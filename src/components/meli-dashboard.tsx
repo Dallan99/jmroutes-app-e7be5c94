@@ -633,28 +633,42 @@ function SeloRisco({ motivo, origem }: { motivo?: string | null; origem?: string
 }
 
 function Kpi({
-  label, valor, icon: Icon, tom,
+  label, valor, icon: Icon, tom, onClick,
 }: {
   label: string;
   valor: number | string | undefined;
   icon: typeof Package;
   tom?: "success" | "warning" | "info";
+  onClick?: () => void;
 }) {
   const cor =
     tom === "success" ? "text-[var(--success,#16a34a)]"
     : tom === "warning" ? "text-[var(--warning)]"
     : tom === "info" ? "text-[var(--info)]"
     : "text-foreground";
+  const clicavel = !!onClick;
   return (
-    <Card className="p-4">
+    <Card
+      className={`p-4 ${clicavel ? "cursor-pointer transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" : ""}`}
+      role={clicavel ? "button" : undefined}
+      tabIndex={clicavel ? 0 : undefined}
+      aria-label={clicavel ? `${label} — clique para detalhar` : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (!onClick) return;
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); }
+      }}
+    >
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
         <Icon className={`h-4 w-4 ${cor}`} aria-hidden />
       </div>
       <div className={`font-display text-2xl font-black tabular-nums ${cor}`}>{valor ?? "—"}</div>
+      {clicavel && <p className="mt-1 text-[10px] text-muted-foreground">Clique para detalhar</p>}
     </Card>
   );
 }
+
 
 function Mini({ label, valor }: { label: string; valor: number | string }) {
   return (
