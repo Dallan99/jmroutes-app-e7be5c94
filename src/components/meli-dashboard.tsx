@@ -235,10 +235,30 @@ export function MeliDashboardSection({
               {q.isFetching && <span className="ml-2 text-xs opacity-70">Atualizando…</span>}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
-            <RefreshCcw className={`mr-2 h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
-            Atualizar agora
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
+              <RefreshCcw className={`mr-2 h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
+              Atualizar agora
+            </Button>
+            <Link
+              to="/tv/meli"
+              search={{
+                data,
+                base_id: baseId === NONE ? undefined : baseId,
+                motorista: motorista.trim() || undefined,
+                rota: rota.trim() || undefined,
+                status: status === NONE ? undefined : (status as SituacaoMeli),
+                transportadora: transportadora.trim() || undefined,
+                risco: risco === NONE ? undefined : (risco as "qualquer" | "integral" | "parcial"),
+              }}
+              aria-label="Abrir Modo TV da operação Meli"
+            >
+              <Button size="sm" className="font-semibold">
+                <Tv className="mr-2 h-4 w-4" aria-hidden /> Modo TV
+              </Button>
+            </Link>
+          </div>
+
         </header>
 
         {syncAtrasada && (
