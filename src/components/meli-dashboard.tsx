@@ -193,12 +193,49 @@ export function MeliDashboardSection({
     : s === "cancelado" ? r.cancelado
     : 0;
 
+  const basesDoDrill = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rotas) if (r.base_codigo) set.add(r.base_codigo);
+    return Array.from(set).sort();
+  }, [rotas]);
+
   const rotasDoDrill = useMemo(() => {
     if (!drill) return [];
+    const termo = drillBusca.trim().toLowerCase();
     return rotas
       .filter((r) => contarStatus(r, drill) > 0)
+      .filter((r) => drillBase === NONE || (r.base_codigo ?? "") === drillBase)
+      .filter((r) => {
+        if (!termo) return true;
+        return [
+          r.nome_operacional, r.route_id, r.base_codigo, r.base_nome,
+          r.driver_name, r.vehicle_license,
+        ].some((v) => String(v ?? "").toLowerCase().includes(termo));
+      })
       .sort((a, b) => contarStatus(b, drill) - contarStatus(a, drill));
-  }, [rotas, drill]);
+  }, [rotas, drill, drillBase, drillBusca]);
+
+  const baixarCsvDrill = () => {
+    const cab = [
+      "Rota", "ID Meli", "Base", "Base nome", "Motorista", "Placa", "Total",
+      "Nao iniciados", "Em rota", "Entregues", "Insucessos", "Cancelados",
+      "Pacotes risco", "% Entrega", "Ultima sync",
+    ];
+    const linhas = rotasDoDrill.map((r) => [
+      r.nome_operacional, r.route_id, r.base_codigo ?? "", r.base_nome ?? "",
+      r.driver_name ?? "", r.vehicle_license ?? "", r.total, r.nao_iniciado,
+      r.em_rota, r.entregue, r.insucesso, r.cancelado, r.pacotes_risco,
+      `${r.perc_entrega}%`, hhmmss(r.last_synced_at),
+    ]);
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = "\uFEFF" + [cab, ...linhas].map((l) => l.map(esc).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `meli-operacoes-${drill ?? "total"}-${data}${drillBase === NONE ? "" : `-${drillBase}`}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const abrirPedidos = (rotaId: string, s: SituacaoMeli | "total") => {
     setDrill(null);
