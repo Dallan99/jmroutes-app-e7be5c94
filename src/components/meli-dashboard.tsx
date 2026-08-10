@@ -568,7 +568,36 @@ export function MeliDashboardSection({
                 <span className="ml-2 text-xs font-normal text-muted-foreground">{data}</span>
               </DialogTitle>
             </DialogHeader>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-44">
+                <Label>Base</Label>
+                <Select value={drillBase} onValueChange={setDrillBase}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Todas as bases</SelectItem>
+                    {basesDoDrill.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-56 flex-1">
+                <Label htmlFor="meli-drill-busca">Filtrar em todos os campos</Label>
+                <Input
+                  id="meli-drill-busca"
+                  value={drillBusca}
+                  onChange={(e) => setDrillBusca(e.target.value)}
+                  placeholder="Rota, ID Meli, base, motorista ou placa"
+                />
+              </div>
+              <Button type="button" variant="outline" onClick={baixarCsvDrill} disabled={rotasDoDrill.length === 0}>
+                <Download className="mr-2 h-4 w-4" aria-hidden />
+                Baixar CSV
+              </Button>
+              <p className="text-xs text-muted-foreground">{rotasDoDrill.length} operação(ões)</p>
+            </div>
             <ScrollArea className="max-h-[70vh] pr-3">
+
               {q.isPending && !d
                 ? <p className="p-4 text-sm text-muted-foreground">Carregando operações…</p>
                 : (
