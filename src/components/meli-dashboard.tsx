@@ -23,7 +23,7 @@ import {
 } from "recharts";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle, ArrowUpDown, CheckCircle2, Package, PackageX, RefreshCcw,
+  AlertTriangle, ArrowUpDown, CheckCircle2, Download, Package, PackageX, RefreshCcw,
   ShieldAlert, Timer, Truck, Tv, XCircle,
 } from "lucide-react";
 
