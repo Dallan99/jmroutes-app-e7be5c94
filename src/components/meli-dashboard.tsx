@@ -59,8 +59,12 @@ export function MeliDashboardSection({
   const [risco, setRisco] = useState<string>(NONE);
   const [ordem, setOrdem] = useState<Ordenacao>(null);
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
+  const [drill, setDrill] = useState<SituacaoMeli | "total" | null>(null);
+  const [pedidoStatus, setPedidoStatus] = useState<SituacaoMeli | "total">("total");
+  const [buscaPedido, setBuscaPedido] = useState("");
   const [verRisco, setVerRisco] = useState(false);
   const [segundos, setSegundos] = useState(REFETCH_MS / 1000);
+
 
   const filtros = useMemo<MeliDashboardFiltros>(
     () => ({
