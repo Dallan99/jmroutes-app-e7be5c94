@@ -62,6 +62,8 @@ export function MeliDashboardSection({
   const [ordem, setOrdem] = useState<Ordenacao>(null);
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
   const [drill, setDrill] = useState<SituacaoMeli | "total" | null>(null);
+  const [drillBase, setDrillBase] = useState<string>(NONE);
+  const [drillBusca, setDrillBusca] = useState("");
   const [pedidoStatus, setPedidoStatus] = useState<SituacaoMeli | "total">("total");
   const [buscaPedido, setBuscaPedido] = useState("");
   const [verRisco, setVerRisco] = useState(false);
