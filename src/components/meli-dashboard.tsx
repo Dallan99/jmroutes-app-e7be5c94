@@ -21,10 +21,12 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip as RTooltip, XAxis, YAxis, Legend,
 } from "recharts";
+import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle, ArrowUpDown, CheckCircle2, Package, PackageX, RefreshCcw,
-  ShieldAlert, Timer, Truck, XCircle,
+  ShieldAlert, Timer, Truck, Tv, XCircle,
 } from "lucide-react";
+
 
 const NONE = "__all";
 const REFETCH_MS = 30_000;
