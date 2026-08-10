@@ -510,7 +510,7 @@ export function MeliDashboardSection({
                     <h4 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       Tabela de rotas em área de risco
                     </h4>
-                    <TabelaRotas rotas={rotasRisco} ordem={null} setOrdem={() => {}} onAbrir={(id) => { setVerRisco(false); setRotaAberta(id); }} />
+                    <TabelaRotas rotas={rotasRisco} ordem={null} setOrdem={() => {}} onAbrir={(id) => abrirPedidos(id, "total")} />
                   </div>
                 )}
               </div>
