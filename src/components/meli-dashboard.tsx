@@ -473,7 +473,7 @@ export function MeliDashboardSection({
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Rotas do dia ({rotasOrdenadas.length})
           </h3>
-          <TabelaRotas rotas={rotasOrdenadas} ordem={ordem} setOrdem={setOrdem} onAbrir={setRotaAberta} />
+          <TabelaRotas rotas={rotasOrdenadas} ordem={ordem} setOrdem={setOrdem} onAbrir={(id) => abrirPedidos(id, "total")} />
         </Card>
 
         {/* Detalhe por base — rotas de risco */}
