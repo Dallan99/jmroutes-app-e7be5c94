@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tansta
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Minimize2, X, Play, Pause, Gauge, BarChart3 } from "lucide-react";
+import { Maximize2, Minimize2, X, Play, Pause, Gauge, BarChart3, Truck } from "lucide-react";
 
 export const Route = createFileRoute("/tv")({
   ssr: false,
@@ -56,7 +56,9 @@ function TvShell() {
           <nav className="flex items-center gap-1">
             <TvNav to="/tv/dashboard" icon={Gauge} label="Operacional" active={path.endsWith("/dashboard")} />
             <TvNav to="/tv/gerencial" icon={BarChart3} label="Gerencial" active={path.endsWith("/gerencial")} />
+            <TvNav to="/tv/meli" icon={Truck} label="Meli" active={path.endsWith("/meli")} />
           </nav>
+
         </div>
         <div className="flex items-center gap-2">
           <Button

@@ -21,10 +21,12 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip as RTooltip, XAxis, YAxis, Legend,
 } from "recharts";
+import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle, ArrowUpDown, CheckCircle2, Package, PackageX, RefreshCcw,
-  ShieldAlert, Timer, Truck, XCircle,
+  ShieldAlert, Timer, Truck, Tv, XCircle,
 } from "lucide-react";
+
 
 const NONE = "__all";
 const REFETCH_MS = 30_000;
@@ -59,8 +61,12 @@ export function MeliDashboardSection({
   const [risco, setRisco] = useState<string>(NONE);
   const [ordem, setOrdem] = useState<Ordenacao>(null);
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
+  const [drill, setDrill] = useState<SituacaoMeli | "total" | null>(null);
+  const [pedidoStatus, setPedidoStatus] = useState<SituacaoMeli | "total">("total");
+  const [buscaPedido, setBuscaPedido] = useState("");
   const [verRisco, setVerRisco] = useState(false);
   const [segundos, setSegundos] = useState(REFETCH_MS / 1000);
+
 
   const filtros = useMemo<MeliDashboardFiltros>(
     () => ({
@@ -176,10 +182,48 @@ export function MeliDashboardSection({
     return Array.from(new Set(out)).slice(0, 12);
   }, [rotas, d?.bases, serverTime]);
 
+  const contarStatus = (r: MeliDashboardRota, s: SituacaoMeli | "total") =>
+    s === "total" ? r.total
+    : s === "nao_iniciado" ? r.nao_iniciado
+    : s === "em_rota" ? r.em_rota
+    : s === "entregue" ? r.entregue
+    : s === "insucesso" ? r.insucesso
+    : s === "cancelado" ? r.cancelado
+    : 0;
+
+  const rotasDoDrill = useMemo(() => {
+    if (!drill) return [];
+    return rotas
+      .filter((r) => contarStatus(r, drill) > 0)
+      .sort((a, b) => contarStatus(b, drill) - contarStatus(a, drill));
+  }, [rotas, drill]);
+
+  const abrirPedidos = (rotaId: string, s: SituacaoMeli | "total") => {
+    setDrill(null);
+    setVerRisco(false);
+    setPedidoStatus(s);
+    setBuscaPedido("");
+    setRotaAberta(rotaId);
+  };
+
+  const pacotesFiltrados = useMemo(() => {
+    const lista = pacotesQuery.data?.pacotes ?? [];
+    const termo = buscaPedido.trim().toLowerCase();
+    return lista.filter((p) => {
+      if (pedidoStatus !== "total" && p.situacao !== pedidoStatus) return false;
+      if (!termo) return true;
+      return (
+        p.tracking_id.toLowerCase().includes(termo) ||
+        (p.shipment_id ?? "").toLowerCase().includes(termo)
+      );
+    });
+  }, [pacotesQuery.data?.pacotes, pedidoStatus, buscaPedido]);
+
   const limparFiltros = () => {
     setBaseId(NONE); setMotorista(""); setRota(""); setStatus(NONE);
     setTransportadora(""); setRisco(NONE);
   };
+
 
   return (
     <TooltipProvider>
@@ -193,10 +237,30 @@ export function MeliDashboardSection({
               {q.isFetching && <span className="ml-2 text-xs opacity-70">Atualizando…</span>}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
-            <RefreshCcw className={`mr-2 h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
-            Atualizar agora
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
+              <RefreshCcw className={`mr-2 h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
+              Atualizar agora
+            </Button>
+            <Link
+              to="/tv/meli"
+              search={{
+                data,
+                base_id: baseId === NONE ? undefined : baseId,
+                motorista: motorista.trim() || undefined,
+                rota: rota.trim() || undefined,
+                status: status === NONE ? undefined : (status as SituacaoMeli),
+                transportadora: transportadora.trim() || undefined,
+                risco: risco === NONE ? undefined : (risco as "qualquer" | "integral" | "parcial"),
+              }}
+              aria-label="Abrir Modo TV da operação Meli"
+            >
+              <Button size="sm" className="font-semibold">
+                <Tv className="mr-2 h-4 w-4" aria-hidden /> Modo TV
+              </Button>
+            </Link>
+          </div>
+
         </header>
 
         {syncAtrasada && (
@@ -282,14 +346,15 @@ export function MeliDashboardSection({
 
         {/* Cards principais */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-          <Kpi label="Total de pacotes" valor={cards?.total} icon={Package} />
-          <Kpi label="Não iniciados" valor={cards?.nao_iniciado} icon={Timer} />
-          <Kpi label="Em rota" valor={cards?.em_rota} icon={Truck} tom="info" />
-          <Kpi label="Entregues" valor={cards?.entregue} icon={CheckCircle2} tom="success" />
-          <Kpi label="Insucessos" valor={cards?.insucesso} icon={PackageX} tom="warning" />
-          <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} />
+          <Kpi label="Total de pacotes" valor={cards?.total} icon={Package} onClick={() => setDrill("total")} />
+          <Kpi label="Não iniciados" valor={cards?.nao_iniciado} icon={Timer} onClick={() => setDrill("nao_iniciado")} />
+          <Kpi label="Em rota" valor={cards?.em_rota} icon={Truck} tom="info" onClick={() => setDrill("em_rota")} />
+          <Kpi label="Entregues" valor={cards?.entregue} icon={CheckCircle2} tom="success" onClick={() => setDrill("entregue")} />
+          <Kpi label="Insucessos" valor={cards?.insucesso} icon={PackageX} tom="warning" onClick={() => setDrill("insucesso")} />
+          <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} onClick={() => setDrill("cancelado")} />
           <Kpi label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} icon={CheckCircle2} tom="success" />
         </div>
+
 
         {/* Card de área de risco */}
         <Card
@@ -408,7 +473,7 @@ export function MeliDashboardSection({
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Rotas do dia ({rotasOrdenadas.length})
           </h3>
-          <TabelaRotas rotas={rotasOrdenadas} ordem={ordem} setOrdem={setOrdem} onAbrir={setRotaAberta} />
+          <TabelaRotas rotas={rotasOrdenadas} ordem={ordem} setOrdem={setOrdem} onAbrir={(id) => abrirPedidos(id, "total")} />
         </Card>
 
         {/* Detalhe por base — rotas de risco */}
@@ -445,10 +510,36 @@ export function MeliDashboardSection({
                     <h4 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       Tabela de rotas em área de risco
                     </h4>
-                    <TabelaRotas rotas={rotasRisco} ordem={null} setOrdem={() => {}} onAbrir={(id) => { setVerRisco(false); setRotaAberta(id); }} />
+                    <TabelaRotas rotas={rotasRisco} ordem={null} setOrdem={() => {}} onAbrir={(id) => abrirPedidos(id, "total")} />
                   </div>
                 )}
               </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+
+        {/* Operações que compõem o indicador clicado */}
+        <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
+          <DialogContent className="max-w-6xl">
+            <DialogHeader>
+              <DialogTitle>
+                {drill === "total"
+                  ? "Operações — total de pacotes"
+                  : `Operações — ${LABEL_SITUACAO[(drill ?? "desconhecido") as SituacaoMeli]}`}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">{data}</span>
+              </DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-3">
+              {q.isPending && !d
+                ? <p className="p-4 text-sm text-muted-foreground">Carregando operações…</p>
+                : (
+                  <TabelaRotas
+                    rotas={rotasDoDrill}
+                    ordem={null}
+                    setOrdem={() => {}}
+                    onAbrir={(id) => abrirPedidos(id, drill ?? "total")}
+                  />
+                )}
             </ScrollArea>
           </DialogContent>
         </Dialog>
@@ -473,7 +564,41 @@ export function MeliDashboardSection({
                 Rota de dia anterior — atualizada hoje. Não entra nos indicadores do dia atual.
               </p>
             )}
-            <ScrollArea className="max-h-[65vh]">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-56 flex-1">
+                <Label htmlFor="meli-busca-pedido">Buscar tracking ou shipment</Label>
+                <Input
+                  id="meli-busca-pedido"
+                  value={buscaPedido}
+                  onChange={(e) => setBuscaPedido(e.target.value)}
+                  placeholder="Ex.: 4400..."
+                />
+              </div>
+              <div className="w-52">
+                <Label>Situação Meli</Label>
+                <Select
+                  value={pedidoStatus}
+                  onValueChange={(v) => setPedidoStatus(v as SituacaoMeli | "total")}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Todas as situações</SelectItem>
+                    {(Object.keys(LABEL_SITUACAO) as SituacaoMeli[]).map((s) => (
+                      <SelectItem key={s} value={s}>{LABEL_SITUACAO[s]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {pacotesFiltrados.length} pedido(s) exibido(s)
+              </p>
+            </div>
+            {pacotesQuery.data?.status === "erro" && (
+              <p role="alert" className="rounded border border-destructive/40 bg-destructive/10 p-2 text-sm">
+                Falha ao carregar os pedidos: {pacotesQuery.data.erro}
+              </p>
+            )}
+            <ScrollArea className="max-h-[60vh]">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-background">
                   <tr className="border-b text-left">
@@ -481,6 +606,7 @@ export function MeliDashboardSection({
                     <th className="p-2">Shipment</th>
                     <th className="p-2">Parada</th>
                     <th className="p-2">Situação Meli</th>
+                    <th className="p-2">Status</th>
                     <th className="p-2">Substatus</th>
                     <th className="p-2">Ocorrência</th>
                     <th className="p-2">Área de risco</th>
@@ -490,12 +616,13 @@ export function MeliDashboardSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {(pacotesQuery.data?.pacotes ?? []).map((p) => (
+                  {pacotesFiltrados.map((p) => (
                     <tr key={p.tracking_id} className="border-b">
                       <td className="p-2 font-mono">{p.tracking_id}</td>
                       <td className="p-2 font-mono">{p.shipment_id ?? "—"}</td>
                       <td className="p-2">{p.stop_id ?? "—"}</td>
                       <td className="p-2">{LABEL_SITUACAO[p.situacao as SituacaoMeli] ?? p.situacao}</td>
+                      <td className="p-2">{p.status ?? "—"}</td>
                       <td className="p-2">{p.substatus ?? "—"}</td>
                       <td className="p-2">
                         {p.occurrence_code
@@ -504,22 +631,40 @@ export function MeliDashboardSection({
                       </td>
                       <td className="p-2">
                         {p.pacote_area_risco ? (
-                          <SeloRisco motivo={p.motivo_area_risco} origem={p.origem_area_risco} />
+                          <>
+                            <SeloRisco motivo={p.motivo_area_risco} origem={p.origem_area_risco} />
+                            <div className="text-[10px] text-muted-foreground">
+                              {p.motivo_area_risco ?? "—"}
+                              {p.origem_area_risco ? ` · origem: ${p.origem_area_risco}` : ""}
+                            </div>
+                          </>
                         ) : "—"}
                       </td>
                       <td className="p-2">{hhmmss(p.ultima_atualizacao_meli)}</td>
-                      <td className="p-2">{p.jm_recebido ? "Recebido" : "Não recebido"}</td>
-                      <td className="p-2">{p.jm_triado ? "Triado" : "Não triado"}</td>
+                      <td className="p-2">
+                        {p.jm_recebido ? "Recebido" : "Não recebido"}
+                        <div className="text-[10px] text-muted-foreground">{hhmmss(p.jm_recebido_em)}</div>
+                      </td>
+                      <td className="p-2">
+                        {p.jm_triado ? "Triado" : "Não triado"}
+                        <div className="text-[10px] text-muted-foreground">{hhmmss(p.jm_triado_em)}</div>
+                      </td>
                     </tr>
                   ))}
-                  {(pacotesQuery.data?.pacotes ?? []).length === 0 && (
-                    <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">Sem pacotes.</td></tr>
+                  {pacotesQuery.isPending && (
+                    <tr><td colSpan={11} className="p-4 text-center text-muted-foreground">Carregando pedidos…</td></tr>
+                  )}
+                  {!pacotesQuery.isPending && pacotesFiltrados.length === 0 && (
+                    <tr><td colSpan={11} className="p-4 text-center text-muted-foreground">
+                      Nenhum pedido para a busca/situação selecionada.
+                    </td></tr>
                   )}
                 </tbody>
               </table>
             </ScrollArea>
           </DialogContent>
         </Dialog>
+
       </section>
     </TooltipProvider>
   );
@@ -632,28 +777,42 @@ function SeloRisco({ motivo, origem }: { motivo?: string | null; origem?: string
 }
 
 function Kpi({
-  label, valor, icon: Icon, tom,
+  label, valor, icon: Icon, tom, onClick,
 }: {
   label: string;
   valor: number | string | undefined;
   icon: typeof Package;
   tom?: "success" | "warning" | "info";
+  onClick?: () => void;
 }) {
   const cor =
     tom === "success" ? "text-[var(--success,#16a34a)]"
     : tom === "warning" ? "text-[var(--warning)]"
     : tom === "info" ? "text-[var(--info)]"
     : "text-foreground";
+  const clicavel = !!onClick;
   return (
-    <Card className="p-4">
+    <Card
+      className={`p-4 ${clicavel ? "cursor-pointer transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" : ""}`}
+      role={clicavel ? "button" : undefined}
+      tabIndex={clicavel ? 0 : undefined}
+      aria-label={clicavel ? `${label} — clique para detalhar` : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (!onClick) return;
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); }
+      }}
+    >
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
         <Icon className={`h-4 w-4 ${cor}`} aria-hidden />
       </div>
       <div className={`font-display text-2xl font-black tabular-nums ${cor}`}>{valor ?? "—"}</div>
+      {clicavel && <p className="mt-1 text-[10px] text-muted-foreground">Clique para detalhar</p>}
     </Card>
   );
 }
+
 
 function Mini({ label, valor }: { label: string; valor: number | string }) {
   return (
