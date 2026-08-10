@@ -37,6 +37,7 @@ import { Route as AuthenticatedTriagemRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as TvDashboardRouteImport } from './routes/tv.dashboard'
 import { Route as TvGerencialRouteImport } from './routes/tv.gerencial'
+import { Route as TvMeliRouteImport } from './routes/tv.meli'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as ApiPublicMeliImportarRotaBrutaRouteImport } from './routes/api/public/meli/importar-rota-bruta'
@@ -188,6 +189,11 @@ const TvGerencialRoute = TvGerencialRouteImport.update({
   path: '/gerencial',
   getParentRoute: () => TvRoute,
 } as any)
+const TvMeliRoute = TvMeliRouteImport.update({
+  id: '/meli',
+  path: '/meli',
+  getParentRoute: () => TvRoute,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/tv/dashboard': typeof TvDashboardRoute
   '/tv/gerencial': typeof TvGerencialRoute
+  '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
@@ -266,6 +273,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/tv/dashboard': typeof TvDashboardRoute
   '/tv/gerencial': typeof TvGerencialRoute
+  '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
@@ -300,6 +308,7 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/tv/dashboard': typeof TvDashboardRoute
   '/tv/gerencial': typeof TvGerencialRoute
+  '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
@@ -334,6 +343,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/tv/dashboard'
     | '/tv/gerencial'
+    | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/meli/importar-rota-bruta'
@@ -366,6 +376,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/tv/dashboard'
     | '/tv/gerencial'
+    | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/meli/importar-rota-bruta'
@@ -399,6 +410,7 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/tv/dashboard'
     | '/tv/gerencial'
+    | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/meli/importar-rota-bruta'
@@ -617,6 +629,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TvGerencialRouteImport
       parentRoute: typeof TvRoute
     }
+    '/tv/meli': {
+      id: '/tv/meli'
+      path: '/meli'
+      fullPath: '/tv/meli'
+      preLoaderRoute: typeof TvMeliRouteImport
+      parentRoute: typeof TvRoute
+    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -687,11 +706,13 @@ const AuthenticatedRouteRouteWithChildren =
 interface TvRouteChildren {
   TvDashboardRoute: typeof TvDashboardRoute
   TvGerencialRoute: typeof TvGerencialRoute
+  TvMeliRoute: typeof TvMeliRoute
 }
 
 const TvRouteChildren: TvRouteChildren = {
   TvDashboardRoute: TvDashboardRoute,
   TvGerencialRoute: TvGerencialRoute,
+  TvMeliRoute: TvMeliRoute,
 }
 
 const TvRouteWithChildren = TvRoute._addFileChildren(TvRouteChildren)
