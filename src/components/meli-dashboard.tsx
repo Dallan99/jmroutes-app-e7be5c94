@@ -518,6 +518,32 @@ export function MeliDashboardSection({
           </DialogContent>
         </Dialog>
 
+        {/* Operações que compõem o indicador clicado */}
+        <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
+          <DialogContent className="max-w-6xl">
+            <DialogHeader>
+              <DialogTitle>
+                {drill === "total"
+                  ? "Operações — total de pacotes"
+                  : `Operações — ${LABEL_SITUACAO[(drill ?? "desconhecido") as SituacaoMeli]}`}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">{data}</span>
+              </DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-3">
+              {q.isPending && !d
+                ? <p className="p-4 text-sm text-muted-foreground">Carregando operações…</p>
+                : (
+                  <TabelaRotas
+                    rotas={rotasDoDrill}
+                    ordem={null}
+                    setOrdem={() => {}}
+                    onAbrir={(id) => abrirPedidos(id, drill ?? "total")}
+                  />
+                )}
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+
         {/* Drill-down dos pacotes */}
         <Dialog open={!!rotaAberta} onOpenChange={(o) => !o && setRotaAberta(null)}>
           <DialogContent className="max-w-6xl">
@@ -538,7 +564,41 @@ export function MeliDashboardSection({
                 Rota de dia anterior — atualizada hoje. Não entra nos indicadores do dia atual.
               </p>
             )}
-            <ScrollArea className="max-h-[65vh]">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-56 flex-1">
+                <Label htmlFor="meli-busca-pedido">Buscar tracking ou shipment</Label>
+                <Input
+                  id="meli-busca-pedido"
+                  value={buscaPedido}
+                  onChange={(e) => setBuscaPedido(e.target.value)}
+                  placeholder="Ex.: 4400..."
+                />
+              </div>
+              <div className="w-52">
+                <Label>Situação Meli</Label>
+                <Select
+                  value={pedidoStatus}
+                  onValueChange={(v) => setPedidoStatus(v as SituacaoMeli | "total")}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Todas as situações</SelectItem>
+                    {(Object.keys(LABEL_SITUACAO) as SituacaoMeli[]).map((s) => (
+                      <SelectItem key={s} value={s}>{LABEL_SITUACAO[s]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {pacotesFiltrados.length} pedido(s) exibido(s)
+              </p>
+            </div>
+            {pacotesQuery.data?.status === "erro" && (
+              <p role="alert" className="rounded border border-destructive/40 bg-destructive/10 p-2 text-sm">
+                Falha ao carregar os pedidos: {pacotesQuery.data.erro}
+              </p>
+            )}
+            <ScrollArea className="max-h-[60vh]">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-background">
                   <tr className="border-b text-left">
@@ -546,6 +606,7 @@ export function MeliDashboardSection({
                     <th className="p-2">Shipment</th>
                     <th className="p-2">Parada</th>
                     <th className="p-2">Situação Meli</th>
+                    <th className="p-2">Status</th>
                     <th className="p-2">Substatus</th>
                     <th className="p-2">Ocorrência</th>
                     <th className="p-2">Área de risco</th>
@@ -555,12 +616,13 @@ export function MeliDashboardSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {(pacotesQuery.data?.pacotes ?? []).map((p) => (
+                  {pacotesFiltrados.map((p) => (
                     <tr key={p.tracking_id} className="border-b">
                       <td className="p-2 font-mono">{p.tracking_id}</td>
                       <td className="p-2 font-mono">{p.shipment_id ?? "—"}</td>
                       <td className="p-2">{p.stop_id ?? "—"}</td>
                       <td className="p-2">{LABEL_SITUACAO[p.situacao as SituacaoMeli] ?? p.situacao}</td>
+                      <td className="p-2">{p.status ?? "—"}</td>
                       <td className="p-2">{p.substatus ?? "—"}</td>
                       <td className="p-2">
                         {p.occurrence_code
@@ -569,22 +631,40 @@ export function MeliDashboardSection({
                       </td>
                       <td className="p-2">
                         {p.pacote_area_risco ? (
-                          <SeloRisco motivo={p.motivo_area_risco} origem={p.origem_area_risco} />
+                          <>
+                            <SeloRisco motivo={p.motivo_area_risco} origem={p.origem_area_risco} />
+                            <div className="text-[10px] text-muted-foreground">
+                              {p.motivo_area_risco ?? "—"}
+                              {p.origem_area_risco ? ` · origem: ${p.origem_area_risco}` : ""}
+                            </div>
+                          </>
                         ) : "—"}
                       </td>
                       <td className="p-2">{hhmmss(p.ultima_atualizacao_meli)}</td>
-                      <td className="p-2">{p.jm_recebido ? "Recebido" : "Não recebido"}</td>
-                      <td className="p-2">{p.jm_triado ? "Triado" : "Não triado"}</td>
+                      <td className="p-2">
+                        {p.jm_recebido ? "Recebido" : "Não recebido"}
+                        <div className="text-[10px] text-muted-foreground">{hhmmss(p.jm_recebido_em)}</div>
+                      </td>
+                      <td className="p-2">
+                        {p.jm_triado ? "Triado" : "Não triado"}
+                        <div className="text-[10px] text-muted-foreground">{hhmmss(p.jm_triado_em)}</div>
+                      </td>
                     </tr>
                   ))}
-                  {(pacotesQuery.data?.pacotes ?? []).length === 0 && (
-                    <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">Sem pacotes.</td></tr>
+                  {pacotesQuery.isPending && (
+                    <tr><td colSpan={11} className="p-4 text-center text-muted-foreground">Carregando pedidos…</td></tr>
+                  )}
+                  {!pacotesQuery.isPending && pacotesFiltrados.length === 0 && (
+                    <tr><td colSpan={11} className="p-4 text-center text-muted-foreground">
+                      Nenhum pedido para a busca/situação selecionada.
+                    </td></tr>
                   )}
                 </tbody>
               </table>
             </ScrollArea>
           </DialogContent>
         </Dialog>
+
       </section>
     </TooltipProvider>
   );
