@@ -237,6 +237,12 @@ export function MeliDashboardSection({
     URL.revokeObjectURL(url);
   };
 
+  const abrirDrill = (s: SituacaoMeli | "total") => {
+    setDrillBase(baseId === NONE ? NONE : (bases.find((b) => b.id === baseId)?.codigo ?? NONE));
+    setDrillBusca("");
+    setDrill(s);
+  };
+
   const abrirPedidos = (rotaId: string, s: SituacaoMeli | "total") => {
     setDrill(null);
     setVerRisco(false);
