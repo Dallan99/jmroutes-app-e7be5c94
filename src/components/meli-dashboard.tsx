@@ -180,10 +180,48 @@ export function MeliDashboardSection({
     return Array.from(new Set(out)).slice(0, 12);
   }, [rotas, d?.bases, serverTime]);
 
+  const contarStatus = (r: MeliDashboardRota, s: SituacaoMeli | "total") =>
+    s === "total" ? r.total
+    : s === "nao_iniciado" ? r.nao_iniciado
+    : s === "em_rota" ? r.em_rota
+    : s === "entregue" ? r.entregue
+    : s === "insucesso" ? r.insucesso
+    : s === "cancelado" ? r.cancelado
+    : 0;
+
+  const rotasDoDrill = useMemo(() => {
+    if (!drill) return [];
+    return rotas
+      .filter((r) => contarStatus(r, drill) > 0)
+      .sort((a, b) => contarStatus(b, drill) - contarStatus(a, drill));
+  }, [rotas, drill]);
+
+  const abrirPedidos = (rotaId: string, s: SituacaoMeli | "total") => {
+    setDrill(null);
+    setVerRisco(false);
+    setPedidoStatus(s);
+    setBuscaPedido("");
+    setRotaAberta(rotaId);
+  };
+
+  const pacotesFiltrados = useMemo(() => {
+    const lista = pacotesQuery.data?.pacotes ?? [];
+    const termo = buscaPedido.trim().toLowerCase();
+    return lista.filter((p) => {
+      if (pedidoStatus !== "total" && p.situacao !== pedidoStatus) return false;
+      if (!termo) return true;
+      return (
+        p.tracking_id.toLowerCase().includes(termo) ||
+        (p.shipment_id ?? "").toLowerCase().includes(termo)
+      );
+    });
+  }, [pacotesQuery.data?.pacotes, pedidoStatus, buscaPedido]);
+
   const limparFiltros = () => {
     setBaseId(NONE); setMotorista(""); setRota(""); setStatus(NONE);
     setTransportadora(""); setRisco(NONE);
   };
+
 
   return (
     <TooltipProvider>
