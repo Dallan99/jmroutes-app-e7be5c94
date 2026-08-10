@@ -282,14 +282,15 @@ export function MeliDashboardSection({
 
         {/* Cards principais */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-          <Kpi label="Total de pacotes" valor={cards?.total} icon={Package} />
-          <Kpi label="Não iniciados" valor={cards?.nao_iniciado} icon={Timer} />
-          <Kpi label="Em rota" valor={cards?.em_rota} icon={Truck} tom="info" />
-          <Kpi label="Entregues" valor={cards?.entregue} icon={CheckCircle2} tom="success" />
-          <Kpi label="Insucessos" valor={cards?.insucesso} icon={PackageX} tom="warning" />
-          <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} />
+          <Kpi label="Total de pacotes" valor={cards?.total} icon={Package} onClick={() => setDrill("total")} />
+          <Kpi label="Não iniciados" valor={cards?.nao_iniciado} icon={Timer} onClick={() => setDrill("nao_iniciado")} />
+          <Kpi label="Em rota" valor={cards?.em_rota} icon={Truck} tom="info" onClick={() => setDrill("em_rota")} />
+          <Kpi label="Entregues" valor={cards?.entregue} icon={CheckCircle2} tom="success" onClick={() => setDrill("entregue")} />
+          <Kpi label="Insucessos" valor={cards?.insucesso} icon={PackageX} tom="warning" onClick={() => setDrill("insucesso")} />
+          <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} onClick={() => setDrill("cancelado")} />
           <Kpi label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} icon={CheckCircle2} tom="success" />
         </div>
+
 
         {/* Card de área de risco */}
         <Card
