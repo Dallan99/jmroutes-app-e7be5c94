@@ -2,25 +2,34 @@ import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tansta
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Minimize2, X, Play, Pause, Gauge, BarChart3, Truck } from "lucide-react";
+import { Maximize2, Minimize2, X, Gauge, BarChart3, Truck } from "lucide-react";
+import { TV_FLAGS, TV_ROTA_INICIAL } from "@/lib/tv-flags";
+import { useClock, formatTimeBR } from "@/lib/use-clock";
 
 export const Route = createFileRoute("/tv")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+    if (location.pathname === "/tv" || location.pathname === "/tv/") {
+      throw redirect({ to: TV_ROTA_INICIAL, search: (s: Record<string, unknown>) => s });
+    }
   },
   component: TvShell,
 });
-
-const ROTATION_MS = 20_000;
 
 function TvShell() {
   const rs = useRouterState();
   const path = rs.location.pathname;
   const [isFs, setIsFs] = useState(false);
-  const [rotate, setRotate] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const agora = useClock(1000);
+
+  const abas = [
+    TV_FLAGS.visaoOperacional && { to: "/tv/dashboard", icon: Gauge, label: "Operacional" },
+    TV_FLAGS.visaoGerencial && { to: "/tv/gerencial", icon: BarChart3, label: "Gerencial" },
+    TV_FLAGS.visaoMeli && { to: "/tv/meli", icon: Truck, label: "Meli" },
+  ].filter(Boolean) as { to: string; icon: typeof Gauge; label: string }[];
 
   useEffect(() => {
     const onFs = () => setIsFs(!!document.fullscreenElement);
@@ -28,22 +37,13 @@ function TvShell() {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  useEffect(() => {
-    if (!rotate) return;
-    const id = setInterval(() => {
-      const next = path.endsWith("/gerencial") ? "/tv/dashboard" : "/tv/gerencial";
-      window.history.pushState({}, "", next);
-      // Trigger router re-evaluation
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    }, ROTATION_MS);
-    return () => clearInterval(id);
-  }, [rotate, path]);
-
   async function toggleFs() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await rootRef.current?.requestFullscreen();
-    } catch {}
+    } catch {
+      /* fullscreen pode ser bloqueado pelo navegador */
+    }
   }
 
   return (
@@ -51,30 +51,31 @@ function TvShell() {
       <header className="flex items-center justify-between gap-4 px-6 py-3 border-b border-white/10 bg-black/20">
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] font-semibold text-[var(--brand-yellow)]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Modo TV
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Operação Meli — Modo TV
           </span>
-          <nav className="flex items-center gap-1">
-            <TvNav to="/tv/dashboard" icon={Gauge} label="Operacional" active={path.endsWith("/dashboard")} />
-            <TvNav to="/tv/gerencial" icon={BarChart3} label="Gerencial" active={path.endsWith("/gerencial")} />
-            <TvNav to="/tv/meli" icon={Truck} label="Meli" active={path.endsWith("/meli")} />
-          </nav>
-
+          {abas.length > 1 && (
+            <nav className="flex items-center gap-1" aria-label="Visões do Modo TV">
+              {abas.map((a) => (
+                <TvNav key={a.to} to={a.to} icon={a.icon} label={a.label} active={path.startsWith(a.to)} />
+              ))}
+            </nav>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          <span className="text-sm tabular-nums text-white/70 xl:text-base" aria-label="Hora atual">
+            {formatTimeBR(agora)}
+          </span>
           <Button
             size="sm"
             variant="ghost"
+            aria-label={isFs ? "Sair da tela cheia" : "Entrar em tela cheia"}
             className="text-white hover:bg-white/10 hover:text-white"
-            onClick={() => setRotate((r) => !r)}
+            onClick={toggleFs}
           >
-            {rotate ? <Pause className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
-            {rotate ? "Pausar" : "Alternar auto"}
-          </Button>
-          <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white" onClick={toggleFs}>
             {isFs ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </Button>
           <Link to="/dashboard">
-            <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
+            <Button size="sm" variant="ghost" aria-label="Sair do Modo TV" className="text-white hover:bg-white/10 hover:text-white">
               <X className="w-4 h-4 mr-1" /> Sair
             </Button>
           </Link>
@@ -91,7 +92,7 @@ function TvNav({ to, icon: Icon, label, active }: { to: string; icon: typeof Gau
   return (
     <Link
       to={to}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition ${
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)] ${
         active ? "bg-[var(--brand-yellow)] text-[var(--brand-navy)]" : "text-white/70 hover:text-white hover:bg-white/10"
       }`}
     >

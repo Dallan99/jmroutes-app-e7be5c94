@@ -8,9 +8,10 @@ import {
   type MeliDashboardRota,
 } from "@/lib/meli-dashboard.functions";
 import { LABEL_SITUACAO, descreverMotivo, type SituacaoMeli } from "@/lib/meli-status";
+import { TV_BASES_INTEGRADAS } from "@/lib/tv-flags";
 import { Button } from "@/components/ui/button";
 import {
-  AlertTriangle, ChevronLeft, ChevronRight, Pause, Play, ShieldAlert,
+  AlertTriangle, ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Repeat, ShieldAlert, ShieldCheck,
 } from "lucide-react";
 
 type Risco = "qualquer" | "integral" | "parcial";
@@ -33,9 +34,9 @@ const RISCOS: Risco[] = ["qualquer", "integral", "parcial"];
 export const Route = createFileRoute("/tv/meli")({
   head: () => ({
     meta: [
-      { title: "Modo TV — Operação Meli | JMRoutes" },
+      { title: "Operação Meli — Modo TV | JMRoutes" },
       { name: "description", content: "Painel de televisão da operação Meli em tempo real: rotas, entregas, insucessos e área de risco." },
-      { property: "og:title", content: "Modo TV — Operação Meli | JMRoutes" },
+      { property: "og:title", content: "Operação Meli — Modo TV | JMRoutes" },
       { property: "og:description", content: "Painel de televisão da operação Meli em tempo real." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -56,8 +57,8 @@ export const Route = createFileRoute("/tv/meli")({
 const REFETCH_MS = 30_000;
 const SEM_SYNC_MS = 2 * 60_000;
 const ROTA_PARADA_MS = 15 * 60_000;
-const PAGINA_MS = 10_000;
-const LINHAS_POR_PAGINA = 10;
+const VISAO_MS = 12_000;
+const PAGINA_MS = 6_000;
 const PREF_KEY = "jmroutes.tv.meli.prefs";
 
 type Visao = "resumo" | "rotas" | "insucessos" | "risco" | "bases";
@@ -73,7 +74,7 @@ type Prefs = {
   baseId: string | null;
   somenteAtencao: boolean;
   situacao: SituacaoMeli | null;
-  rotacaoVisoes: boolean;
+  rotacaoAuto: boolean;
 };
 
 function hhmmss(iso?: string | null) {
@@ -93,30 +94,49 @@ function lerPrefs(inicial: Prefs): Prefs {
       baseId: typeof p.baseId === "string" ? p.baseId : inicial.baseId,
       somenteAtencao: !!p.somenteAtencao,
       situacao: SITUACOES.includes(p.situacao as SituacaoMeli) ? (p.situacao as SituacaoMeli) : inicial.situacao,
-      rotacaoVisoes: !!p.rotacaoVisoes,
+      rotacaoAuto: p.rotacaoAuto === undefined ? true : !!p.rotacaoAuto,
     };
   } catch {
     return inicial;
   }
 }
 
+/** Quantidade de linhas por página conforme a altura da tela (Full HD / 4K). */
+function useLinhasPorPagina() {
+  const [linhas, setLinhas] = useState(10);
+  useEffect(() => {
+    const calc = () => {
+      const h = window.innerHeight;
+      setLinhas(h >= 1800 ? 14 : h >= 1200 ? 12 : h >= 900 ? 10 : 8);
+    };
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, []);
+  return linhas;
+}
+
 function TvMeli() {
   const busca = Route.useSearch();
   const fetchDados = useServerFn(meliDashboardOperacional);
+  const linhasPorPagina = useLinhasPorPagina();
 
   const [prefs, setPrefs] = useState<Prefs>(() =>
     lerPrefs({
       baseId: busca.base_id ?? null,
       somenteAtencao: false,
       situacao: busca.status ?? null,
-      rotacaoVisoes: false,
+      rotacaoAuto: true,
     }),
   );
   const [visao, setVisao] = useState<Visao>("resumo");
   const [pagina, setPagina] = useState(0);
   const [pausado, setPausado] = useState(false);
-  const [segundos, setSegundos] = useState(REFETCH_MS / 1000);
-  const retomarRef = useRef<number | null>(null);
+  const [restante, setRestante] = useState(VISAO_MS / 1000);
+  const [ciclo, setCiclo] = useState(0);
+  const [segundosDados, setSegundosDados] = useState(REFETCH_MS / 1000);
+  const visaoRef = useRef(visao);
+  visaoRef.current = visao;
 
   useEffect(() => {
     try {
@@ -146,11 +166,34 @@ function TvMeli() {
     placeholderData: (prev) => prev,
   });
 
+  // Contador da próxima atualização dos dados (independente do carrossel).
   useEffect(() => {
-    setSegundos(REFETCH_MS / 1000);
-    const t = setInterval(() => setSegundos((s) => (s > 0 ? s - 1 : 0)), 1000);
+    setSegundosDados(REFETCH_MS / 1000);
+    const t = setInterval(() => setSegundosDados((s) => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [q.dataUpdatedAt]);
+
+  const irPara = useCallback((v: Visao) => {
+    setVisao(v);
+    setPagina(0);
+    setCiclo((c) => c + 1);
+  }, []);
+
+  const mover = useCallback((delta: number) => {
+    const i = VISOES.findIndex((x) => x.id === visaoRef.current);
+    const prox = VISOES[(i + delta + VISOES.length) % VISOES.length]!.id;
+    irPara(prox);
+  }, [irPara]);
+
+  // Carrossel: 12s por visão. Depende só de rotação/pausa/visão/ciclo —
+  // atualizações de dados não reiniciam o temporizador.
+  useEffect(() => {
+    if (!prefs.rotacaoAuto || pausado) return;
+    setRestante(VISAO_MS / 1000);
+    const tick = setInterval(() => setRestante((r) => (r > 0 ? r - 1 : 0)), 1000);
+    const avanca = setTimeout(() => mover(1), VISAO_MS);
+    return () => { clearInterval(tick); clearTimeout(avanca); };
+  }, [prefs.rotacaoAuto, pausado, visao, ciclo, mover]);
 
   const d = q.data?.status === "ok" ? q.data : undefined;
   const cards = d?.cards;
@@ -159,14 +202,14 @@ function TvMeli() {
   const agora = serverTime ? new Date(serverTime).getTime() : Date.now();
   const ultimaSync = d?.ultima_sincronizacao ?? null;
   const syncAtrasada = !ultimaSync || agora - new Date(ultimaSync).getTime() > SEM_SYNC_MS;
+  const syncStatus = q.data?.status === "erro" ? "Com erro" : syncAtrasada ? "Atrasada" : "Em dia";
 
   const precisaAtencao = useCallback(
     (r: MeliDashboardRota) =>
       (!r.last_synced_at || agora - new Date(r.last_synced_at).getTime() > ROTA_PARADA_MS) ||
       r.rota_area_risco || r.area_risco_parcial ||
       (r.total > 0 && r.insucesso / r.total > 0.2) ||
-      (r.total > 0 && r.nao_iniciado / r.total > 0.8) ||
-      ((r.rota_area_risco || r.area_risco_parcial) && r.perc_entrega < 50),
+      (r.total > 0 && r.nao_iniciado / r.total > 0.8),
     [agora],
   );
 
@@ -187,35 +230,16 @@ function TvMeli() {
     });
   }, [rotas, prefs.somenteAtencao, precisaAtencao, agora]);
 
-  const totalPaginas = Math.max(1, Math.ceil(rotasOrdenadas.length / LINHAS_POR_PAGINA));
+  const totalPaginas = Math.max(1, Math.ceil(rotasOrdenadas.length / linhasPorPagina));
   const paginaAtual = Math.min(pagina, totalPaginas - 1);
-  const linhas = rotasOrdenadas.slice(paginaAtual * LINHAS_POR_PAGINA, (paginaAtual + 1) * LINHAS_POR_PAGINA);
+  const linhas = rotasOrdenadas.slice(paginaAtual * linhasPorPagina, (paginaAtual + 1) * linhasPorPagina);
 
-  // Rotação automática de páginas e de visões
+  // Paginação automática dentro da visão de rotas (6s), sem trocar a visão.
   useEffect(() => {
-    if (pausado) return;
-    const id = setInterval(() => {
-      setPagina((p) => {
-        const prox = p + 1;
-        if (prox < totalPaginas) return prox;
-        if (prefs.rotacaoVisoes) {
-          setVisao((v) => {
-            const i = VISOES.findIndex((x) => x.id === v);
-            return VISOES[(i + 1) % VISOES.length]!.id;
-          });
-        }
-        return 0;
-      });
-    }, PAGINA_MS);
+    if (visao !== "rotas" || pausado || totalPaginas <= 1) return;
+    const id = setInterval(() => setPagina((p) => (p + 1) % totalPaginas), PAGINA_MS);
     return () => clearInterval(id);
-  }, [pausado, totalPaginas, prefs.rotacaoVisoes]);
-
-  // Pausa temporária ao interagir e retomada automática
-  const interagiu = useCallback(() => {
-    setPausado(true);
-    if (retomarRef.current) window.clearTimeout(retomarRef.current);
-    retomarRef.current = window.setTimeout(() => setPausado(false), 30_000);
-  }, []);
+  }, [visao, pausado, totalPaginas, ciclo]);
 
   const alertas = useMemo(() => {
     const out: string[] = [];
@@ -238,13 +262,26 @@ function TvMeli() {
   }, [rotasOrdenadas, syncAtrasada, agora]);
 
   const bases = d?.bases ?? [];
+  const basesComDados = useMemo(
+    () => bases.filter((b) => b.total > 0 || b.rotas > 0),
+    [bases],
+  );
+  const basesAguardando = useMemo(
+    () => bases.filter((b) => b.total === 0 && b.rotas === 0),
+    [bases],
+  );
+
+  const motivos = (d?.motivos_insucesso ?? []).filter((m) => m.total > 0);
+  const totalOperacao = cards?.total ?? 0;
+  const rotasRisco = rotas.filter((r) => r.rota_area_risco || r.area_risco_parcial);
+  const semRisco = rotasRisco.length === 0 && !(d?.area_risco?.pacotes ?? 0);
+
+  const indiceVisao = VISOES.findIndex((v) => v.id === visao);
+  const progresso = Math.max(0, Math.min(100, (restante / (VISAO_MS / 1000)) * 100));
+  const rotacaoAtiva = prefs.rotacaoAuto && !pausado;
 
   return (
-    <div
-      className="space-y-5 p-5 xl:p-8"
-      onPointerDown={interagiu}
-      onKeyDown={interagiu}
-    >
+    <div className="space-y-5 p-5 xl:p-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-black tracking-tight xl:text-5xl">Operação Meli — Modo TV</h1>
@@ -255,25 +292,44 @@ function TvMeli() {
               {prefs.baseId ? (bases.find((b) => b.base_id === prefs.baseId)?.base_codigo ?? "selecionada") : "Todas"}
             </span>
             {" · "}Últ. sync Meli <span className="font-semibold tabular-nums">{hhmmss(ultimaSync)}</span>
-            {" · "}Próxima atualização em <span className="tabular-nums">{segundos}s</span>
-            {q.isFetching && <span className="ml-2 text-sm opacity-70">Atualizando…</span>}
+            {" · "}Fonte <span className="font-semibold">Worker Meli</span>
+            {" · "}
+            <span
+              className={`inline-flex items-center gap-1.5 font-semibold ${
+                syncStatus === "Em dia" ? "text-emerald-400" : syncStatus === "Atrasada" ? "text-amber-300" : "text-rose-400"
+              }`}
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  syncStatus === "Em dia" ? "bg-emerald-400" : syncStatus === "Atrasada" ? "bg-amber-300" : "bg-rose-500"
+                }`}
+                aria-hidden
+              />
+              {syncStatus}
+            </span>
+            {" · "}Próx. atualização em <span className="font-semibold tabular-nums">{segundosDados}s</span>
+            {q.isFetching && (
+              <span className="ml-2 inline-flex items-center gap-1 text-sm text-white/50">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> Atualizando…
+              </span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
             aria-label="Base exibida no Modo TV"
-            className="rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm"
+            className="rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)]"
             value={prefs.baseId ?? "all"}
             onChange={(e) => setPrefs((p) => ({ ...p, baseId: e.target.value === "all" ? null : e.target.value }))}
           >
             <option value="all">Todas as bases</option>
-            {bases.filter((b) => b.base_id).map((b) => (
+            {basesComDados.filter((b) => b.base_id).map((b) => (
               <option key={b.base_id!} value={b.base_id!}>{b.base_codigo ?? "—"}</option>
             ))}
           </select>
           <select
             aria-label="Situação Meli exibida no Modo TV"
-            className="rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm"
+            className="rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)]"
             value={prefs.situacao ?? "all"}
             onChange={(e) => setPrefs((p) => ({ ...p, situacao: e.target.value === "all" ? null : (e.target.value as SituacaoMeli) }))}
           >
@@ -288,14 +344,6 @@ function TvMeli() {
           >
             {prefs.somenteAtencao ? "Todas as rotas" : "Somente atenção"}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-white hover:bg-white/10 hover:text-white"
-            onClick={() => setPrefs((p) => ({ ...p, rotacaoVisoes: !p.rotacaoVisoes }))}
-          >
-            {prefs.rotacaoVisoes ? "Fixar visão" : "Rodar visões"}
-          </Button>
         </div>
       </header>
 
@@ -308,184 +356,309 @@ function TvMeli() {
         </div>
       )}
 
-      <nav className="flex flex-wrap gap-2" aria-label="Visões do Modo TV">
-        {VISOES.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => { setVisao(v.id); setPagina(0); }}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              visao === v.id ? "bg-[var(--brand-yellow)] text-[var(--brand-navy)]" : "bg-white/10 text-white/70 hover:text-white"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </nav>
-
-      {visao === "resumo" && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
-          <TvNum label="Total de pacotes" valor={cards?.total} />
-          <TvNum label="Não iniciados" valor={cards?.nao_iniciado} tom="neutro" />
-          <TvNum label="Em rota" valor={cards?.em_rota} tom="info" />
-          <TvNum label="Entregues" valor={cards?.entregue} tom="ok" />
-          <TvNum label="Insucessos" valor={cards?.insucesso} tom="atencao" />
-          <TvNum label="Cancelados" valor={cards?.cancelado} tom="neutro" />
-          <TvNum label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} tom="ok" />
-          <TvNum label="Rotas" valor={cards?.rotas} />
-          <TvNum label="Rotas em risco" valor={cards?.rotas_risco} tom="critico" />
-          <TvNum label="Pacotes em risco" valor={cards?.area_risco_pacotes} tom="critico" />
-          <TvNum label="Sincronização" valor={syncAtrasada ? "Atrasada" : "Em dia"} tom={syncAtrasada ? "critico" : "ok"} />
-          <TvNum label="Alertas" valor={alertas.length} tom={alertas.length ? "atencao" : "ok"} />
+      {/* Carrossel: temporizador, progresso e controles */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3" aria-label="Controles do carrossel">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-base font-semibold xl:text-lg" aria-live="polite">
+            {VISOES[indiceVisao]?.label}
+            <span className="text-white/60"> · Visão {indiceVisao + 1} de {VISOES.length} · </span>
+            {rotacaoAtiva ? (
+              <span className="tabular-nums text-[var(--brand-yellow)]">Próxima visão em {restante}s</span>
+            ) : (
+              <span className="text-white/60">{prefs.rotacaoAuto ? "Rotação pausada" : "Rotação automática desligada"}</span>
+            )}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm" variant="ghost" title="Visão anterior" aria-label="Visão anterior"
+              className="text-white hover:bg-white/10 hover:text-white"
+              onClick={() => mover(-1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm" variant="ghost"
+              title={pausado ? "Iniciar rotação" : "Pausar rotação"}
+              aria-label={pausado ? "Iniciar rotação" : "Pausar rotação"}
+              className="text-white hover:bg-white/10 hover:text-white"
+              onClick={() => setPausado((p) => !p)}
+            >
+              {pausado ? <Play className="mr-1 h-4 w-4" /> : <Pause className="mr-1 h-4 w-4" />}
+              {pausado ? "Iniciar" : "Pausar"}
+            </Button>
+            <Button
+              size="sm" variant="ghost" title="Próxima visão" aria-label="Próxima visão"
+              className="text-white hover:bg-white/10 hover:text-white"
+              onClick={() => mover(1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm" variant="ghost"
+              title={prefs.rotacaoAuto ? "Desativar rotação automática" : "Ativar rotação automática"}
+              aria-label={prefs.rotacaoAuto ? "Desativar rotação automática" : "Ativar rotação automática"}
+              aria-pressed={prefs.rotacaoAuto}
+              className={`hover:bg-white/10 hover:text-white ${prefs.rotacaoAuto ? "text-[var(--brand-yellow)]" : "text-white/60"}`}
+              onClick={() => { setPrefs((p) => ({ ...p, rotacaoAuto: !p.rotacaoAuto })); setPausado(false); setCiclo((c) => c + 1); }}
+            >
+              <Repeat className="mr-1 h-4 w-4" /> Auto
+            </Button>
+          </div>
         </div>
-      )}
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10" role="presentation">
+          <div
+            className="h-full rounded-full bg-[var(--brand-yellow)] transition-[width] duration-1000 ease-linear motion-reduce:transition-none"
+            style={{ width: rotacaoAtiva ? `${progresso}%` : "100%" }}
+          />
+        </div>
+        <nav className="mt-3 flex flex-wrap gap-2" aria-label="Visões da operação Meli">
+          {VISOES.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              aria-current={visao === v.id}
+              onClick={() => irPara(v.id)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-yellow)] ${
+                visao === v.id ? "bg-[var(--brand-yellow)] text-[var(--brand-navy)]" : "bg-white/10 text-white/70 hover:text-white"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </nav>
+      </section>
 
-      {visao === "rotas" && (
-        <TvCard
-          titulo={`Operações / rotas (${rotasOrdenadas.length})`}
-          rodape={
-            <Paginacao
-              pagina={paginaAtual}
-              total={totalPaginas}
-              pausado={pausado}
-              onAnterior={() => { interagiu(); setPagina((p) => (p - 1 + totalPaginas) % totalPaginas); }}
-              onProxima={() => { interagiu(); setPagina((p) => (p + 1) % totalPaginas); }}
-              onPausar={() => setPausado((p) => !p)}
-            />
-          }
-        >
-          <table className="w-full text-base xl:text-lg">
-            <thead>
-              <tr className="border-b border-white/15 text-left text-sm uppercase tracking-wider text-white/60">
-                <th className="p-2">Rota / cluster</th>
-                <th className="p-2">Motorista</th>
-                <th className="p-2">Placa</th>
-                <th className="p-2">Total</th>
-                <th className="p-2">Não inic.</th>
-                <th className="p-2">Em rota</th>
-                <th className="p-2">Entregues</th>
-                <th className="p-2">Insuc.</th>
-                <th className="p-2">% Entrega</th>
-                <th className="p-2">Risco</th>
-                <th className="p-2">Últ. sync</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((r) => {
-                const atrasada = !r.last_synced_at || agora - new Date(r.last_synced_at).getTime() > ROTA_PARADA_MS;
-                return (
-                  <tr key={r.rota_id} className={`border-b border-white/10 ${atrasada ? "bg-rose-500/10" : ""}`}>
-                    <td className="p-2 font-semibold">
-                      {r.nome_operacional}
-                      <span className="ml-2 text-xs font-normal text-white/50">{r.base_codigo ?? "—"}</span>
-                    </td>
-                    <td className="p-2">{r.driver_name ?? "—"}</td>
-                    <td className="p-2">{r.vehicle_license ?? "—"}</td>
-                    <td className="p-2 tabular-nums">{r.total}</td>
-                    <td className="p-2 tabular-nums text-white/60">{r.nao_iniciado}</td>
-                    <td className="p-2 tabular-nums text-sky-300">{r.em_rota}</td>
-                    <td className="p-2 tabular-nums text-emerald-400">{r.entregue}</td>
-                    <td className="p-2 tabular-nums text-amber-300">{r.insucesso}</td>
-                    <td className="p-2 tabular-nums font-semibold">{r.perc_entrega}%</td>
-                    <td className="p-2">
-                      {r.rota_area_risco || r.area_risco_parcial ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-sm text-rose-300">
-                          <ShieldAlert className="h-4 w-4" aria-hidden />
-                          {r.rota_area_risco ? "Integral" : "Parcial"}
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className={`p-2 tabular-nums ${atrasada ? "text-rose-300 font-semibold" : ""}`}>{hhmmss(r.last_synced_at)}</td>
-                  </tr>
-                );
-              })}
-              {linhas.length === 0 && (
-                <tr><td colSpan={11} className="p-6 text-center text-white/60">Nenhuma rota para os filtros atuais.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </TvCard>
-      )}
+      <div key={visao} className="animate-in fade-in duration-500 motion-reduce:animate-none">
+        {visao === "resumo" && (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
+            <TvNum label="Total de pacotes" valor={cards?.total} />
+            <TvNum label="Não iniciados" valor={cards?.nao_iniciado} tom="neutro" />
+            <TvNum label="Em rota" valor={cards?.em_rota} tom="info" />
+            <TvNum label="Entregues" valor={cards?.entregue} tom="ok" />
+            <TvNum label="Insucessos" valor={cards?.insucesso} tom="atencao" />
+            <TvNum label="Cancelados" valor={cards?.cancelado} tom="neutro" />
+            <TvNum label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} tom="ok" />
+            <TvNum label="Rotas" valor={cards?.rotas} />
+            <TvNum label="Rotas em risco" valor={cards?.rotas_risco} tom="critico" />
+            <TvNum label="Pacotes em risco" valor={cards?.area_risco_pacotes} tom="critico" />
+            <TvNum label="Sincronização" valor={syncStatus} tom={syncStatus === "Em dia" ? "ok" : syncStatus === "Atrasada" ? "atencao" : "critico"} />
+            <TvNum label="Alertas" valor={alertas.length} tom={alertas.length ? "atencao" : "ok"} />
+          </div>
+        )}
 
-      {visao === "insucessos" && (
-        <TvCard titulo="Insucessos e motivos">
-          <div className="grid gap-3 md:grid-cols-2">
-            {(d?.motivos_insucesso ?? []).slice(0, 12).map((m) => (
-              <div key={m.codigo} className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3">
-                <span className="text-lg">{descreverMotivo(m.codigo, m.descricao)}</span>
-                <span className="font-display text-2xl font-black tabular-nums text-amber-300">{m.total}</span>
+        {visao === "rotas" && (
+          <TvCard
+            titulo={`Operações / rotas (${rotasOrdenadas.length})`}
+            rodape={
+              <div className="flex items-center justify-between gap-3 text-sm text-white/70">
+                <span className="tabular-nums">Página {paginaAtual + 1} de {totalPaginas}</span>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="ghost" aria-label="Página anterior" title="Página anterior" className="text-white hover:bg-white/10 hover:text-white" onClick={() => setPagina((p) => (p - 1 + totalPaginas) % totalPaginas)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" aria-label="Próxima página" title="Próxima página" className="text-white hover:bg-white/10 hover:text-white" onClick={() => setPagina((p) => (p + 1) % totalPaginas)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            ))}
-            {(d?.motivos_insucesso ?? []).length === 0 && (
-              <p className="text-white/60">Nenhum insucesso registrado.</p>
+            }
+          >
+            <table className="w-full text-base xl:text-xl">
+              <thead>
+                <tr className="border-b border-white/15 text-left text-sm uppercase tracking-wider text-white/60">
+                  <th className="p-2">Rota / cluster</th>
+                  <th className="p-2">Motorista</th>
+                  <th className="p-2">Total</th>
+                  <th className="p-2">Não inic.</th>
+                  <th className="p-2">Em rota</th>
+                  <th className="p-2">Entregues</th>
+                  <th className="p-2">Insuc.</th>
+                  <th className="p-2">% Entrega</th>
+                  <th className="p-2">Risco</th>
+                  <th className="p-2">Últ. sync</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhas.map((r) => {
+                  const atrasada = !r.last_synced_at || agora - new Date(r.last_synced_at).getTime() > ROTA_PARADA_MS;
+                  return (
+                    <tr key={r.rota_id} className={`border-b border-white/10 ${atrasada ? "bg-rose-500/10" : ""}`}>
+                      <td className="p-2 font-semibold">
+                        {r.nome_operacional}
+                        <span className="ml-2 text-xs font-normal text-white/50">{r.base_codigo ?? "—"}</span>
+                      </td>
+                      <td className="p-2">{r.driver_name ?? "—"}</td>
+                      <td className="p-2 tabular-nums">{r.total}</td>
+                      <td className="p-2 tabular-nums text-white/60">{r.nao_iniciado}</td>
+                      <td className="p-2 tabular-nums text-sky-300">{r.em_rota}</td>
+                      <td className="p-2 tabular-nums text-emerald-400">{r.entregue}</td>
+                      <td className="p-2 tabular-nums text-amber-300">{r.insucesso}</td>
+                      <td className="p-2 tabular-nums font-semibold">{r.perc_entrega}%</td>
+                      <td className="p-2">
+                        {r.rota_area_risco || r.area_risco_parcial ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-0.5 text-sm text-rose-300">
+                            <ShieldAlert className="h-4 w-4" aria-hidden />
+                            {r.rota_area_risco ? "Integral" : "Parcial"}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className={`p-2 tabular-nums ${atrasada ? "font-semibold text-rose-300" : ""}`}>{hhmmss(r.last_synced_at)}</td>
+                    </tr>
+                  );
+                })}
+                {linhas.length === 0 && (
+                  <tr><td colSpan={10} className="p-6 text-center text-white/60">Nenhuma rota para os filtros atuais.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </TvCard>
+        )}
+
+        {visao === "insucessos" && (
+          motivos.length === 0 ? (
+            <VisaoPositiva
+              titulo="Nenhum insucesso registrado"
+              subtitulo="Operação sem tentativas de entrega frustradas no momento"
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <TvNum label="Total de insucessos" valor={cards?.insucesso} tom="atencao" />
+                <TvNum
+                  label="% sobre a operação"
+                  valor={totalOperacao ? `${Math.round(((cards?.insucesso ?? 0) / totalOperacao) * 1000) / 10}%` : "—"}
+                  tom="atencao"
+                />
+                <TvNum label="Motivos distintos" valor={motivos.length} tom="neutro" />
+                <TvNum label="Rotas envolvidas" valor={rotas.filter((r) => r.insucesso > 0).length} tom="atencao" />
+              </div>
+              <TvCard titulo="Principais motivos">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {motivos.slice(0, 10).map((m) => (
+                    <div key={m.codigo} className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3">
+                      <span className="text-lg xl:text-xl">{descreverMotivo(m.codigo, m.descricao)}</span>
+                      <span className="font-display text-2xl font-black tabular-nums text-amber-300 xl:text-3xl">
+                        {m.total}
+                        {totalOperacao > 0 && (
+                          <span className="ml-2 text-base font-semibold text-white/50">
+                            {Math.round((m.total / totalOperacao) * 1000) / 10}%
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </TvCard>
+              <TvCard titulo="Rotas com insucesso">
+                <ul className="space-y-2 text-lg xl:text-xl">
+                  {rotas.filter((r) => r.insucesso > 0)
+                    .sort((a, b) => b.insucesso - a.insucesso)
+                    .slice(0, 10)
+                    .map((r) => (
+                      <li key={r.rota_id} className="flex items-center justify-between rounded bg-white/5 px-4 py-2">
+                        <span>{r.nome_operacional} <span className="text-white/50">· {r.base_codigo ?? "—"}</span></span>
+                        <span className="tabular-nums text-amber-300">
+                          {r.insucesso} pedidos · {r.total > 0 ? Math.round((r.insucesso / r.total) * 100) : 0}% da rota
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              </TvCard>
+            </div>
+          )
+        )}
+
+        {visao === "risco" && (
+          semRisco ? (
+            <VisaoPositiva
+              titulo="Nenhuma rota em área de risco"
+              subtitulo="Operação sem ocorrências de risco no momento"
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <TvNum label="Rotas em risco" valor={d?.area_risco?.rotas} tom="critico" />
+                <TvNum label="Integrais" valor={d?.area_risco?.integrais} tom="critico" />
+                <TvNum label="Parciais" valor={d?.area_risco?.parciais} tom="atencao" />
+                <TvNum label="Pacotes em risco" valor={d?.area_risco?.pacotes} tom="critico" />
+                <TvNum label="Entregues" valor={d?.area_risco?.entregue} tom="ok" />
+                <TvNum label="Em rota" valor={d?.area_risco?.em_rota} tom="info" />
+                <TvNum label="Insucessos" valor={d?.area_risco?.insucesso} tom="atencao" />
+                <TvNum label="% Conclusão" valor={d?.area_risco ? `${d.area_risco.perc_conclusao}%` : undefined} tom="ok" />
+              </div>
+              <TvCard titulo="Rotas de área de risco">
+                <ul className="space-y-2 text-lg xl:text-xl">
+                  {rotasRisco.slice(0, 12).map((r) => (
+                    <li key={r.rota_id} className="flex items-center justify-between rounded bg-white/5 px-4 py-2">
+                      <span>{r.nome_operacional} <span className="text-white/50">· {r.base_codigo ?? "—"}</span></span>
+                      <span className="tabular-nums">{r.pacotes_risco} pacotes · {r.perc_entrega}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </TvCard>
+            </div>
+          )
+        )}
+
+        {visao === "bases" && (
+          <div className="space-y-4">
+            <TvCard titulo={`Bases integradas ao Worker Meli (${basesComDados.length})`}>
+              <table className="w-full text-base xl:text-xl">
+                <thead>
+                  <tr className="border-b border-white/15 text-left text-sm uppercase tracking-wider text-white/60">
+                    <th className="p-2">Base</th>
+                    <th className="p-2">Rotas</th>
+                    <th className="p-2">Rotas risco</th>
+                    <th className="p-2">Total</th>
+                    <th className="p-2">Entregues</th>
+                    <th className="p-2">Em rota</th>
+                    <th className="p-2">Insucessos</th>
+                    <th className="p-2">% Entrega</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {basesComDados.map((b) => (
+                    <tr key={b.base_id ?? b.base_codigo ?? "sem"} className="border-b border-white/10">
+                      <td className="p-2 font-semibold">{b.base_codigo ?? "—"}</td>
+                      <td className="p-2 tabular-nums">{b.rotas}</td>
+                      <td className="p-2 tabular-nums text-rose-300">{b.rotas_risco}</td>
+                      <td className="p-2 tabular-nums">{b.total}</td>
+                      <td className="p-2 tabular-nums text-emerald-400">{b.entregue}</td>
+                      <td className="p-2 tabular-nums text-sky-300">{b.em_rota}</td>
+                      <td className="p-2 tabular-nums text-amber-300">{b.insucesso}</td>
+                      <td className="p-2 tabular-nums font-semibold">{b.perc_entrega}%</td>
+                    </tr>
+                  ))}
+                  {basesComDados.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-white/60">
+                        Nenhuma base com dados Meli no dia operacional. Integração ativa hoje: {TV_BASES_INTEGRADAS.join(", ")}.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </TvCard>
+            {basesAguardando.length > 0 && (
+              <TvCard titulo="Aguardando integração">
+                <div className="flex flex-wrap gap-2">
+                  {basesAguardando.map((b) => (
+                    <span
+                      key={b.base_id ?? b.base_codigo ?? "sem"}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-base text-white/60"
+                    >
+                      {b.base_codigo ?? "—"} · Aguardando integração
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-white/50">
+                  Bases sem sincronização não entram nos indicadores gerais deste painel.
+                </p>
+              </TvCard>
             )}
           </div>
-        </TvCard>
-      )}
-
-      {visao === "risco" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <TvNum label="Rotas em risco" valor={d?.area_risco?.rotas} tom="critico" />
-            <TvNum label="Integrais" valor={d?.area_risco?.integrais} tom="critico" />
-            <TvNum label="Parciais" valor={d?.area_risco?.parciais} tom="atencao" />
-            <TvNum label="Pacotes em risco" valor={d?.area_risco?.pacotes} tom="critico" />
-            <TvNum label="Entregues" valor={d?.area_risco?.entregue} tom="ok" />
-            <TvNum label="Em rota" valor={d?.area_risco?.em_rota} tom="info" />
-            <TvNum label="Insucessos" valor={d?.area_risco?.insucesso} tom="atencao" />
-            <TvNum label="% Conclusão" valor={d?.area_risco ? `${d.area_risco.perc_conclusao}%` : undefined} tom="ok" />
-          </div>
-          <TvCard titulo="Rotas de área de risco">
-            <ul className="space-y-2 text-lg">
-              {rotas.filter((r) => r.rota_area_risco || r.area_risco_parcial).slice(0, 12).map((r) => (
-                <li key={r.rota_id} className="flex items-center justify-between rounded bg-white/5 px-4 py-2">
-                  <span>{r.nome_operacional} <span className="text-white/50">· {r.base_codigo ?? "—"}</span></span>
-                  <span className="tabular-nums">{r.pacotes_risco} pacotes · {r.perc_entrega}%</span>
-                </li>
-              ))}
-              {rotas.every((r) => !r.rota_area_risco && !r.area_risco_parcial) && (
-                <li className="text-white/60">Nenhuma rota de área de risco.</li>
-              )}
-            </ul>
-          </TvCard>
-        </div>
-      )}
-
-      {visao === "bases" && (
-        <TvCard titulo="Comparação entre bases">
-          <table className="w-full text-base xl:text-lg">
-            <thead>
-              <tr className="border-b border-white/15 text-left text-sm uppercase tracking-wider text-white/60">
-                <th className="p-2">Base</th>
-                <th className="p-2">Rotas</th>
-                <th className="p-2">Rotas risco</th>
-                <th className="p-2">Total</th>
-                <th className="p-2">Entregues</th>
-                <th className="p-2">Em rota</th>
-                <th className="p-2">Insucessos</th>
-                <th className="p-2">% Entrega</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bases.map((b) => (
-                <tr key={b.base_id ?? b.base_codigo ?? "sem"} className="border-b border-white/10">
-                  <td className="p-2 font-semibold">{b.base_codigo ?? "—"}</td>
-                  <td className="p-2 tabular-nums">{b.rotas}</td>
-                  <td className="p-2 tabular-nums text-rose-300">{b.rotas_risco}</td>
-                  <td className="p-2 tabular-nums">{b.total}</td>
-                  <td className="p-2 tabular-nums text-emerald-400">{b.entregue}</td>
-                  <td className="p-2 tabular-nums text-sky-300">{b.em_rota}</td>
-                  <td className="p-2 tabular-nums text-amber-300">{b.insucesso}</td>
-                  <td className="p-2 tabular-nums font-semibold">{b.perc_entrega}%</td>
-                </tr>
-              ))}
-              {bases.length === 0 && (
-                <tr><td colSpan={8} className="p-6 text-center text-white/60">Sem dados de bases.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </TvCard>
-      )}
+        )}
+      </div>
 
       {alertas.length > 0 && (
         <TvCard titulo="Alertas operacionais">
@@ -505,26 +678,12 @@ function TvMeli() {
   );
 }
 
-function Paginacao({
-  pagina, total, pausado, onAnterior, onProxima, onPausar,
-}: {
-  pagina: number; total: number; pausado: boolean;
-  onAnterior: () => void; onProxima: () => void; onPausar: () => void;
-}) {
+function VisaoPositiva({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm text-white/70">
-      <span className="tabular-nums">Página {pagina + 1} de {total}</span>
-      <div className="flex items-center gap-1">
-        <Button size="sm" variant="ghost" aria-label="Página anterior" className="text-white hover:bg-white/10 hover:text-white" onClick={onAnterior}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button size="sm" variant="ghost" aria-label={pausado ? "Retomar rotação" : "Pausar rotação"} className="text-white hover:bg-white/10 hover:text-white" onClick={onPausar}>
-          {pausado ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-        </Button>
-        <Button size="sm" variant="ghost" aria-label="Próxima página" className="text-white hover:bg-white/10 hover:text-white" onClick={onProxima}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-6 py-16 text-center">
+      <ShieldCheck className="h-20 w-20 text-emerald-400 xl:h-28 xl:w-28" aria-hidden />
+      <p className="font-display text-3xl font-black text-emerald-300 xl:text-5xl">{titulo}</p>
+      <p className="text-lg text-white/70 xl:text-2xl">{subtitulo}</p>
     </div>
   );
 }
@@ -533,7 +692,7 @@ function TvCard({ titulo, children, rodape }: { titulo: string; children: React.
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5">
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-white/70">{titulo}</h2>
-      <div className="overflow-x-auto">{children}</div>
+      <div>{children}</div>
       {rodape && <div className="mt-3 border-t border-white/10 pt-3">{rodape}</div>}
     </div>
   );
