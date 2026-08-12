@@ -43,17 +43,18 @@ function hhmmss(iso?: string | null) {
 
 export function MeliDashboardSection({
   data,
-  onDataChange,
   bases,
+  baseId: baseIdFiltro,
 }: {
   data: string;
-  onDataChange: (d: string) => void;
   bases: { id: string; codigo: string; nome: string }[];
+  /** Base selecionada nos filtros do Dashboard (fonte única de verdade). */
+  baseId?: string | null;
 }) {
   const fetchDados = useServerFn(meliDashboardOperacional);
   const fetchPacotes = useServerFn(meliDashboardPacotesRota);
 
-  const [baseId, setBaseId] = useState<string>(NONE);
+  const baseId = baseIdFiltro ?? NONE;
   const [motorista, setMotorista] = useState("");
   const [rota, setRota] = useState("");
   const [status, setStatus] = useState<string>(NONE);
