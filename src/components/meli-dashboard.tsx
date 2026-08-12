@@ -266,7 +266,7 @@ export function MeliDashboardSection({
   }, [pacotesQuery.data?.pacotes, pedidoStatus, buscaPedido]);
 
   const limparFiltros = () => {
-    setBaseId(NONE); setMotorista(""); setRota(""); setStatus(NONE);
+    setMotorista(""); setRota(""); setStatus(NONE);
     setTransportadora(""); setRisco(NONE);
   };
 
