@@ -187,7 +187,7 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border h-14 flex items-center justify-center px-3">
-        <Link to="/inicio" title="Voltar para o início" className="flex items-center justify-center w-full">
+        <Link to="/dashboard" title="Ir para o Dashboard" className="flex items-center justify-center w-full">
           {collapsed ? <JmLogo size={28} /> : <JmWordmark />}
         </Link>
       </SidebarHeader>

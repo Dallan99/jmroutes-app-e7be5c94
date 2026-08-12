@@ -26,7 +26,6 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDevolucoesRouteImport } from './routes/_authenticated/devolucoes'
 import { Route as AuthenticatedGerencialRouteImport } from './routes/_authenticated/gerencial'
 import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authenticated/historico'
-import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedIntegracaoMeliRouteImport } from './routes/_authenticated/integracao-meli'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedInventarioCentralRouteImport } from './routes/_authenticated/inventario-central'
@@ -129,11 +128,6 @@ const AuthenticatedHistoricoRoute = AuthenticatedHistoricoRouteImport.update({
   path: '/historico',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
-  id: '/inicio',
-  path: '/inicio',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedIntegracaoMeliRoute =
   AuthenticatedIntegracaoMeliRouteImport.update({
     id: '/integracao-meli',
@@ -229,7 +223,6 @@ export interface FileRoutesByFullPath {
   '/devolucoes': typeof AuthenticatedDevolucoesRoute
   '/gerencial': typeof AuthenticatedGerencialRoute
   '/historico': typeof AuthenticatedHistoricoRoute
-  '/inicio': typeof AuthenticatedInicioRoute
   '/integracao-meli': typeof AuthenticatedIntegracaoMeliRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/inventario-central': typeof AuthenticatedInventarioCentralRoute
@@ -262,7 +255,6 @@ export interface FileRoutesByTo {
   '/devolucoes': typeof AuthenticatedDevolucoesRoute
   '/gerencial': typeof AuthenticatedGerencialRoute
   '/historico': typeof AuthenticatedHistoricoRoute
-  '/inicio': typeof AuthenticatedInicioRoute
   '/integracao-meli': typeof AuthenticatedIntegracaoMeliRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/inventario-central': typeof AuthenticatedInventarioCentralRoute
@@ -297,7 +289,6 @@ export interface FileRoutesById {
   '/_authenticated/devolucoes': typeof AuthenticatedDevolucoesRoute
   '/_authenticated/gerencial': typeof AuthenticatedGerencialRoute
   '/_authenticated/historico': typeof AuthenticatedHistoricoRoute
-  '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/integracao-meli': typeof AuthenticatedIntegracaoMeliRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/inventario-central': typeof AuthenticatedInventarioCentralRoute
@@ -332,7 +323,6 @@ export interface FileRouteTypes {
     | '/devolucoes'
     | '/gerencial'
     | '/historico'
-    | '/inicio'
     | '/integracao-meli'
     | '/inventario'
     | '/inventario-central'
@@ -365,7 +355,6 @@ export interface FileRouteTypes {
     | '/devolucoes'
     | '/gerencial'
     | '/historico'
-    | '/inicio'
     | '/integracao-meli'
     | '/inventario'
     | '/inventario-central'
@@ -399,7 +388,6 @@ export interface FileRouteTypes {
     | '/_authenticated/devolucoes'
     | '/_authenticated/gerencial'
     | '/_authenticated/historico'
-    | '/_authenticated/inicio'
     | '/_authenticated/integracao-meli'
     | '/_authenticated/inventario'
     | '/_authenticated/inventario-central'
@@ -552,13 +540,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoricoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/inicio': {
-      id: '/_authenticated/inicio'
-      path: '/inicio'
-      fullPath: '/inicio'
-      preLoaderRoute: typeof AuthenticatedInicioRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/integracao-meli': {
       id: '/_authenticated/integracao-meli'
       path: '/integracao-meli'
@@ -669,7 +650,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDevolucoesRoute: typeof AuthenticatedDevolucoesRoute
   AuthenticatedGerencialRoute: typeof AuthenticatedGerencialRoute
   AuthenticatedHistoricoRoute: typeof AuthenticatedHistoricoRoute
-  AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedIntegracaoMeliRoute: typeof AuthenticatedIntegracaoMeliRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedInventarioCentralRoute: typeof AuthenticatedInventarioCentralRoute
@@ -689,7 +669,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDevolucoesRoute: AuthenticatedDevolucoesRoute,
   AuthenticatedGerencialRoute: AuthenticatedGerencialRoute,
   AuthenticatedHistoricoRoute: AuthenticatedHistoricoRoute,
-  AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedIntegracaoMeliRoute: AuthenticatedIntegracaoMeliRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedInventarioCentralRoute: AuthenticatedInventarioCentralRoute,
