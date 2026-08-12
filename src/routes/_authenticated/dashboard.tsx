@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -21,7 +21,7 @@ import {
 } from "recharts";
 import {
   Activity, AlertOctagon, AlertTriangle, CheckCircle2, Clock, Filter, Gauge,
-  Package, PackageCheck, PackageSearch, RefreshCcw, Timer, TrendingUp, Truck, Tv, UserCog,
+  Package, PackageCheck, PackageSearch, RefreshCcw, Timer, TrendingUp, Truck, UserCog,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -91,9 +91,6 @@ function DashboardPage() {
     if (k === "date" && typeof v === "string" && v) salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, v);
     setFilters((prev) => ({ ...prev, [k]: v }));
   }
-  function definirData(dia: string) {
-    setF("date", dia as DashboardFilters["date"]);
-  }
   function clearAll() {
     setFilters({
       date: hojeOperacional(),
@@ -105,7 +102,16 @@ function DashboardPage() {
   const activeFiltersCount = Object.values(cleanFilters).filter(Boolean).length;
 
   return (
-    <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
+    <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
+      {/* Imagem institucional ao fundo (decorativa) */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-[0.07]"
+        style={{
+          backgroundImage:
+            "url('/__l5e/assets-v1/49cb86eb-5372-47f1-aa79-869f502baca5/jm-hero.png')",
+        }}
+      />
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold flex items-center gap-2">
@@ -120,11 +126,6 @@ function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/tv/dashboard">
-            <Button variant="default" size="sm">
-              <Tv className="w-4 h-4 mr-2" /> Modo TV
-            </Button>
-          </Link>
           <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["dashboard"] })}>
             <RefreshCcw className="w-4 h-4 mr-2" /> Atualizar
           </Button>
@@ -168,8 +169,8 @@ function DashboardPage() {
       {/* ── Visão principal: Operação Meli em tempo real ── */}
       <MeliDashboardSection
         data={filters.date ?? hojeOperacional()}
-        onDataChange={definirData}
         bases={op?.bases ?? []}
+        baseId={filters.base_id ?? null}
       />
 
       {/* ── Indicadores internos JM (Recebimento / Triagem) ── */}

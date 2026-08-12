@@ -76,7 +76,7 @@ function AuthPage() {
       if (data.session) {
         const target = safeNext(next);
         if (target) window.location.href = target;
-        else navigate({ to: "/inicio", replace: true });
+        else navigate({ to: "/dashboard", replace: true });
       }
     });
   }, [navigate, next]);
@@ -99,7 +99,7 @@ function AuthPage() {
     toast.success("Bem-vindo!");
     const target = safeNext(next);
     if (target) window.location.href = target;
-    else navigate({ to: "/inicio", replace: true });
+    else navigate({ to: "/dashboard", replace: true });
   }
 
 

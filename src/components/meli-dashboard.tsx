@@ -43,17 +43,18 @@ function hhmmss(iso?: string | null) {
 
 export function MeliDashboardSection({
   data,
-  onDataChange,
   bases,
+  baseId: baseIdFiltro,
 }: {
   data: string;
-  onDataChange: (d: string) => void;
   bases: { id: string; codigo: string; nome: string }[];
+  /** Base selecionada nos filtros do Dashboard (fonte única de verdade). */
+  baseId?: string | null;
 }) {
   const fetchDados = useServerFn(meliDashboardOperacional);
   const fetchPacotes = useServerFn(meliDashboardPacotesRota);
 
-  const [baseId, setBaseId] = useState<string>(NONE);
+  const baseId = baseIdFiltro ?? NONE;
   const [motorista, setMotorista] = useState("");
   const [rota, setRota] = useState("");
   const [status, setStatus] = useState<string>(NONE);
@@ -265,7 +266,7 @@ export function MeliDashboardSection({
   }, [pacotesQuery.data?.pacotes, pedidoStatus, buscaPedido]);
 
   const limparFiltros = () => {
-    setBaseId(NONE); setMotorista(""); setRota(""); setStatus(NONE);
+    setMotorista(""); setRota(""); setStatus(NONE);
     setTransportadora(""); setRisco(NONE);
   };
 
@@ -328,25 +329,9 @@ export function MeliDashboardSection({
           </div>
         )}
 
-        {/* Filtros */}
+        {/* Filtros Meli (data e base vêm dos filtros do Dashboard) */}
         <Card className="p-4">
-          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
-            <div>
-              <Label htmlFor="meli-data">Data operacional</Label>
-              <Input id="meli-data" type="date" value={data} onChange={(e) => onDataChange(e.target.value)} />
-            </div>
-            <div>
-              <Label>Base</Label>
-              <Select value={baseId} onValueChange={setBaseId}>
-                <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Todas</SelectItem>
-                  {bases.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-5">
             <div>
               <Label htmlFor="meli-motorista">Motorista</Label>
               <Input id="meli-motorista" value={motorista} onChange={(e) => setMotorista(e.target.value)} placeholder="Nome" />
