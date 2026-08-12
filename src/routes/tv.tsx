@@ -11,7 +11,13 @@ export const Route = createFileRoute("/tv")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
-    if (location.pathname === "/tv" || location.pathname === "/tv/") {
+    const p = location.pathname.replace(/\/+$/, "");
+    // Visões desativadas (indicadores zerados) caem na visão com dados reais.
+    const desativada =
+      p === "/tv" ||
+      (!TV_FLAGS.visaoOperacional && p === "/tv/dashboard") ||
+      (!TV_FLAGS.visaoGerencial && p === "/tv/gerencial");
+    if (desativada) {
       throw redirect({ to: TV_ROTA_INICIAL, search: (s: Record<string, unknown>) => s });
     }
   },
