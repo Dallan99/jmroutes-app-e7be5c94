@@ -329,25 +329,9 @@ export function MeliDashboardSection({
           </div>
         )}
 
-        {/* Filtros */}
+        {/* Filtros Meli (data e base vêm dos filtros do Dashboard) */}
         <Card className="p-4">
-          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
-            <div>
-              <Label htmlFor="meli-data">Data operacional</Label>
-              <Input id="meli-data" type="date" value={data} onChange={(e) => onDataChange(e.target.value)} />
-            </div>
-            <div>
-              <Label>Base</Label>
-              <Select value={baseId} onValueChange={setBaseId}>
-                <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Todas</SelectItem>
-                  {bases.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-5">
             <div>
               <Label htmlFor="meli-motorista">Motorista</Label>
               <Input id="meli-motorista" value={motorista} onChange={(e) => setMotorista(e.target.value)} placeholder="Nome" />
