@@ -449,15 +449,9 @@ export const biparTriagem = createServerFn({ method: "POST" })
       };
     };
 
-    // 4.b) Fase 2 — pacotes vindos da Integração Meli só podem ser triados
-    // após a bipagem física no Recebimento. Planilhas antigas (sem vínculo
-    // Meli) seguem o comportamento anterior, sem trava.
-    if (escala.meli_pacote_id && escala.recebido !== true) {
-      const msg =
-        `Pacote ${escala.shipment} ainda não foi recebido fisicamente — bipe primeiro no Recebimento.`;
-      await log("nao_recebido", msg, escala.base_id, escala.id);
-      return { resultado: "nao_recebido", mensagem: msg, hora, rota: await build() };
-    }
+    // 4.b) Trava de recebimento físico removida: a triagem pode ser feita
+    // direto na bipagem das rotas, mesmo sem passar pelo Recebimento.
+
 
     // 5) Duplicado
 
@@ -473,10 +467,21 @@ export const biparTriagem = createServerFn({ method: "POST" })
       };
     }
 
-    // 6) Marca triado
+    // 6) Marca triado (e registra o recebimento implícito, quando ainda não houve)
     const { data: atualizado, error: upErr } = await supabase
       .from("escalas")
-      .update({ triado: true, triado_em: hora, triado_por: userId })
+      .update(
+        escala.recebido === true
+          ? { triado: true, triado_em: hora, triado_por: userId }
+          : {
+              triado: true,
+              triado_em: hora,
+              triado_por: userId,
+              recebido: true,
+              recebido_em: hora,
+              recebido_por: userId,
+            },
+      )
       .eq("id", escala.id)
       .eq("triado", false)
       .select("id")
