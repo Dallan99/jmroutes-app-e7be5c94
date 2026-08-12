@@ -467,10 +467,21 @@ export const biparTriagem = createServerFn({ method: "POST" })
       };
     }
 
-    // 6) Marca triado
+    // 6) Marca triado (e registra o recebimento implícito, quando ainda não houve)
     const { data: atualizado, error: upErr } = await supabase
       .from("escalas")
-      .update({ triado: true, triado_em: hora, triado_por: userId })
+      .update(
+        escala.recebido === true
+          ? { triado: true, triado_em: hora, triado_por: userId }
+          : {
+              triado: true,
+              triado_em: hora,
+              triado_por: userId,
+              recebido: true,
+              recebido_em: hora,
+              recebido_por: userId,
+            },
+      )
       .eq("id", escala.id)
       .eq("triado", false)
       .select("id")
