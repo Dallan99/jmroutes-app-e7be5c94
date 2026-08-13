@@ -75,7 +75,7 @@ export function DashboardGeral({ data }: { data: string }) {
         <h2 className="text-sm font-semibold">Indicadores de entrega</h2>
         <p className="text-xs text-muted-foreground">Posição atual das rotas ativas e falhas em tempo real.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <BigStat label="Carros em rota" value={nf(c?.em_rota != null ? c.rotas : undefined)} tone="info" />
+          <BigStat label="Carros em rota" value={nf(c?.rotas)} tone="info" />
           <BigStat label="Pacotes" value={nf(c?.total)} />
           <BigStat label="Entregues" value={nf(c?.entregue)} tone="success" />
           <BigStat label="Falhas" value={nf(c?.insucesso)} tone="destructive" />
