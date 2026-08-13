@@ -46,6 +46,8 @@ function fmtDuration(ms: number | null | undefined) {
 
 function DashboardPage() {
   const qc = useQueryClient();
+  const [maisFiltros, setMaisFiltros] = useState(false);
+  const [verInternos, setVerInternos] = useState(false);
   const fetchOpcoes = useServerFn(dashboardFiltrosOpcoes);
   const fetchDados = useServerFn(dashboardData);
 
