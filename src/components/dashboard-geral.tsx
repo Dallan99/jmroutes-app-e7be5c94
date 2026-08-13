@@ -105,11 +105,18 @@ export function DashboardGeral({
                 <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
                   <div className="h-full rounded-full transition-all" style={{ width: `${perc}%`, background: cor }} />
                 </div>
-                <div className="mt-3 grid grid-cols-3 text-center">
+                <div className="mt-2">
+                  {(() => {
+                    const s = syncPorCodigo?.get(b.base_codigo ?? "");
+                    return <SyncBaseIndicador situacao={s?.situacao ?? "sem_info"} minutos={s?.minutos ?? null} />;
+                  })()}
+                </div>
+                <div className="mt-2 grid grid-cols-3 text-center">
                   <MiniStat label="Rotas" value={nf(b.rotas)} />
                   <MiniStat label="Pacotes" value={nf(b.total)} />
                   <MiniStat label="Entregues" value={nf(b.entregue)} className="text-success" />
                 </div>
+
               </Card>
             );
           })}
