@@ -1,8 +1,18 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { meliDashboardOperacional } from "@/lib/meli-dashboard.functions";
+import {
+  meliDashboardOperacional,
+  meliDashboardPacotesRota,
+  type MeliDashboardRota,
+} from "@/lib/meli-dashboard.functions";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChevronLeft, Search } from "lucide-react";
 
 const CORES = ["var(--info)", "var(--success)", "var(--warning)", "var(--destructive)"] as const;
 
