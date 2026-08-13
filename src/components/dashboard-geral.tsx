@@ -38,6 +38,17 @@ export function DashboardGeral({ data }: { data: string }) {
   const bases = (d?.bases ?? []).slice().sort((a, b) => (a.base_codigo ?? "").localeCompare(b.base_codigo ?? ""));
   const c = d?.cards;
 
+  const [baseAberta, setBaseAberta] = useState<{ id: string | null; codigo: string; nome: string } | null>(null);
+  const rotasDaBase = useMemo(() => {
+    if (!baseAberta) return [];
+    return (d?.rotas ?? [])
+      .filter((r) =>
+        baseAberta.id ? r.base_id === baseAberta.id : (r.base_codigo ?? "") === baseAberta.codigo,
+      )
+      .slice()
+      .sort((a, b) => (a.nome_operacional ?? "").localeCompare(b.nome_operacional ?? ""));
+  }, [d?.rotas, baseAberta]);
+
   return (
     <section className="space-y-4">
       <Card className="p-4 md:p-5">
