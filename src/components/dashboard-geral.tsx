@@ -23,10 +23,18 @@ function nf(n: number | null | undefined) {
 /**
  * Visão direta e imediata da operação: progresso por base + indicadores de entrega.
  */
-export function DashboardGeral({ data }: { data: string }) {
+export function DashboardGeral({
+  data,
+  syncPorCodigo,
+}: {
+  data: string;
+  /** Situação real de sincronização por código de base (backend/worker). */
+  syncPorCodigo?: Map<string, { situacao: SituacaoSync; minutos: number | null }>;
+}) {
   const fetchDados = useServerFn(meliDashboardOperacional);
 
   const filtros = useMemo(() => ({ data }), [data]);
+
   const q = useQuery({
     queryKey: ["dashboard-geral", filtros],
     queryFn: () => fetchDados({ data: filtros }),
