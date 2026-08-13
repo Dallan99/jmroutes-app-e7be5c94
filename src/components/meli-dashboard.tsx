@@ -274,105 +274,11 @@ export function MeliDashboardSection({
   return (
     <TooltipProvider>
       <section className="space-y-4">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-display text-2xl font-bold tracking-tight">Operação Meli em tempo real</h2>
-            <p className="text-sm text-muted-foreground">
-              Última sincronização Meli: <span className="font-semibold tabular-nums">{hhmmss(ultimaSync)}</span>
-              {" · "}Próxima atualização do painel: em <span className="tabular-nums">{segundos}s</span>
-              {q.isFetching && <span className="ml-2 text-xs opacity-70">Atualizando…</span>}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
-              <RefreshCcw className={`mr-2 h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
-              Atualizar agora
-            </Button>
-            <Link
-              to="/tv/meli"
-              search={{
-                data,
-                base_id: baseId === NONE ? undefined : baseId,
-                motorista: motorista.trim() || undefined,
-                rota: rota.trim() || undefined,
-                status: status === NONE ? undefined : (status as SituacaoMeli),
-                transportadora: transportadora.trim() || undefined,
-                risco: risco === NONE ? undefined : (risco as "qualquer" | "integral" | "parcial"),
-              }}
-              aria-label="Abrir Modo TV da operação Meli"
-            >
-              <Button size="sm" className="font-semibold">
-                <Tv className="mr-2 h-4 w-4" aria-hidden /> Modo TV
-              </Button>
-            </Link>
-          </div>
-
-        </header>
-
-        {syncAtrasada && (
-          <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-            <div>
-              <p className="font-semibold">Atenção: dados do Meli sem atualização há mais de 2 minutos.</p>
-              {basesSemSync.length > 0 && (
-                <p className="text-muted-foreground">
-                  Bases sem atualizar: {basesSemSync.map((b) => b.base_codigo ?? "—").join(", ")}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
         {q.data?.status === "erro" && (
           <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
             Falha ao consultar o painel Meli: {q.data.erro}. Mostrando os últimos dados válidos.
           </div>
         )}
-
-        {/* Filtros Meli (data e base vêm dos filtros do Dashboard) */}
-        <Card className="p-4">
-          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-5">
-            <div>
-              <Label htmlFor="meli-motorista">Motorista</Label>
-              <Input id="meli-motorista" value={motorista} onChange={(e) => setMotorista(e.target.value)} placeholder="Nome" />
-            </div>
-            <div>
-              <Label htmlFor="meli-rota">Rota</Label>
-              <Input id="meli-rota" value={rota} onChange={(e) => setRota(e.target.value)} placeholder="Cluster ou ID Meli" />
-            </div>
-            <div>
-              <Label>Status Meli</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Todos</SelectItem>
-                  {(Object.keys(LABEL_SITUACAO) as SituacaoMeli[]).map((s) => (
-                    <SelectItem key={s} value={s}>{LABEL_SITUACAO[s]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="meli-transp">Transportadora</Label>
-              <Input id="meli-transp" value={transportadora} onChange={(e) => setTransportadora(e.target.value)} placeholder="Ex.: JM" />
-            </div>
-            <div>
-              <Label>Área de risco</Label>
-              <Select value={risco} onValueChange={setRisco}>
-                <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Todas as rotas</SelectItem>
-                  <SelectItem value="qualquer">Somente com área de risco</SelectItem>
-                  <SelectItem value="integral">Rota integralmente de risco</SelectItem>
-                  <SelectItem value="parcial">Rota parcialmente de risco</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="mt-3">
-            <Button variant="ghost" size="sm" onClick={limparFiltros}>Limpar filtros</Button>
-          </div>
-        </Card>
 
         {/* Cards principais */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
@@ -384,6 +290,80 @@ export function MeliDashboardSection({
           <Kpi label="Cancelados" valor={cards?.cancelado} icon={XCircle} onClick={() => abrirDrill("cancelado")} />
           <Kpi label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} icon={CheckCircle2} tom="success" />
         </div>
+
+        {/* Filtros Meli — compactos e recolhidos (data e base vêm do topo) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setVerFiltros((v) => !v)}>
+            <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
+            {verFiltros ? "Ocultar filtros da operação" : "Filtros da operação"}
+          </Button>
+          {q.isFetching && <span className="text-xs text-muted-foreground">Atualizando…</span>}
+          <Link
+            to="/tv/meli"
+            search={{
+              data,
+              base_id: baseId === NONE ? undefined : baseId,
+              motorista: motorista.trim() || undefined,
+              rota: rota.trim() || undefined,
+              status: status === NONE ? undefined : (status as SituacaoMeli),
+              transportadora: transportadora.trim() || undefined,
+              risco: risco === NONE ? undefined : (risco as "qualquer" | "integral" | "parcial"),
+            }}
+            className="ml-auto"
+            aria-label="Abrir Modo TV da operação Meli"
+          >
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs font-semibold">
+              <Tv className="mr-1.5 h-3.5 w-3.5" aria-hidden /> Modo TV
+            </Button>
+          </Link>
+        </div>
+
+        {verFiltros && (
+        <Card className="p-3">
+          <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-5">
+            <div>
+              <Label htmlFor="meli-motorista" className="text-[11px] text-muted-foreground">Motorista</Label>
+              <Input id="meli-motorista" value={motorista} onChange={(e) => setMotorista(e.target.value)} placeholder="Nome" />
+            </div>
+            <div>
+              <Label htmlFor="meli-rota" className="text-[11px] text-muted-foreground">Rota</Label>
+              <Input id="meli-rota" value={rota} onChange={(e) => setRota(e.target.value)} placeholder="Cluster ou ID Meli" />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Status Meli</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Todos</SelectItem>
+                  {(Object.keys(LABEL_SITUACAO) as SituacaoMeli[]).map((s) => (
+                    <SelectItem key={s} value={s}>{LABEL_SITUACAO[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="meli-transp" className="text-[11px] text-muted-foreground">Transportadora</Label>
+              <Input id="meli-transp" value={transportadora} onChange={(e) => setTransportadora(e.target.value)} placeholder="Ex.: JM" />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Área de risco</Label>
+              <Select value={risco} onValueChange={setRisco}>
+                <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Todas as rotas</SelectItem>
+                  <SelectItem value="qualquer">Somente com área de risco</SelectItem>
+                  <SelectItem value="integral">Rota integralmente de risco</SelectItem>
+                  <SelectItem value="parcial">Rota parcialmente de risco</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-2">
+            <Button variant="ghost" size="sm" onClick={limparFiltros}>Limpar filtros</Button>
+          </div>
+        </Card>
+        )}
+
 
 
         {/* Card de área de risco */}
