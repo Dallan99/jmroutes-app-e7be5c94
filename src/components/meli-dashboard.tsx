@@ -24,8 +24,9 @@ import {
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle, ArrowUpDown, CheckCircle2, Download, Package, PackageX, RefreshCcw,
-  ShieldAlert, Timer, Truck, Tv, XCircle,
+  ShieldAlert, SlidersHorizontal, Timer, Truck, Tv, XCircle,
 } from "lucide-react";
+
 
 
 const NONE = "__all";
