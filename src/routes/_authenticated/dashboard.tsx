@@ -50,6 +50,8 @@ function DashboardPage() {
   const qc = useQueryClient();
   const [maisFiltros, setMaisFiltros] = useState(false);
   const [verInternos, setVerInternos] = useState(false);
+  const sync = useMeliSync();
+
   const fetchOpcoes = useServerFn(dashboardFiltrosOpcoes);
   const fetchDados = useServerFn(dashboardData);
 
