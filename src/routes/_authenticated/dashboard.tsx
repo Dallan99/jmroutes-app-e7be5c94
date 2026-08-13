@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
 import { MeliDashboardSection } from "@/components/meli-dashboard";
+import { DashboardGeral } from "@/components/dashboard-geral";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
 
 const CHAVE_DIA_DASHBOARD = "jm.dia.dashboard";
@@ -45,6 +46,8 @@ function fmtDuration(ms: number | null | undefined) {
 
 function DashboardPage() {
   const qc = useQueryClient();
+  const [maisFiltros, setMaisFiltros] = useState(false);
+  const [verInternos, setVerInternos] = useState(false);
   const fetchOpcoes = useServerFn(dashboardFiltrosOpcoes);
   const fetchDados = useServerFn(dashboardData);
 
@@ -132,55 +135,67 @@ function DashboardPage() {
         </div>
       </header>
 
-      {/* Filtros */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Filter className="w-4 h-4" /> Filtros
-            {activeFiltersCount > 0 && <Badge variant="secondary">{activeFiltersCount}</Badge>}
-          </div>
-          {activeFiltersCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearAll}>Limpar</Button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Filtros essenciais (data + base); o resto fica em "mais filtros" */}
+      <Card className="p-3 md:p-4">
+        <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label className="text-[11px] text-muted-foreground">Data</Label>
-            <Input type="date" value={filters.date ?? ""} onChange={(e) => setF("date", e.target.value || null)} />
+            <Input className="w-[170px]" type="date" value={filters.date ?? ""} onChange={(e) => setF("date", e.target.value || null)} />
           </div>
-          <FilterSelect label="Base" value={filters.base_id} onChange={(v) => setF("base_id", v)}
-            options={(op?.bases ?? []).map((b) => ({ value: b.id, label: `${b.codigo} — ${b.nome}` }))} />
-          <FilterSelect label="Operador" value={filters.operador_id} onChange={(v) => setF("operador_id", v)}
-            options={(op?.operadores ?? []).map((o) => ({ value: o.id, label: o.nome }))} />
-          <FilterSelect label="Motorista" value={filters.motorista_id} onChange={(v) => setF("motorista_id", v)}
-            options={(op?.motoristas ?? []).map((m) => ({ value: m.id, label: m.nome }))} />
-          <FilterSelect label="Transportadora" value={filters.transportadora} onChange={(v) => setF("transportadora", v)}
-            options={(op?.transportadoras ?? []).map((t) => ({ value: t, label: t }))} />
-          <FilterSelect label="Turno" value={filters.turno ?? null} onChange={(v) => setF("turno", v as any)}
-            options={[
-              { value: "madrugada", label: "Madrugada (00-06)" },
-              { value: "manha", label: "Manhã (06-12)" },
-              { value: "tarde", label: "Tarde (12-18)" },
-              { value: "noite", label: "Noite (18-24)" },
-            ]} />
+          <div className="w-[240px]">
+            <FilterSelect label="Base" value={filters.base_id} onChange={(v) => setF("base_id", v)}
+              options={(op?.bases ?? []).map((b) => ({ value: b.id, label: `${b.codigo} — ${b.nome}` }))} />
+          </div>
+          <Button variant="ghost" size="sm" className="mb-0.5" onClick={() => setMaisFiltros((v) => !v)}>
+            <Filter className="w-4 h-4 mr-2" /> {maisFiltros ? "Menos filtros" : "Mais filtros"}
+            {activeFiltersCount > 2 && <Badge variant="secondary" className="ml-2">{activeFiltersCount}</Badge>}
+          </Button>
+          {activeFiltersCount > 1 && (
+            <Button variant="ghost" size="sm" className="mb-0.5" onClick={clearAll}>Limpar</Button>
+          )}
         </div>
+        {maisFiltros && (
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <FilterSelect label="Operador" value={filters.operador_id} onChange={(v) => setF("operador_id", v)}
+              options={(op?.operadores ?? []).map((o) => ({ value: o.id, label: o.nome }))} />
+            <FilterSelect label="Motorista" value={filters.motorista_id} onChange={(v) => setF("motorista_id", v)}
+              options={(op?.motoristas ?? []).map((m) => ({ value: m.id, label: m.nome }))} />
+            <FilterSelect label="Transportadora" value={filters.transportadora} onChange={(v) => setF("transportadora", v)}
+              options={(op?.transportadoras ?? []).map((t) => ({ value: t, label: t }))} />
+            <FilterSelect label="Turno" value={filters.turno ?? null} onChange={(v) => setF("turno", v as any)}
+              options={[
+                { value: "madrugada", label: "Madrugada (00-06)" },
+                { value: "manha", label: "Manhã (06-12)" },
+                { value: "tarde", label: "Tarde (12-18)" },
+                { value: "noite", label: "Noite (18-24)" },
+              ]} />
+          </div>
+        )}
       </Card>
 
-      {/* ── Visão principal: Operação Meli em tempo real ── */}
+      {/* ── Visão direta: progresso por base + indicadores de entrega ── */}
+      <DashboardGeral data={filters.date ?? hojeOperacional()} />
+
+      {/* ── Detalhamento da operação Meli em tempo real ── */}
       <MeliDashboardSection
         data={filters.date ?? hojeOperacional()}
         bases={op?.bases ?? []}
         baseId={filters.base_id ?? null}
       />
 
-      {/* ── Indicadores internos JM (Recebimento / Triagem) ── */}
-      <div className="pt-2">
-        <h2 className="font-display text-xl font-bold tracking-tight">Indicadores internos JM</h2>
-        <p className="text-sm text-muted-foreground">
-          Recebimento físico na base e triagem da operação — não confundir com entrega ao destinatário.
-        </p>
+      {/* ── Indicadores internos JM (Recebimento / Triagem) — sob demanda ── */}
+      <div className="flex items-center justify-between pt-2">
+        <div>
+          <h2 className="font-display text-lg font-bold tracking-tight">Indicadores internos JM</h2>
+          <p className="text-xs text-muted-foreground">Recebimento físico na base e triagem — não é entrega ao destinatário.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setVerInternos((v) => !v)}>
+          {verInternos ? "Ocultar" : "Ver detalhes"}
+        </Button>
       </div>
 
+      {verInternos && (
+      <>
       {/* KPIs — Rotas */}
       <SectionLabel>Rotas</SectionLabel>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -301,6 +316,9 @@ function DashboardPage() {
           </ScrollArea>
         )}
       </Card>
+      </>
+      )}
+
 
       <div className="text-[10px] text-muted-foreground flex items-center gap-2 justify-end">
         <Clock className="w-3 h-3" /> atualização automática a cada 10s + realtime
