@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
 import { MeliDashboardSection } from "@/components/meli-dashboard";
+import { DashboardGeral } from "@/components/dashboard-geral";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
 
 const CHAVE_DIA_DASHBOARD = "jm.dia.dashboard";
