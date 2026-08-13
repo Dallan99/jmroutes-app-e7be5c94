@@ -67,7 +67,21 @@ export function DashboardGeral({ data }: { data: string }) {
             const cor = CORES[i % CORES.length];
             const perc = Math.max(0, Math.min(100, Number(b.perc_entrega ?? 0)));
             return (
-              <Card key={b.base_id ?? b.base_codigo ?? i} className="relative overflow-hidden p-4">
+              <Card
+                key={b.base_id ?? b.base_codigo ?? i}
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  setBaseAberta({ id: b.base_id, codigo: b.base_codigo ?? "—", nome: b.base_nome ?? "—" })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setBaseAberta({ id: b.base_id, codigo: b.base_codigo ?? "—", nome: b.base_nome ?? "—" });
+                  }
+                }}
+                className="relative overflow-hidden p-4 cursor-pointer transition-shadow hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ background: cor }} />
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
