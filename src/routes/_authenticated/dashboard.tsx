@@ -313,6 +313,9 @@ function DashboardPage() {
           </ScrollArea>
         )}
       </Card>
+      </>
+      )}
+
 
       <div className="text-[10px] text-muted-foreground flex items-center gap-2 justify-end">
         <Clock className="w-3 h-3" /> atualização automática a cada 10s + realtime
