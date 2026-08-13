@@ -116,9 +116,241 @@ export function DashboardGeral({ data }: { data: string }) {
           <BigStat label="Falhas" value={nf(c?.insucesso)} tone="destructive" />
         </div>
       </Card>
+
+      <BaseDetalheDialog
+        base={baseAberta}
+        rotas={rotasDaBase}
+        onClose={() => setBaseAberta(null)}
+      />
     </section>
   );
 }
+
+function pct(n: number | null | undefined) {
+  return `${Math.max(0, Math.min(100, Number(n ?? 0))).toFixed(0)}%`;
+}
+
+function BaseDetalheDialog({
+  base,
+  rotas,
+  onClose,
+}: {
+  base: { id: string | null; codigo: string; nome: string } | null;
+  rotas: MeliDashboardRota[];
+  onClose: () => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const [rotaSel, setRotaSel] = useState<MeliDashboardRota | null>(null);
+  const fetchPacotes = useServerFn(meliDashboardPacotesRota);
+
+  const pacotesQuery = useQuery({
+    queryKey: ["dashboard-geral-pacotes", rotaSel?.rota_id],
+    queryFn: () => fetchPacotes({ data: { rota_id: rotaSel!.rota_id, limit: 1000 } }),
+    enabled: !!rotaSel,
+  });
+
+  const filtradas = useMemo(() => {
+    const t = busca.trim().toLowerCase();
+    if (!t) return rotas;
+    return rotas.filter((r) =>
+      [r.nome_operacional, r.route_id, r.driver_name, r.vehicle_license]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(t)),
+    );
+  }, [rotas, busca]);
+
+  const totais = useMemo(
+    () =>
+      rotas.reduce(
+        (acc, r) => ({
+          total: acc.total + (r.total ?? 0),
+          entregue: acc.entregue + (r.entregue ?? 0),
+          em_rota: acc.em_rota + (r.em_rota ?? 0),
+          insucesso: acc.insucesso + (r.insucesso ?? 0),
+        }),
+        { total: 0, entregue: 0, em_rota: 0, insucesso: 0 },
+      ),
+    [rotas],
+  );
+
+  const pacotes = pacotesQuery.data?.status === "ok" ? (pacotesQuery.data.pacotes ?? []) : [];
+
+  return (
+    <Dialog
+      open={!!base}
+      onOpenChange={(o) => {
+        if (!o) {
+          setRotaSel(null);
+          setBusca("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {rotaSel && (
+              <Button variant="ghost" size="sm" onClick={() => setRotaSel(null)}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> Rotas
+              </Button>
+            )}
+            {base?.codigo} — {base?.nome}
+            {rotaSel && <span className="text-muted-foreground">/ {rotaSel.nome_operacional}</span>}
+          </DialogTitle>
+        </DialogHeader>
+
+        {!rotaSel ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <MiniBox label="Rotas" value={nf(rotas.length)} />
+              <MiniBox label="Pacotes" value={nf(totais.total)} />
+              <MiniBox label="Entregues" value={nf(totais.entregue)} tone="text-success" />
+              <MiniBox label="Em rota" value={nf(totais.em_rota)} tone="text-[var(--info)]" />
+              <MiniBox label="Falhas" value={nf(totais.insucesso)} tone="text-destructive" />
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Filtrar por rota, motorista ou placa..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+
+            <ScrollArea className="h-[52vh]">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-card">
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2 pr-2">Rota</th>
+                    <th className="py-2 pr-2">Motorista</th>
+                    <th className="py-2 pr-2">Placa</th>
+                    <th className="py-2 pr-2 text-right">Pacotes</th>
+                    <th className="py-2 pr-2 text-right">Entregues</th>
+                    <th className="py-2 pr-2 text-right">Em rota</th>
+                    <th className="py-2 pr-2 text-right">Falhas</th>
+                    <th className="py-2 pr-2">Progresso</th>
+                    <th className="py-2">Sincronizado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtradas.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="py-6 text-center text-muted-foreground">
+                        Nenhuma rota encontrada.
+                      </td>
+                    </tr>
+                  )}
+                  {filtradas.map((r) => (
+                    <tr
+                      key={r.rota_id}
+                      className="border-t cursor-pointer hover:bg-muted/50"
+                      onClick={() => setRotaSel(r)}
+                    >
+                      <td className="py-2 pr-2 font-medium">
+                        {r.nome_operacional}
+                        {r.rota_area_risco && (
+                          <Badge variant="destructive" className="ml-2 text-[10px]">
+                            risco
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-2 pr-2 text-muted-foreground">{r.driver_name ?? "—"}</td>
+                      <td className="py-2 pr-2 text-muted-foreground">{r.vehicle_license ?? "—"}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{nf(r.total)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-success">{nf(r.entregue)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{nf(r.em_rota)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-destructive">{nf(r.insucesso)}</td>
+                      <td className="py-2 pr-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[var(--info)]"
+                              style={{ width: pct(r.perc_entrega) }}
+                            />
+                          </div>
+                          <span className="text-xs tabular-nums">{pct(r.perc_entrega)}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 text-xs text-muted-foreground">
+                        {r.last_synced_at ? new Date(r.last_synced_at).toLocaleString("pt-BR") : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArea>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <MiniBox label="Pacotes" value={nf(rotaSel.total)} />
+              <MiniBox label="Entregues" value={nf(rotaSel.entregue)} tone="text-success" />
+              <MiniBox label="Em rota" value={nf(rotaSel.em_rota)} tone="text-[var(--info)]" />
+              <MiniBox label="Falhas" value={nf(rotaSel.insucesso)} tone="text-destructive" />
+            </div>
+            <ScrollArea className="h-[52vh]">
+              {pacotesQuery.isLoading ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">Carregando pacotes...</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-card">
+                    <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                      <th className="py-2 pr-2">#</th>
+                      <th className="py-2 pr-2">Tracking</th>
+                      <th className="py-2 pr-2">Status de entrega</th>
+                      <th className="py-2 pr-2">Ocorrência</th>
+                      <th className="py-2">Atualizado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pacotes.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                          Nenhum pacote nesta rota.
+                        </td>
+                      </tr>
+                    )}
+                    {pacotes.map((p) => (
+                      <tr key={p.tracking_id} className="border-t">
+                        <td className="py-2 pr-2 text-muted-foreground tabular-nums">{p.ordem ?? "—"}</td>
+                        <td className="py-2 pr-2 font-mono text-xs">{p.tracking_id}</td>
+                        <td className="py-2 pr-2">
+                          <Badge variant="outline" className="text-[10px] uppercase">
+                            {(p.situacao ?? "—").replace(/_/g, " ")}
+                          </Badge>
+                        </td>
+                        <td className="py-2 pr-2 text-xs text-muted-foreground">
+                          {p.descricao_ocorrencia ?? "—"}
+                        </td>
+                        <td className="py-2 text-xs text-muted-foreground">
+                          {p.ultima_atualizacao_meli
+                            ? new Date(p.ultima_atualizacao_meli).toLocaleString("pt-BR")
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </ScrollArea>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MiniBox({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`font-display text-xl font-bold tabular-nums ${tone ?? ""}`}>{value}</div>
+    </div>
+  );
+}
+
 
 function MiniStat({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
