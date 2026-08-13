@@ -68,7 +68,9 @@ export function MeliDashboardSection({
   const [pedidoStatus, setPedidoStatus] = useState<SituacaoMeli | "total">("total");
   const [buscaPedido, setBuscaPedido] = useState("");
   const [verRisco, setVerRisco] = useState(false);
+  const [verFiltros, setVerFiltros] = useState(false);
   const [segundos, setSegundos] = useState(REFETCH_MS / 1000);
+
 
 
   const filtros = useMemo<MeliDashboardFiltros>(
