@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SyncBaseIndicador, type SituacaoSync } from "@/components/meli-sync-monitor";
 import { ChevronLeft, Search } from "lucide-react";
+
 
 const CORES = ["var(--info)", "var(--success)", "var(--warning)", "var(--destructive)"] as const;
 
@@ -23,10 +25,18 @@ function nf(n: number | null | undefined) {
 /**
  * Visão direta e imediata da operação: progresso por base + indicadores de entrega.
  */
-export function DashboardGeral({ data }: { data: string }) {
+export function DashboardGeral({
+  data,
+  syncPorCodigo,
+}: {
+  data: string;
+  /** Situação real de sincronização por código de base (backend/worker). */
+  syncPorCodigo?: Map<string, { situacao: SituacaoSync; minutos: number | null }>;
+}) {
   const fetchDados = useServerFn(meliDashboardOperacional);
 
   const filtros = useMemo(() => ({ data }), [data]);
+
   const q = useQuery({
     queryKey: ["dashboard-geral", filtros],
     queryFn: () => fetchDados({ data: filtros }),
@@ -95,11 +105,18 @@ export function DashboardGeral({ data }: { data: string }) {
                 <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
                   <div className="h-full rounded-full transition-all" style={{ width: `${perc}%`, background: cor }} />
                 </div>
-                <div className="mt-3 grid grid-cols-3 text-center">
+                <div className="mt-2">
+                  {(() => {
+                    const s = syncPorCodigo?.get(b.base_codigo ?? "");
+                    return <SyncBaseIndicador situacao={s?.situacao ?? "sem_info"} minutos={s?.minutos ?? null} />;
+                  })()}
+                </div>
+                <div className="mt-2 grid grid-cols-3 text-center">
                   <MiniStat label="Rotas" value={nf(b.rotas)} />
                   <MiniStat label="Pacotes" value={nf(b.total)} />
                   <MiniStat label="Entregues" value={nf(b.entregue)} className="text-success" />
                 </div>
+
               </Card>
             );
           })}

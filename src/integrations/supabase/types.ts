@@ -2005,6 +2005,7 @@ export type Database = {
         Returns: string
       }
       meli_sync_status: { Args: never; Returns: Json }
+      meli_sync_status_bases: { Args: never; Returns: Json }
       meli_worker_registrar_execucao: {
         Args: {
           p_base_code: string

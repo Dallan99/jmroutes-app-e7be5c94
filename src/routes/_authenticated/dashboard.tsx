@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
 import { MeliDashboardSection } from "@/components/meli-dashboard";
+import { MeliSyncMonitor, fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
+
 import { DashboardGeral } from "@/components/dashboard-geral";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
 
@@ -48,6 +50,8 @@ function DashboardPage() {
   const qc = useQueryClient();
   const [maisFiltros, setMaisFiltros] = useState(false);
   const [verInternos, setVerInternos] = useState(false);
+  const sync = useMeliSync();
+
   const fetchOpcoes = useServerFn(dashboardFiltrosOpcoes);
   const fetchDados = useServerFn(dashboardData);
 
@@ -115,47 +119,70 @@ function DashboardPage() {
             "url('/__l5e/assets-v1/49cb86eb-5372-47f1-aa79-869f502baca5/jm-hero.png')",
         }}
       />
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl md:text-3xl font-bold flex items-center gap-2">
-            Dashboard Operacional
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> ao vivo
-            </span>
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {filters.date ? `Dia ${new Date(filters.date + "T00:00:00").toLocaleDateString("pt-BR")}` : "Últimas 24 horas"}
-            {" · "}atualizado {dadosQuery.dataUpdatedAt ? new Date(dadosQuery.dataUpdatedAt).toLocaleTimeString("pt-BR") : "—"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["dashboard"] })}>
+      <header className="space-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl md:text-3xl font-bold">Dashboard Operacional</h1>
+            <p className="text-sm text-muted-foreground">
+              Dados Meli sincronizados em{" "}
+              <span className="font-semibold tabular-nums">{fmtDataHora(sync.ultimoSucessoGeral)}</span>
+              {" · "}
+              <span className="text-xs">consulta do painel renovada a cada 60s</span>
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              qc.invalidateQueries({ queryKey: ["dashboard"] });
+              qc.invalidateQueries({ queryKey: ["dashboard-geral"] });
+              qc.invalidateQueries({ queryKey: ["meli-dashboard"] });
+              sync.query.refetch();
+            }}
+          >
             <RefreshCcw className="w-4 h-4 mr-2" /> Atualizar
           </Button>
         </div>
+        <MeliSyncMonitor sync={sync} />
       </header>
 
-      {/* Filtros essenciais (data + base); o resto fica em "mais filtros" */}
-      <Card className="p-3 md:p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">Data</Label>
-            <Input className="w-[170px]" type="date" value={filters.date ?? ""} onChange={(e) => setF("date", e.target.value || null)} />
+      {/* ── Cartões da operação (primeiro de tudo) ── */}
+      <DashboardGeral data={filters.date ?? hojeOperacional()} syncPorCodigo={sync.porCodigo} />
+
+      {/* Filtros compactos — data, base e o restante recolhido */}
+      <Card className="p-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            className="h-8 w-[150px]"
+            type="date"
+            aria-label="Data"
+            value={filters.date ?? ""}
+            onChange={(e) => setF("date", e.target.value || null)}
+          />
+          <div className="w-[220px]">
+            <Select
+              value={filters.base_id ?? NONE}
+              onValueChange={(v) => setF("base_id", v === NONE ? null : v)}
+            >
+              <SelectTrigger className="h-8"><SelectValue placeholder="Todas as bases" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Todas as bases</SelectItem>
+                {(op?.bases ?? []).map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="w-[240px]">
-            <FilterSelect label="Base" value={filters.base_id} onChange={(v) => setF("base_id", v)}
-              options={(op?.bases ?? []).map((b) => ({ value: b.id, label: `${b.codigo} — ${b.nome}` }))} />
-          </div>
-          <Button variant="ghost" size="sm" className="mb-0.5" onClick={() => setMaisFiltros((v) => !v)}>
-            <Filter className="w-4 h-4 mr-2" /> {maisFiltros ? "Menos filtros" : "Mais filtros"}
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => setMaisFiltros((v) => !v)}>
+            <Filter className="w-3.5 h-3.5 mr-1.5" /> {maisFiltros ? "Menos" : "Mais filtros"}
             {activeFiltersCount > 2 && <Badge variant="secondary" className="ml-2">{activeFiltersCount}</Badge>}
           </Button>
           {activeFiltersCount > 1 && (
-            <Button variant="ghost" size="sm" className="mb-0.5" onClick={clearAll}>Limpar</Button>
+            <Button variant="ghost" size="sm" className="h-8" onClick={clearAll}>Limpar</Button>
           )}
         </div>
         {maisFiltros && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
             <FilterSelect label="Operador" value={filters.operador_id} onChange={(v) => setF("operador_id", v)}
               options={(op?.operadores ?? []).map((o) => ({ value: o.id, label: o.nome }))} />
             <FilterSelect label="Motorista" value={filters.motorista_id} onChange={(v) => setF("motorista_id", v)}
@@ -173,10 +200,7 @@ function DashboardPage() {
         )}
       </Card>
 
-      {/* ── Visão direta: progresso por base + indicadores de entrega ── */}
-      <DashboardGeral data={filters.date ?? hojeOperacional()} />
-
-      {/* ── Detalhamento da operação Meli em tempo real ── */}
+      {/* ── Detalhamento da operação (mesmo dashboard) ── */}
       <MeliDashboardSection
         data={filters.date ?? hojeOperacional()}
         bases={op?.bases ?? []}
@@ -193,6 +217,7 @@ function DashboardPage() {
           {verInternos ? "Ocultar" : "Ver detalhes"}
         </Button>
       </div>
+
 
       {verInternos && (
       <>
