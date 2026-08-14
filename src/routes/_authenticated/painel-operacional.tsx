@@ -82,7 +82,6 @@ function PainelOperacionalPage() {
               <tr>
                 <th className="text-left px-3 py-2">Base</th>
                 <th className="text-left px-3 py-2">Rota</th>
-                <th className="text-left px-3 py-2">Motorista</th>
                 <th className="text-right px-3 py-2">Total</th>
                 <th className="text-right px-3 py-2">Bipados</th>
                 <th className="text-right px-3 py-2">Faltando</th>
