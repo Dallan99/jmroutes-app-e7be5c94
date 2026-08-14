@@ -62,6 +62,8 @@ function TvDashboard() {
         <div className="font-display text-3xl xl:text-4xl font-bold tabular-nums text-[var(--brand-yellow)]">{now}</div>
       </div>
 
+      <BipagemBasesPanel tv refetchInterval={20_000} titulo="Bipagem por base (dia operacional)" />
+
       <Section title="Rotas">
         <TvKpi label="Previstas" value={d?.rotasPrevistas ?? "—"} icon={Truck} />
         <TvKpi label="Recebidas" value={d?.rotasRecebidas ?? "—"} icon={PackageCheck} tone="info" />
