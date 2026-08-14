@@ -461,8 +461,10 @@ export function MeliDashboardSection({
             </ul>
           </Card>
         )}
+        <MeliRankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
 
         {/* Tabela operacional por rota */}
+
         <Card className="p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Rotas do dia ({rotasOrdenadas.length})
