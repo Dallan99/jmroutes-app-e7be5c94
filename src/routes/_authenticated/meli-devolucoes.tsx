@@ -739,7 +739,9 @@ function MeliDevolucoesPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ScrollArea>
+              </div>
+
               )}
             </CardContent>
           </Card>
