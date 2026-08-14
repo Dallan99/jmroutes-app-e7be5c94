@@ -106,6 +106,7 @@ function MeliDevolucoesPage() {
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
+  const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const basesQuery = useQuery({
