@@ -34,10 +34,10 @@ const RISCOS: Risco[] = ["qualquer", "integral", "parcial"];
 export const Route = createFileRoute("/tv/meli")({
   head: () => ({
     meta: [
-      { title: "Operação Meli — Modo TV | JMRoutes" },
-      { name: "description", content: "Painel de televisão da operação Meli em tempo real: rotas, entregas, insucessos e área de risco." },
-      { property: "og:title", content: "Operação Meli — Modo TV | JMRoutes" },
-      { property: "og:description", content: "Painel de televisão da operação Meli em tempo real." },
+      { title: "Operação — Modo TV | JMRoutes" },
+      { name: "description", content: "Painel de televisão da operação em tempo real: rotas, entregas, insucessos e área de risco." },
+      { property: "og:title", content: "Operação — Modo TV | JMRoutes" },
+      { property: "og:description", content: "Painel de televisão da operação em tempo real." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -244,7 +244,7 @@ function TvMeli() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-black leading-tight tracking-tight xl:text-4xl">
-            Operação Meli — Modo TV
+            Operação — Modo TV
           </h1>
           <p className="text-sm text-white/70 xl:text-base">
             Dia <span className="font-semibold tabular-nums">{d?.data_operacional ?? busca.data ?? "—"}</span>

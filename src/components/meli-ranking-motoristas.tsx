@@ -11,7 +11,7 @@ function rotulo(codigo: string, descricao: string) {
   return descreverMotivo(codigo, descricao);
 }
 
-export function MeliRankingMotoristasSection({
+export function RankingMotoristasSection({
   data,
   baseId,
 }: {
