@@ -36,19 +36,32 @@ export function minutosDesde(iso: string | null | undefined, serverTime: string 
 export function situacaoDaBase(b: MeliSyncBase, serverTime: string | null | undefined): SituacaoSync {
   const min = minutosDesde(b.ultimo_sucesso_em, serverTime);
   if (min === null) return "sem_info";
-  const cicloFalhou = (b.status ?? "").toLowerCase() === "erro" || (b.erros ?? 0) > 0;
-  if (min > 10 || cicloFalhou) return "desatualizado";
-  if (min >= 5) return "atencao";
+
+  const status = (b.status ?? "").toLowerCase();
+  const erroReal = status === "erro" || (b.erros ?? 0) > 0;
+  const sucessoParcial = status === "sucesso_parcial" || status === "divergencia_totais";
+
+  // Vermelho: > 25 min sem sucesso OU erro real impeditivo
+  if (min > 25 || erroReal) return "desatualizado";
+
+  // Amarelo: Entre 15 e 25 min OU sucesso parcial recente
+  if (min > 15 || sucessoParcial) return "atencao";
+
+  // Verde: Até 15 min e sem erros
   return "atualizado";
 }
 
 export function situacaoGeral(bases: MeliSyncBase[], serverTime: string | null | undefined): SituacaoSync {
   if (bases.length === 0) return "sem_info";
   const sits = bases.map((b) => situacaoDaBase(b, serverTime));
+
+  // O estado geral será vermelho somente se alguma base estiver há mais de 25 minutos sem sucesso ou tiver erro impeditivo.
   if (sits.includes("desatualizado")) return "desatualizado";
+
+  // Se houver apenas sucesso parcial recente, o estado geral será amarelo.
   if (sits.includes("atencao")) return "atencao";
+
   if (sits.every((s) => s === "sem_info")) return "sem_info";
-  if (sits.includes("sem_info")) return "desatualizado";
   return "atualizado";
 }
 
