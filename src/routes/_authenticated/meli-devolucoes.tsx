@@ -331,8 +331,19 @@ function MeliDevolucoesPage() {
         ].map((c) => (
           <Card
             key={c.l}
+            role="button"
+            tabIndex={0}
             className={`cursor-pointer transition-colors hover:bg-muted/50 ${c.c ? `border ${c.c}` : ""} ${estado === c.id ? "ring-2 ring-primary" : ""}`}
-            onClick={() => setEstado(c.id)}
+            onClick={() => {
+              setEstado(c.id);
+              setCardDetalhe({ id: c.id, label: c.l });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setEstado(c.id);
+                setCardDetalhe({ id: c.id, label: c.l });
+              }
+            }}
           >
             <CardContent className="pt-4">
               <div className="text-xs uppercase text-muted-foreground">{c.l}</div>
@@ -341,6 +352,58 @@ function MeliDevolucoesPage() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!cardDetalhe} onOpenChange={(o) => !o && setCardDetalhe(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {cardDetalhe?.label} — {linhasCard.length} pacote(s)
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            {linhasCard.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6">
+                Nenhum pacote nesta situação para os filtros atuais.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="text-left border-b">
+                    <th className="py-2 pr-3">Tracking</th>
+                    <th className="py-2 pr-3">Base</th>
+                    <th className="py-2 pr-3">Rota / motorista</th>
+                    <th className="py-2 pr-3">Ocorrência</th>
+                    <th className="py-2 pr-3">Prazo</th>
+                    <th className="py-2 pr-3 text-right">Dias</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhasCard.map((l) => (
+                    <tr
+                      key={l.id}
+                      className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        setCardDetalhe(null);
+                        setDetalhe(l);
+                      }}
+                    >
+                      <td className="py-2 pr-3 font-mono text-xs">{l.tracking_id}</td>
+                      <td className="py-2 pr-3">{l.base_codigo ?? "—"}</td>
+                      <td className="py-2 pr-3">
+                        {l.cluster ?? l.route_id ?? "—"}
+                        <div className="text-xs text-muted-foreground">{l.motorista ?? ""}</div>
+                      </td>
+                      <td className="py-2 pr-3 text-xs">{l.occurrence_code}</td>
+                      <td className="py-2 pr-3 text-xs">{fmt(l.prazo_retorno_em)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{l.dias_corridos}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader className="pb-2">
