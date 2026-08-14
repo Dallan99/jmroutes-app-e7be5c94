@@ -44,13 +44,15 @@ function evento(etapa: TransferenciaEvento["etapa"]): TransferenciaEvento {
 }
 
 describe("Transferências — fluxo operacional", () => {
-  it("exige os quatro marcos na ordem Service → Service → XPT → XPT", () => {
+  it("exige os três marcos na ordem Chegada Service → Saída Service → Chegada XPT", () => {
     expect(proximaEtapa([])).toBe("chegada_service");
     expect(proximaEtapa([evento("chegada_service")])).toBe("saida_service");
     expect(proximaEtapa([evento("chegada_service"), evento("saida_service")])).toBe("chegada_xpt");
-    expect(proximaEtapa([evento("chegada_service"), evento("saida_service"), evento("chegada_xpt")])).toBe("saida_xpt");
-    expect(proximaEtapa([evento("chegada_service"), evento("saida_service"), evento("chegada_xpt"), evento("saida_xpt")])).toBeNull();
+    expect(
+      proximaEtapa([evento("chegada_service"), evento("saida_service"), evento("chegada_xpt")]),
+    ).toBeNull();
   });
+
 
   it("cria caminho privado segmentado por base e transferência", () => {
     const path = caminhoEvidenciaTransferencia(
@@ -109,7 +111,8 @@ describe("Transferências — saída do XPT", () => {
 
 describe("Transferências — operação inline", () => {
   it("mostra o Service da base e permite criar novas transferências", () => {
-    expect(pageSource).toContain("serviceBase ? (");
+    expect(pageSource).toContain("const serviceBase = serviceDaBase(base?.nome);");
+    expect(pageSource).toContain("serviceFixo={serviceBase}");
     expect(pageSource).toContain("Nova Transferência");
     expect(pageSource).toContain("NovaTransferenciaDialog");
   });
@@ -124,8 +127,11 @@ describe("Transferências — operação inline", () => {
     expect(pageSource).toContain("timemarkUrl: timemark");
     expect(pageSource).toContain("storagePath");
     expect(pageSource).toContain('title="Excluir (admin)"');
-    expect(pageSource).toContain('proximaEtapa(t.eventos) === "saida_xpt"');
+    // Fluxo atual: a conclusão ocorre na chegada ao XPT (três marcos)
+    expect(pageSource).toContain("const proxima = proximaEtapa(transferencia.eventos);");
+    expect(pageSource).not.toContain('proximaEtapa(t.eventos) === "saida_xpt"');
   });
+
 
   it("expõe KPIs operacionais e o tempo aguardando carga como indicador principal", () => {
     expect(pageSource).toContain("Em andamento");
