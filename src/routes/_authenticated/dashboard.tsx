@@ -7,6 +7,7 @@ import { MeliDashboardSection } from "@/components/meli-dashboard";
 import { fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
 
 import { DashboardGeral } from "@/components/dashboard-geral";
+import { BipagemBasesPanel } from "@/components/bipagem-bases";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
 
 const CHAVE_DIA_DASHBOARD = "jm.dia.dashboard";
