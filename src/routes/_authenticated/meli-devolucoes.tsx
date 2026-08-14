@@ -291,7 +291,7 @@ function MeliDevolucoesPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
             <RotateCcw className="h-6 w-6 text-primary" />
-            Controle de Devoluções Meli
+            Controle de Devoluções
           </h1>
           <p className="text-sm text-muted-foreground">
             Todo pacote com ocorrência de rua deve retornar à base de origem em até 3 dias corridos.
@@ -299,8 +299,9 @@ function MeliDevolucoesPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onSincronizar}>
-            <RefreshCcw className="h-4 w-4 mr-2" /> Sincronizar ocorrências
+            <RefreshCcw className="h-4 w-4 mr-2" /> Sincronizar
           </Button>
+
           <Button variant="outline" size="sm" onClick={exportarCsv} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-2" /> CSV
           </Button>
