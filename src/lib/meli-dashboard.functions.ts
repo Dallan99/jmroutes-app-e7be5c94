@@ -78,6 +78,25 @@ export type MeliDashboardBase = {
   em_rota: number;
   insucesso: number;
   perc_entrega: number;
+  /** PM não iniciadas desta base (não entram nos números acima). */
+  pm_nao_iniciadas?: number;
+  pm_pacotes_fora?: number;
+};
+
+/** Rota PM da ESP16 ainda não iniciada — programada para o dia seguinte. */
+export type MeliDashboardPmProgramada = {
+  rota_id: string;
+  route_id: string;
+  nome_operacional: string;
+  cluster: string | null;
+  base_id: string | null;
+  base_codigo: string | null;
+  base_nome: string | null;
+  driver_name: string | null;
+  vehicle_license: string | null;
+  data_rota: string | null;
+  last_synced_at: string | null;
+  total: number;
 };
 
 export type MeliDashboardResult = {
@@ -89,6 +108,8 @@ export type MeliDashboardResult = {
   motivos_insucesso?: { codigo: string; descricao: string; cadastrado: boolean; total: number }[];
   rotas?: MeliDashboardRota[];
   bases?: MeliDashboardBase[];
+  pm_programadas?: MeliDashboardPmProgramada[];
+
   area_risco?: {
     rotas: number;
     integrais: number;
