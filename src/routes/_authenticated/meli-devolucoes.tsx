@@ -113,6 +113,9 @@ function MeliDevolucoesPage() {
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+
+
 
   const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
@@ -182,12 +185,14 @@ function MeliDevolucoesPage() {
   async function onGerarRecebimento() {
     if (!baseId) {
       toast.error("Selecione a base antes de gerar o recebimento.");
+      setIniciandoRecebimento(false); // Volta para o botão se não tiver base
       return;
     }
     setGerandoRec(true);
     try {
       const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
       setRecebimentoId(id);
+      setIniciandoRecebimento(true); // Garante que a tela de bipagem abra
       toast.success(`Novo recebimento gerado: ${id}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao gerar recebimento.");
@@ -195,6 +200,7 @@ function MeliDevolucoesPage() {
       setGerandoRec(false);
     }
   }
+
 
   async function onReceber(e: React.FormEvent) {
     e.preventDefault();
@@ -464,70 +470,100 @@ function MeliDevolucoesPage() {
         </DialogContent>
       </Dialog>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <PackageCheck className="h-4 w-4" /> Recebimento físico na base
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-3 md:grid-cols-[200px_1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
-            <div className="space-y-1">
-              <Label>Recebimento</Label>
-              <div className="flex gap-2">
-                <Input
-                  className="bg-muted font-mono"
-                  value={recebimentoId}
-                  readOnly
-                  placeholder="REC..."
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  onClick={onGerarRecebimento}
-                  disabled={gerandoRec || !baseId}
-                  title="Gerar novo ID de recebimento"
-                >
-                  {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
-              <Input
-                id="dev-codigo"
-                ref={inputRef}
-                autoFocus
-                autoComplete="off"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                disabled={!recebimentoId}
-                placeholder="Tracking / shipment"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="dev-obs">Observação (opcional)</Label>
-              <Input
-                id="dev-obs"
-                value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
-                disabled={!recebimentoId}
-                placeholder="Avaria, embalagem aberta..."
-              />
-            </div>
-            <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
-              {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
+      {!iniciandoRecebimento ? (
+        <Card className="flex items-center justify-center py-12">
+          <CardContent>
+            <Button
+              size="lg"
+              className="px-8 py-6 text-lg h-auto"
+              onClick={onGerarRecebimento}
+              disabled={gerandoRec}
+            >
+              {gerandoRec ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Iniciando...
+                </>
+              ) : (
+                "Gerar ou Iniciar Recebimento"
+              )}
             </Button>
-          </form>
+          </CardContent>
+        </Card>
+      ) : (
 
-          <p className="text-xs text-muted-foreground mt-2">
-            O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
-            um pacote como recebido.
-          </p>
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PackageCheck className="h-4 w-4" /> Recebimento físico na base
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIniciandoRecebimento(false)}
+            >
+              Voltar
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <form className="grid gap-3 md:grid-cols-[200px_1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+              <div className="space-y-1">
+                <Label>Recebimento</Label>
+                <div className="flex gap-2">
+                  <Input
+                    className="bg-muted font-mono"
+                    value={recebimentoId}
+                    readOnly
+                    placeholder="REC..."
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    onClick={onGerarRecebimento}
+                    disabled={gerandoRec || !baseId}
+                    title="Gerar novo ID de recebimento"
+                  >
+                    {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
+                <Input
+                  id="dev-codigo"
+                  ref={inputRef}
+                  autoFocus
+                  autoComplete="off"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  disabled={!recebimentoId}
+                  placeholder="Tracking / shipment"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="dev-obs">Observação (opcional)</Label>
+                <Input
+                  id="dev-obs"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  disabled={!recebimentoId}
+                  placeholder="Avaria, embalagem aberta..."
+                />
+              </div>
+              <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
+                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
+              </Button>
+            </form>
 
-        </CardContent>
-      </Card>
+            <p className="text-xs text-muted-foreground mt-2">
+              O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
+              um pacote como recebido.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
 
       <Card>
         <CardHeader className="pb-2">
