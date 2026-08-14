@@ -429,7 +429,7 @@ function BaseDetalheDialog({
                           </Badge>
                         )}
                       </td>
-                      <td className="py-2 pr-2 text-muted-foreground">{r.driver_name ?? "—"}</td>
+                      <td className="py-2 pr-2 text-muted-foreground">{r.driver_name || "—"}</td>
                       <td className="py-2 pr-2 text-muted-foreground">{r.vehicle_license ?? "—"}</td>
                       <td className="py-2 pr-2 text-right tabular-nums">{nf(r.total)}</td>
                       <td className="py-2 pr-2 text-right tabular-nums text-success">{nf(r.entregue)}</td>
