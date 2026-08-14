@@ -16,7 +16,7 @@ import {
   rotasDoPainel,
   sincronizandoNovaAtualizacao,
   type EstadoBanco,
-} from "@/lib/meli-sync-lotes";
+} from "../../src/lib/meli-sync-lotes";
 
 const BASE = "ESP16";
 const DIA = "2026-08-14";
