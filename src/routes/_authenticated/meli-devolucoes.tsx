@@ -8,8 +8,13 @@ import {
   meliDevolucoesSincronizar,
   meliDevolucaoReceber,
   meliDevolucaoHistorico,
-  gerarRecebimentoId,
+  meliRomaneioAbrirComPrimeiroPacote,
+  meliRomaneioBipar,
+  meliRomaneioListar,
+  meliRomaneioFinalizar,
+  meliDevolucaoHistorico,
   type MeliDevolucaoLinha,
+  type MeliRomaneioLinha,
 } from "@/lib/meli-devolucoes.functions";
 import { listarBasesSimples } from "@/lib/bases.functions";
 
