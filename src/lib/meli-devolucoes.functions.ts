@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
+
 type RpcClient = {
   rpc: (
     fn: string,
@@ -137,7 +139,7 @@ export type MeliDevolucaoReceberResult = {
   base_esperada?: string | null;
   divergencia_delivered?: boolean;
   no_prazo?: boolean;
-  devolucao?: MeliDevolucaoLinha & Record<string, unknown>;
+  devolucao?: MeliDevolucaoLinha;
 };
 
 export const meliDevolucaoReceber = createServerFn({ method: "POST" })
@@ -164,7 +166,7 @@ export type MeliDevolucaoEvento = {
   tipo: string;
   estado_anterior: string | null;
   estado_novo: string | null;
-  detalhes: Record<string, unknown> | null;
+  detalhes: Json | null;
   created_at: string;
 };
 
