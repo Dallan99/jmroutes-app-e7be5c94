@@ -317,6 +317,7 @@ function RotasPorBaseSection() {
               <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="py-2 pr-3">Base</th>
                 <th className="py-2 pr-3">Rota</th>
+                <th className="py-2 pr-3">Motorista</th>
                 <th className="py-2 pr-3 text-right">Previsto</th>
                 <th className="py-2 pr-3 text-right">Recebido</th>
                 <th className="py-2 pr-3 text-right">Devolvido</th>
@@ -333,6 +334,10 @@ function RotasPorBaseSection() {
                     <div className="text-[10px] text-muted-foreground font-mono">{r.base_codigo}</div>
                   </td>
                   <td className="py-2 pr-3 font-mono">{r.nro_rota}</td>
+                  <td className="py-2 pr-3">
+                    <div className="text-xs">{r.motorista ?? "—"}</div>
+                    {r.placa && <div className="text-[10px] text-muted-foreground font-mono">{r.placa}</div>}
+                  </td>
                   <td className="py-2 pr-3 text-right font-mono">{r.total}</td>
                   <td className="py-2 pr-3 text-right font-mono text-success">{r.recebido}</td>
                   <td className="py-2 pr-3 text-right font-mono text-warning">{r.devolvido}</td>

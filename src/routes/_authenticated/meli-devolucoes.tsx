@@ -114,6 +114,7 @@ function MeliDevolucoesPage() {
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
   const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+  const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
 
 
 
@@ -185,14 +186,15 @@ function MeliDevolucoesPage() {
   async function onGerarRecebimento() {
     if (!baseId) {
       toast.error("Selecione a base antes de gerar o recebimento.");
-      setIniciandoRecebimento(false); // Volta para o botão se não tiver base
+      setIniciandoRecebimento(false);
       return;
     }
     setGerandoRec(true);
     try {
       const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
       setRecebimentoId(id);
-      setIniciandoRecebimento(true); // Garante que a tela de bipagem abra
+      setPacotesDesteLote([]); // Limpa a lista de pacotes para o novo lote
+      setIniciandoRecebimento(true);
       toast.success(`Novo recebimento gerado: ${id}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao gerar recebimento.");
@@ -243,6 +245,11 @@ function MeliDevolucoesPage() {
       } else {
         beepOk();
         toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
+        // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
+        const p = linhas.find(l => l.tracking_id === res.codigo);
+        if (p) {
+          setPacotesDesteLote(prev => [p, ...prev]);
+        }
       }
       setCodigo("");
       setObservacao("");
@@ -492,42 +499,43 @@ function MeliDevolucoesPage() {
         </Card>
       ) : (
 
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <PackageCheck className="h-4 w-4" /> Recebimento físico na base
-            </CardTitle>
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-border/50 bg-muted/5">
+            <div className="space-y-1">
+              <CardTitle className="text-base flex items-center gap-2">
+                <PackageCheck className="h-4 w-4 text-primary" /> Recebimento físico na base
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono text-primary bg-primary/5 border-primary/20 px-2 py-1 flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground uppercase font-sans">Lote:</span>
+                  {recebimentoId}
+                </Badge>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                  onClick={onGerarRecebimento}
+                  disabled={gerandoRec || !baseId}
+                  title="Finalizar este lote e iniciar um novo"
+                >
+                  {gerandoRec ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                </Button>
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIniciandoRecebimento(false)}
+              onClick={() => {
+                stopAlarm();
+                setIniciandoRecebimento(false);
+              }}
             >
               Voltar
             </Button>
           </CardHeader>
-          <CardContent>
-            <form className="grid gap-3 md:grid-cols-[200px_1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
-              <div className="space-y-1">
-                <Label>Recebimento</Label>
-                <div className="flex gap-2">
-                  <Input
-                    className="bg-muted font-mono"
-                    value={recebimentoId}
-                    readOnly
-                    placeholder="REC..."
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    onClick={onGerarRecebimento}
-                    disabled={gerandoRec || !baseId}
-                    title="Gerar novo ID de recebimento"
-                  >
-                    {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
+          <CardContent className="pt-6">
+            <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
               <div className="space-y-1">
                 <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
                 <Input
@@ -560,6 +568,42 @@ function MeliDevolucoesPage() {
               O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
               um pacote como recebido.
             </p>
+
+            {pacotesDesteLote.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[10px] uppercase tracking-wider"
+                    onClick={() => window.print()}
+                  >
+                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir Lote
+                  </Button>
+                </div>
+                <ScrollArea className="h-48 border rounded-md">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                      <tr className="text-left border-b">
+                        <th className="py-2 px-3">Tracking</th>
+                        <th className="py-2 px-3">Rota</th>
+                        <th className="py-2 px-3">Ocorrência</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pacotesDesteLote.map((p) => (
+                        <tr key={p.id} className="border-b last:border-0">
+                          <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
+                          <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
+                          <td className="py-2 px-3">{p.occurrence_code}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
