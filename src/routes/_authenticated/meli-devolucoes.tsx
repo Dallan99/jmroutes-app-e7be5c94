@@ -210,9 +210,8 @@ function MeliDevolucoesPage() {
     setGerandoRec(true);
     try {
       const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
-      setRecebimentoId(id);
+      updateActiveRec(id);
       setPacotesDesteLote([]); // Limpa a lista de pacotes para o novo lote
-      setIniciandoRecebimento(true);
       toast.success(`Novo recebimento gerado: ${id}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao gerar recebimento.");
@@ -548,9 +547,8 @@ function MeliDevolucoesPage() {
                     className="h-8 px-3"
                     onClick={() => {
                       if (!buscarRecId.trim()) return;
-                      setRecebimentoId(buscarRecId.trim().toUpperCase());
+                      updateActiveRec(buscarRecId.trim().toUpperCase());
                       setPacotesDesteLote([]);
-                      setIniciandoRecebimento(true);
                       toast.info(`Continuando recebimento: ${buscarRecId.trim().toUpperCase()}`);
                     }}
                   >
@@ -573,8 +571,8 @@ function MeliDevolucoesPage() {
                     size="sm"
                     className="h-8"
                     onClick={() => {
-                      stopAlarm();
-                      setIniciandoRecebimento(false);
+                    updateActiveRec("");
+                    stopAlarm();
                     }}
                   >
                     Sair
