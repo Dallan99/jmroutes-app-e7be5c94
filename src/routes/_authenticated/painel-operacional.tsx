@@ -95,7 +95,6 @@ function PainelOperacionalPage() {
                 <tr key={`${r.base_id}-${r.nro_rota}`} className="border-t">
                   <td className="px-3 py-1.5 font-medium">{r.base_codigo}</td>
                   <td className="px-3 py-1.5">{r.nro_rota}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground">{"—"}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{r.total}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{r.recebido}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{r.faltando}</td>
