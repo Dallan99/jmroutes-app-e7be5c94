@@ -90,11 +90,16 @@ function fmt(dt: string | null | undefined) {
     minute: "2-digit",
   });
 }
-
+function MeliDevolucoesPage() {
+  const buscarPainel = useServerFn(meliDevolucoesPainel);
+  const sincronizar = useServerFn(meliDevolucoesSincronizar);
   const abrirRomaneio = useServerFn(meliRomaneioAbrirComPrimeiroPacote);
   const biparRomaneio = useServerFn(meliRomaneioBipar);
-  const finalizarRomaneio = useServerFn(meliRomaneioFinalizar);
+  const finalizar = useServerFn(meliRomaneioFinalizar);
   const listarRomaneios = useServerFn(meliRomaneioListar);
+  const historico = useServerFn(meliDevolucaoHistorico);
+  const buscarBases = useServerFn(listarBasesSimples);
+
 
 
   const hoje = hojeOperacional();
