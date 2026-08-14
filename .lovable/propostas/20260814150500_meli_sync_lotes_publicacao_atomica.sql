@@ -70,10 +70,11 @@ CREATE TABLE IF NOT EXISTS public.meli_sync_pacotes_staging (
     REFERENCES public.meli_sync_rotas_staging (sync_batch_id, route_id) ON DELETE CASCADE
 );
 
-GRANT SELECT ON public.meli_sync_rotas_staging TO authenticated;
-GRANT SELECT ON public.meli_sync_pacotes_staging TO authenticated;
+-- Staging é estritamente service_role: sem SELECT para authenticated/anon/PUBLIC.
 GRANT ALL ON public.meli_sync_rotas_staging TO service_role;
 GRANT ALL ON public.meli_sync_pacotes_staging TO service_role;
+REVOKE ALL ON public.meli_sync_rotas_staging FROM authenticated;
+REVOKE ALL ON public.meli_sync_pacotes_staging FROM authenticated;
 REVOKE ALL ON public.meli_sync_rotas_staging FROM anon;
 REVOKE ALL ON public.meli_sync_pacotes_staging FROM anon;
 REVOKE ALL ON public.meli_sync_rotas_staging FROM PUBLIC;
