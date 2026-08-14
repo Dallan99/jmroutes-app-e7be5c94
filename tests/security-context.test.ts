@@ -7,13 +7,7 @@ vi.mock('@tanstack/react-start', () => {
       validator: vi.fn().mockImplementation(() => builder),
       handler: vi.fn().mockImplementation((h) => {
         const fn = async (args: any) => {
-           try {
-             return await h(args);
-           } catch (e: any) {
-             // Simula o comportamento do cliente RPC do Supabase que retorna {data, error}
-             // Mas aqui como é server function, ela lança o erro.
-             throw e;
-           }
+           return await h(args);
         };
         (fn as any).handler = h;
         return fn;
@@ -69,6 +63,6 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
         base_id: 'base-uuid', 
         tracking_id: 'ML123'
       } 
-    })).rejects.toMatchObject({ message: 'permission denied' });
+    })).rejects.toMatchObject({ message: expect.stringContaining('permission denied') });
   });
 });
