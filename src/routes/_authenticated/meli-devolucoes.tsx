@@ -242,33 +242,55 @@ function MeliDevolucoesPage() {
 
     setEnviando(true);
     try {
-      const res = await receber({
-        data: {
-          tracking: codigo.trim(),
-          base_id: baseId,
-          metodo: "scanner",
-          observacao: observacao.trim() || null,
-          recebimento_id: recebimentoId,
-        },
-      });
+      let res;
+      if (recebimentoId === "NOVO") {
+        // Abre o romaneio com o primeiro pacote
+        res = await abrirRomaneio({
+          data: {
+            base_id: baseId,
+            tracking_id: codigo.trim(),
+            observacao: observacao.trim() || null,
+          }
+        });
+        if (res.romaneio_id) {
+          updateActiveRec(res.codigo_romaneio);
+          // O ID do romaneio agora é o UUID, mas a interface usa o código
+          localStorage.setItem("active_romaneio_uuid", res.romaneio_id);
+        }
+      } else {
+        // Bipa em romaneio existente
+        const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
+        if (!romaneioUuid) {
+           toast.error("ID Interno do romaneio não encontrado. Tente reabrir.");
+           return;
+        }
+        res = await biparRomaneio({
+          data: {
+            romaneio_id: romaneioUuid,
+            base_id: baseId,
+            tracking_id: codigo.trim(),
+            observacao: observacao.trim() || null,
+          },
+        });
+      }
+
       if (res.status === "erro") {
         beepError();
         toast.error(res.mensagem ?? "Não foi possível registrar o retorno.");
       } else if (res.status === "duplicado") {
         beepError();
-        toast.error(res.mensagem ?? "Divergência: pacote já lido/recebido nesta base.");
+        toast.error(res.mensagem ?? "Divergência: pacote já lido/recebido neste romaneio.");
       } else if (res.divergencia_delivered) {
         startAlarm();
         setAlertaCritico(
           res.mensagem ??
-            `Pacote ${res.codigo} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
+            `Pacote ${res.tracking_id} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
         );
-
       } else {
         beepOk();
-        toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
+        toast.success(res.mensagem ?? `Retorno de ${res.tracking_id} registrado.`);
         // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
-        const p = linhas.find(l => l.tracking_id === res.codigo);
+        const p = linhas.find(l => l.tracking_id === res.tracking_id);
         if (p) {
           setPacotesDesteLote(prev => [p, ...prev]);
         }
@@ -277,9 +299,13 @@ function MeliDevolucoesPage() {
       setObservacao("");
       inputRef.current?.focus();
       painelQuery.refetch();
+    } catch (err: any) {
+      beepError();
+      toast.error(err.message || "Erro ao processar bipagem.");
     } finally {
       setEnviando(false);
     }
+
   }
 
 
