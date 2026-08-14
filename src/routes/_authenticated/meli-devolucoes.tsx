@@ -4,17 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  meliDevolucoesPainel,
-  meliDevolucoesSincronizar,
   meliDevolucoesCriarDevolucao,
   meliDevolucoesBipar,
   meliDevolucoesListar,
   meliDevolucoesFinalizar,
   meliDevolucoesCancelar,
   meliDevolucoesDetalhar,
-  meliDevolucaoHistorico,
-  type MeliDevolucaoLinha,
-  type MeliRomaneioLinha,
 } from "@/lib/meli-devolucoes.functions";
 
 
@@ -95,15 +90,12 @@ function fmt(dt: string | null | undefined) {
   });
 }
 function MeliDevolucoesPage() {
-  const buscarPainel = useServerFn(meliDevolucoesPainel);
-  const sincronizar = useServerFn(meliDevolucoesSincronizar);
   const abrirRomaneio = useServerFn(meliDevolucoesCriarDevolucao);
   const biparRomaneio = useServerFn(meliDevolucoesBipar);
   const finalizar = useServerFn(meliDevolucoesFinalizar);
   const listarRomaneios = useServerFn(meliDevolucoesListar);
   const cancelarRomaneio = useServerFn(meliDevolucoesCancelar);
   const detalharRomaneio = useServerFn(meliDevolucoesDetalhar);
-  const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
 
 
@@ -148,11 +140,11 @@ function MeliDevolucoesPage() {
     }
   };
 
-  const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
+  const [pacotesDesteLote, setPacotesDesteLote] = useState<any[]>([]);
 
 
 
-  const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
+  const [detalhe, setDetalhe] = useState<any | null>(null);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -164,15 +156,7 @@ function MeliDevolucoesPage() {
 
   const painelQuery = useQuery({
     queryKey: ["meli-devolucoes", dataDe, dataAte, baseId, estado],
-    queryFn: () =>
-      buscarPainel({
-        data: {
-          data_de: dataDe,
-          data_ate: dataAte,
-          base_id: baseId || null,
-          estado: estado || null,
-        },
-      }),
+    queryFn: () => ({} as any), // TODO: Implementar busca de painel se necessário
     refetchInterval: 60_000,
   });
 
@@ -185,7 +169,7 @@ function MeliDevolucoesPage() {
 
   const historicoQuery = useQuery({
     queryKey: ["meli-devolucao-historico", detalhe?.id],
-    queryFn: () => historico({ data: { devolucao_id: detalhe!.id } }),
+    queryFn: () => ({} as any), // TODO: Implementar busca de histórico se necessário
     enabled: !!detalhe,
   });
 
@@ -193,7 +177,7 @@ function MeliDevolucoesPage() {
     const todas = painelQuery.data?.linhas ?? [];
     const q = busca.trim().toLowerCase();
     if (!q) return todas;
-    return todas.filter((l) =>
+    return todas.filter((l: any) =>
       [l.tracking_id, l.route_id, l.cluster, l.motorista, l.base_codigo, l.occurrence_code]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q)),
@@ -203,25 +187,15 @@ function MeliDevolucoesPage() {
   const cards = painelQuery.data?.cards;
 
   const linhasCard = useMemo(() => {
-    if (!cardDetalhe) return [] as MeliDevolucaoLinha[];
+    if (!cardDetalhe) return [] as any[];
     if (!cardDetalhe.id) return linhas;
     if (cardDetalhe.id === "divergencia_delivered")
-      return linhas.filter((l) => l.divergencia_delivered);
-    return linhas.filter((l) => l.estado === cardDetalhe.id);
+      return linhas.filter((l: any) => l.divergencia_delivered);
+    return linhas.filter((l: any) => l.estado === cardDetalhe.id);
   }, [linhas, cardDetalhe]);
 
   async function onSincronizar() {
-    const res = await sincronizar({
-      data: { data_de: dataDe, data_ate: dataAte, base_id: baseId || null },
-    });
-    if (res.status === "erro") {
-      toast.error(res.erro ?? "Falha ao sincronizar devoluções.");
-      return;
-    }
-    toast.success(
-      `Sincronizado: ${res.criadas ?? 0} nova(s), ${res.atualizadas ?? 0} atualizada(s).`,
-    );
-    painelQuery.refetch();
+    toast.info("Funcionalidade em migração.");
   }
 
   async function onGerarRecebimento() {
@@ -269,10 +243,10 @@ function MeliDevolucoesPage() {
             observacao: observacao.trim() || null,
           }
         });
-        if (res.romaneio_id) {
-          updateActiveRec(res.codigo_romaneio);
+        if (res && typeof res === 'object' && 'romaneio_id' in res) {
+          updateActiveRec(res.codigo_romaneio as string);
           // O ID do romaneio agora é o UUID, mas a interface usa o código
-          localStorage.setItem("active_romaneio_uuid", res.romaneio_id);
+          localStorage.setItem("active_romaneio_uuid", res.romaneio_id as string);
         }
       } else {
         // Bipa em romaneio existente
@@ -291,23 +265,24 @@ function MeliDevolucoesPage() {
         });
       }
 
-      if (res.status === "erro") {
+      if (res && typeof res === 'object' && 'status' in res && res.status === "erro") {
         beepError();
         toast.error((res as any).mensagem ?? "Não foi possível registrar o retorno.");
-      } else if (res.status === "duplicado") {
+      } else if (res && typeof res === 'object' && 'status' in res && res.status === "duplicado") {
         beepError();
         toast.error((res as any).mensagem ?? "Divergência: pacote já lido/recebido nesta devolução.");
-      } else if (res.divergencia_delivered) {
+      } else if (res && typeof res === 'object' && 'divergencia_delivered' in res && res.divergencia_delivered) {
         startAlarm();
         setAlertaCritico(
           (res as any).mensagem ??
-            `Pacote ${res.tracking_id} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
+            `Pacote ${(res as any).tracking_id} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
         );
       } else {
         beepOk();
-        toast.success((res as any).mensagem ?? `Retorno de ${res.tracking_id} registrado.`);
+        const tid = res && typeof res === 'object' && 'tracking_id' in res ? res.tracking_id : '';
+        toast.success((res as any).mensagem ?? `Retorno de ${tid} registrado.`);
         // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
-        const p = linhas.find(l => l.tracking_id === res.tracking_id);
+        const p = linhas.find((l: any) => l.tracking_id === tid);
         if (p) {
           setPacotesDesteLote(prev => [p, ...prev]);
         }
@@ -341,7 +316,7 @@ function MeliDevolucoesPage() {
       "recebido_em",
       "divergencia_meli_entregue",
     ];
-    const body = linhas.map((l) => [
+    const body = linhas.map((l: any) => [
       l.tracking_id,
       l.base_codigo ?? "",
       l.cluster ?? l.route_id ?? "",
@@ -516,7 +491,7 @@ function MeliDevolucoesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linhasCard.map((l) => (
+                  {linhasCard.map((l: any) => (
                     <tr
                       key={l.id}
                       className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
@@ -781,7 +756,7 @@ function MeliDevolucoesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(romaneiosQuery.data ?? []).map((r) => (
+                  {(romaneiosQuery.data ?? []).map((r: any) => (
                     <tr
                       key={r.id}
                       className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
@@ -846,7 +821,7 @@ function MeliDevolucoesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linhas.map((l) => {
+                  {linhas.map((l: any) => {
                     const faixa = faixaVisual({
                       estado: l.estado as EstadoDevolucao,
                       prazo_retorno_em: l.prazo_retorno_em,
@@ -943,7 +918,7 @@ function MeliDevolucoesPage() {
                     <p className="text-xs text-muted-foreground">Sem eventos registrados.</p>
                   ) : (
                     <ul className="space-y-1 text-xs">
-                      {(historicoQuery.data ?? []).map((ev) => (
+                      {(historicoQuery.data ?? []).map((ev: any) => (
                         <li key={ev.id} className="flex gap-2">
                           <span className="text-muted-foreground">{fmt(ev.created_at)}</span>
                           <span>{ev.tipo}</span>
