@@ -4,69 +4,19 @@
 // - CORS restrito à origem chrome-extension:// e ao próprio domínio JMRoutes.
 // - Body JSON limitado a 5 MB.
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-import { importarRotaBrutaComClient } from "@/lib/meli-import-bruto";
-
-const MAX_BODY_BYTES = 5 * 1024 * 1024;
-const ALLOWED_ORIGIN_HOSTS = new Set([
-  "jmroutes.app",
-  "www.jmroutes.app",
-]);
-
-function isAllowedOrigin(origin: string | null): boolean {
-  if (!origin) return false;
-  if (origin.startsWith("chrome-extension://")) return true;
-  try {
-    const u = new URL(origin);
-    if (ALLOWED_ORIGIN_HOSTS.has(u.hostname)) return true;
-    if (u.hostname.endsWith(".lovable.app")) return true;
-    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return true;
-  } catch {
-    return false;
-  }
-  return false;
-}
-
-function corsHeaders(origin: string | null): Record<string, string> {
-  const allow = origin && isAllowedOrigin(origin) ? origin : "null";
-  return {
-    "Access-Control-Allow-Origin": allow,
-    "Vary": "Origin",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
-function json(body: unknown, status: number, origin: string | null): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...corsHeaders(origin),
-    },
-  });
-}
-
-function isNewSupabaseApiKey(v: string): boolean {
-  return v.startsWith("sb_publishable_") || v.startsWith("sb_secret_");
-}
-
-function createSupabaseFetch(key: string): typeof fetch {
-  return (input, init) => {
-    const headers = new Headers(
-      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
-    );
-    if (init?.headers) {
-      new Headers(init.headers).forEach((value, name) => headers.set(name, value));
-    }
-    if (isNewSupabaseApiKey(key) && headers.get("Authorization") === `Bearer ${key}`) {
-      headers.delete("Authorization");
-    }
-    headers.set("apikey", key);
-    return fetch(input, { ...init, headers });
-  };
-}
+import {
+  MAX_BODY_BYTES,
+  clienteDoUsuario,
+  corsHeaders,
+  extrairBearer,
+  isAllowedOrigin,
+  isUuid,
+  json,
+} from "@/lib/meli-api-http";
+import {
+  enviarRotaParaStagingComClient,
+  importarRotaBrutaComClient,
+} from "@/lib/meli-import-bruto";
 
 export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
   server: {
@@ -107,27 +57,13 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
           return json({ ok: false, codigo: "body_muito_grande", mensagem: "Payload excede o limite." }, 413, origin);
         }
 
-        const authHeader = request.headers.get("authorization");
-        if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+        const token = extrairBearer(request);
+        if (!token) {
           return json(
             { ok: false, codigo: "nao_autenticado", mensagem: "Faça login no JMRoutes e tente novamente." },
             401,
             origin,
           );
-        }
-        const token = authHeader.slice(7).trim();
-        if (!token || token.split(".").length !== 3) {
-          return json(
-            { ok: false, codigo: "nao_autenticado", mensagem: "Faça login no JMRoutes e tente novamente." },
-            401,
-            origin,
-          );
-        }
-
-        const SUPABASE_URL = process.env.SUPABASE_URL;
-        const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
-        if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-          return json({ ok: false, codigo: "config", mensagem: "Servidor mal configurado." }, 500, origin);
         }
 
         // Lê o body com limite manual defensivo.
@@ -146,10 +82,11 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
         if (!body || typeof body !== "object" || Array.isArray(body)) {
           return json({ ok: false, codigo: "body_invalido", mensagem: "Body inválido." }, 400, origin);
         }
-        const { payload, confirmar_divergencia, origem } = body as {
+        const { payload, confirmar_divergencia, origem, sync_batch_id } = body as {
           payload?: unknown;
           confirmar_divergencia?: unknown;
           origem?: unknown;
+          sync_batch_id?: unknown;
         };
         if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
           return json({ ok: false, codigo: "payload_invalido", mensagem: "Campo 'payload' ausente ou inválido." }, 400, origin);
@@ -176,22 +113,79 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
           manual: "envio-manual",
         };
 
+        // Protocolo de lotes: quando presente, a rota vai APENAS para o staging
+        // do ciclo. Ausente = fluxo legado, inalterado.
+        if (sync_batch_id !== undefined && sync_batch_id !== null && !isUuid(sync_batch_id)) {
+          return json(
+            { ok: false, codigo: "sync_batch_id_invalido", mensagem: "Campo 'sync_batch_id' deve ser um UUID." },
+            400,
+            origin,
+          );
+        }
 
-        const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-          global: {
-            fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
-            headers: { Authorization: `Bearer ${token}` },
-          },
-          auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-        });
-
-        const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
-        if (claimsErr || !claims?.claims?.sub) {
+        const cliente = await clienteDoUsuario(token);
+        if (cliente.status === "config") {
+          return json({ ok: false, codigo: "config", mensagem: "Servidor mal configurado." }, 500, origin);
+        }
+        if (cliente.status === "nao_autenticado") {
           return json(
             { ok: false, codigo: "nao_autenticado", mensagem: "Faça login no JMRoutes e tente novamente." },
             401,
             origin,
           );
+        }
+        const supabase = cliente.supabase;
+
+        if (isUuid(sync_batch_id)) {
+          try {
+            const st = await enviarRotaParaStagingComClient(
+              supabase as never,
+              sync_batch_id,
+              payload as Record<string, unknown>,
+            );
+            if (st.status === "erro") {
+              const msg = st.erro.toLowerCase();
+              if (msg.includes("could not find the function") || msg.includes("schema cache")) {
+                return json(
+                  {
+                    ok: false,
+                    codigo: "protocolo_indisponivel",
+                    mensagem: "Protocolo de lotes ainda não disponível neste ambiente.",
+                  },
+                  503,
+                  origin,
+                );
+              }
+              const httpStatus =
+                msg.includes("sem_permissao") || msg.includes("sem_acesso") || msg.includes("permission")
+                  ? 403
+                  : 400;
+              return json({ ok: false, codigo: st.erro, mensagem: st.erro }, httpStatus, origin);
+            }
+            return json(
+              {
+                ok: true,
+                staging: true,
+                sync_batch_id,
+                route_id: st.route_id,
+                rotas_no_lote: st.rotas_no_lote,
+                pacotes_no_lote: st.pacotes_no_lote,
+                total_meli: st.resumo?.total_informado ?? null,
+                total_extraido: st.resumo?.total_extraidos ?? null,
+                diferenca: st.resumo?.diferenca ?? null,
+                mensagem: "Rota gravada no lote em construção",
+              },
+              200,
+              origin,
+            );
+          } catch (err) {
+            console.error("[/api/public/meli/importar-rota-bruta] staging", err);
+            return json(
+              { ok: false, codigo: "erro_interno", mensagem: "Não foi possível gravar a rota no lote." },
+              500,
+              origin,
+            );
+          }
         }
 
         try {
