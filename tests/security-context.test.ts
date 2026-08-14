@@ -3,9 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mocks manuais antes da importação
 vi.mock('@tanstack/react-start', () => ({
   createServerFn: (options: any) => {
-    const fn = (args: any) => options.handler(args);
-    fn.validator = () => fn;
-    return fn;
+    return {
+      handler: options.handler,
+      validator: () => ({
+        handler: options.handler
+      })
+    };
   }
 }));
 
@@ -30,8 +33,8 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
   it('deve chamar a RPC de criar devolução com os parâmetros corretos', async () => {
     mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok', romaneio_id: '123' }, error: null });
     
-    // A chamada direta ao handler mockado
-    const result = await (meliDevolucoesCriarDevolucao as any)({ 
+    // meliDevolucoesCriarDevolucao agora é o objeto retornado pelo mock de createServerFn
+    const result = await (meliDevolucoesCriarDevolucao as any).handler({ 
       data: { base_id: 'base-uuid', tracking_id: 'ML123' } 
     });
 
@@ -46,7 +49,7 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
   it('deve chamar a RPC de bipar com observação', async () => {
     mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok' }, error: null });
     
-    await (meliDevolucoesBipar as any)({ 
+    await (meliDevolucoesBipar as any).handler({ 
       data: { 
         romaneio_id: 'rom-uuid', 
         base_id: 'base-uuid', 
