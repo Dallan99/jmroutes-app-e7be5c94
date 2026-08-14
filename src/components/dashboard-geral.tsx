@@ -160,10 +160,12 @@ export function DashboardGeral({
 
       <BaseDetalheDialog
         base={baseAberta}
+        data={data}
         rotas={rotasDaBase}
         pmProgramadas={pmDaBase}
         onClose={() => setBaseAberta(null)}
       />
+
     </section>
   );
 }
@@ -174,11 +176,13 @@ function pct(n: number | null | undefined) {
 
 function BaseDetalheDialog({
   base,
+  data,
   rotas,
   pmProgramadas,
   onClose,
 }: {
   base: { id: string | null; codigo: string; nome: string } | null;
+  data: string;
   rotas: MeliDashboardRota[];
   pmProgramadas: MeliDashboardPmProgramada[];
   onClose: () => void;
@@ -187,7 +191,12 @@ function BaseDetalheDialog({
   const [rotaSel, setRotaSel] = useState<MeliDashboardRota | null>(null);
   /** Situação escolhida nos cartões do detalhe da rota (Pacotes/Entregues/Em rota/Falhas). */
   const [situacaoSel, setSituacaoSel] = useState<"total" | "entregue" | "em_rota" | "insucesso">("total");
+  /** Situação escolhida nos cartões da base (Rotas/Pacotes/Entregues/Em rota/Falhas). */
+  const [situacaoBase, setSituacaoBase] = useState<"rotas" | "total" | "entregue" | "em_rota" | "insucesso">(
+    "rotas",
+  );
   const fetchPacotes = useServerFn(meliDashboardPacotesRota);
+  const fetchBase = useServerFn(meliDashboardOperacional);
 
   const pacotesQuery = useQuery({
     queryKey: ["dashboard-geral-pacotes", rotaSel?.rota_id],
@@ -195,15 +204,30 @@ function BaseDetalheDialog({
     enabled: !!rotaSel,
   });
 
+  /** Motivos reais de insucesso da base — só busca quando o card Falhas é aberto. */
+  const motivosQuery = useQuery({
+    queryKey: ["dashboard-geral-motivos", base?.id ?? base?.codigo, data],
+    queryFn: () => fetchBase({ data: { data, base_id: base?.id ?? null } }),
+    enabled: !!base && situacaoBase === "insucesso" && !rotaSel,
+  });
+  const motivos =
+    motivosQuery.data?.status === "ok" ? (motivosQuery.data.motivos_insucesso ?? []) : [];
+
   const filtradas = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    if (!t) return rotas;
-    return rotas.filter((r) =>
-      [r.nome_operacional, r.route_id, r.driver_name, r.vehicle_license]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(t)),
-    );
-  }, [rotas, busca]);
+    const porBusca = !t
+      ? rotas
+      : rotas.filter((r) =>
+          [r.nome_operacional, r.route_id, r.driver_name, r.vehicle_license]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(t)),
+        );
+    if (situacaoBase === "rotas" || situacaoBase === "total") return porBusca;
+    return porBusca
+      .filter((r) => (r[situacaoBase] ?? 0) > 0)
+      .slice()
+      .sort((a, b) => (b[situacaoBase] ?? 0) - (a[situacaoBase] ?? 0));
+  }, [rotas, busca, situacaoBase]);
 
   const totais = useMemo(
     () =>
@@ -225,6 +249,7 @@ function BaseDetalheDialog({
     return pacotes.filter((p) => p.situacao === situacaoSel);
   }, [pacotes, situacaoSel]);
 
+
   return (
     <Dialog
       open={!!base}
@@ -232,6 +257,7 @@ function BaseDetalheDialog({
         if (!o) {
           setRotaSel(null);
           setBusca("");
+          setSituacaoBase("rotas");
           onClose();
         }
       }}
@@ -252,14 +278,103 @@ function BaseDetalheDialog({
         {!rotaSel ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <MiniBox label="Rotas" value={nf(rotas.length)} />
-              <MiniBox label="Pacotes" value={nf(totais.total)} />
-              <MiniBox label="Entregues" value={nf(totais.entregue)} tone="text-success" />
-              <MiniBox label="Em rota" value={nf(totais.em_rota)} tone="text-[var(--info)]" />
-              <MiniBox label="Falhas" value={nf(totais.insucesso)} tone="text-destructive" />
+              <MiniBox
+                label="Rotas"
+                value={nf(rotas.length)}
+                ativo={situacaoBase === "rotas"}
+                onClick={() => setSituacaoBase("rotas")}
+              />
+              <MiniBox
+                label="Pacotes"
+                value={nf(totais.total)}
+                ativo={situacaoBase === "total"}
+                onClick={() => setSituacaoBase("total")}
+              />
+              <MiniBox
+                label="Entregues"
+                value={nf(totais.entregue)}
+                tone="text-success"
+                ativo={situacaoBase === "entregue"}
+                onClick={() => setSituacaoBase("entregue")}
+              />
+              <MiniBox
+                label="Em rota"
+                value={nf(totais.em_rota)}
+                tone="text-[var(--info)]"
+                ativo={situacaoBase === "em_rota"}
+                onClick={() => setSituacaoBase("em_rota")}
+              />
+              <MiniBox
+                label="Falhas"
+                value={nf(totais.insucesso)}
+                tone="text-destructive"
+                ativo={situacaoBase === "insucesso"}
+                onClick={() => setSituacaoBase("insucesso")}
+              />
             </div>
 
-            <h3 className="text-sm font-semibold">Rotas operacionais de hoje</h3>
+            {situacaoBase === "insucesso" && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-destructive">
+                    Status dos insucessos — {base?.codigo}
+                  </h3>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {nf(totais.insucesso)} pacote(s)
+                  </span>
+                </div>
+                {motivosQuery.isLoading ? (
+                  <p className="mt-2 text-xs text-muted-foreground">Carregando status dos insucessos...</p>
+                ) : motivos.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Nenhum insucesso registrado nesta base hoje.
+                  </p>
+                ) : (
+                  <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                    {motivos
+                      .slice()
+                      .sort((a, b) => (b.total ?? 0) - (a.total ?? 0))
+                      .map((m) => (
+                        <li
+                          key={m.codigo}
+                          className="flex items-center justify-between gap-2 rounded border bg-card px-2 py-1.5 text-sm"
+                        >
+                          <span className="min-w-0 truncate">
+                            <span className="font-mono text-[11px] text-muted-foreground">{m.codigo}</span>{" "}
+                            {m.descricao}
+                            {!m.cadastrado && (
+                              <Badge variant="outline" className="ml-2 text-[10px]">
+                                não cadastrado
+                              </Badge>
+                            )}
+                          </span>
+                          <span className="tabular-nums font-semibold text-destructive">{nf(m.total)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">
+                {situacaoBase === "rotas" || situacaoBase === "total"
+                  ? "Rotas operacionais de hoje"
+                  : situacaoBase === "insucesso"
+                    ? "Rotas com insucesso"
+                    : situacaoBase === "entregue"
+                      ? "Rotas com entregas"
+                      : "Rotas em rota"}{" "}
+                <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                  ({nf(filtradas.length)})
+                </span>
+              </h3>
+              {situacaoBase !== "rotas" && (
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setSituacaoBase("rotas")}>
+                  Ver todas
+                </Button>
+              )}
+            </div>
 
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
@@ -270,6 +385,7 @@ function BaseDetalheDialog({
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
+
 
             <ScrollArea className="h-[52vh]">
               <table className="w-full text-sm">
@@ -298,7 +414,11 @@ function BaseDetalheDialog({
                     <tr
                       key={r.rota_id}
                       className="border-t cursor-pointer hover:bg-muted/50"
-                      onClick={() => setRotaSel(r)}
+                      onClick={() => {
+                        setSituacaoSel(situacaoBase === "rotas" ? "total" : situacaoBase);
+                        setRotaSel(r);
+                      }}
+
                     >
                       <td className="py-2 pr-2 font-medium">
                         {r.nome_operacional}
