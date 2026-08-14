@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
 import { MeliDashboardSection } from "@/components/meli-dashboard";
-import { MeliSyncMonitor, fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
+import { fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
 
 import { DashboardGeral } from "@/components/dashboard-geral";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
@@ -23,7 +23,7 @@ import {
   Line, LineChart, Pie, PieChart, Cell, Legend,
 } from "recharts";
 import {
-  Activity, AlertOctagon, AlertTriangle, CheckCircle2, Clock, Filter, Gauge,
+  Activity, AlertOctagon, AlertTriangle, CheckCircle2, Clock, Gauge,
   Package, PackageCheck, PackageSearch, RefreshCcw, Timer, TrendingUp, Truck, Tv, UserCog,
 } from "lucide-react";
 
@@ -48,7 +48,6 @@ function fmtDuration(ms: number | null | undefined) {
 
 function DashboardPage() {
   const qc = useQueryClient();
-  const [maisFiltros, setMaisFiltros] = useState(false);
   const [verInternos, setVerInternos] = useState(false);
   const sync = useMeliSync();
 
