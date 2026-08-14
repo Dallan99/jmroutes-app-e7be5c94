@@ -1,26 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
  * Meli Devoluções - Server Functions
  * Todas as operações visíveis na interface usam estes wrappers.
  * A nomenclatura interna (RPCs/Tabelas) mantém "romaneio" por restrição técnica,
  * mas as funções exportadas usam "Devolucao".
+ *
+ * IMPORTANTE: as RPCs só concedem EXECUTE para `authenticated`, portanto todas
+ * as chamadas usam o cliente autenticado do middleware (context.supabase).
  */
 
 export const meliDevolucoesCriarDevolucao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as {
     base_id: string;
     tracking_id: string;
     observacao?: string;
   })
-  .handler(async ({ data }) => {
-    // RPC: meli_romaneio_abrir_com_primeiro_pacote
-    const { data: res, error } = await supabase.rpc('meli_romaneio_abrir_com_primeiro_pacote', {
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_romaneio_abrir_com_primeiro_pacote', {
       p_base_id: data.base_id,
       p_tracking_id: data.tracking_id,
-      p_observacao: (data.observacao ?? null) as any
+      p_observacao: data.observacao ?? null,
     });
 
     if (error) throw error;
@@ -28,19 +30,19 @@ export const meliDevolucoesCriarDevolucao = createServerFn({ method: "POST" })
   });
 
 export const meliDevolucoesBipar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as {
     romaneio_id: string;
     base_id: string;
     tracking_id: string;
     observacao?: string;
   })
-  .handler(async ({ data }) => {
-    // RPC: meli_romaneio_bipar
-    const { data: res, error } = await supabase.rpc('meli_romaneio_bipar', {
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_romaneio_bipar', {
       p_romaneio_id: data.romaneio_id,
       p_base_id: data.base_id,
       p_tracking_id: data.tracking_id,
-      p_observacao: (data.observacao ?? null) as any
+      p_observacao: data.observacao ?? null,
     });
 
     if (error) throw error;
@@ -48,19 +50,19 @@ export const meliDevolucoesBipar = createServerFn({ method: "POST" })
   });
 
 export const meliDevolucoesListar = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as {
-    base_id?: string;
-    status?: 'em_andamento' | 'concluido' | 'cancelado';
-    data_de?: string;
-    data_ate?: string;
+    base_id?: string | null;
+    status?: 'em_andamento' | 'concluido' | 'cancelado' | null;
+    data_de?: string | null;
+    data_ate?: string | null;
   })
-  .handler(async ({ data }) => {
-    // RPC: meli_romaneios_listar
-    const { data: res, error } = await supabase.rpc('meli_romaneios_listar', {
-      p_base_id: (data.base_id ?? null) as any,
-      p_status: (data.status ?? null) as any,
-      p_data_de: (data.data_de ?? null) as any,
-      p_data_ate: (data.data_ate ?? null) as any
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_romaneios_listar', {
+      p_base_id: data.base_id ?? null,
+      p_status: data.status ?? null,
+      p_data_de: data.data_de ?? null,
+      p_data_ate: data.data_ate ?? null,
     });
 
     if (error) throw error;
@@ -68,11 +70,11 @@ export const meliDevolucoesListar = createServerFn({ method: "GET" })
   });
 
 export const meliDevolucoesFinalizar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as { romaneio_id: string })
-  .handler(async ({ data }) => {
-    // RPC: meli_romaneio_finalizar
-    const { data: res, error } = await supabase.rpc('meli_romaneio_finalizar', {
-      p_romaneio_id: data.romaneio_id
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_romaneio_finalizar', {
+      p_romaneio_id: data.romaneio_id,
     });
 
     if (error) throw error;
@@ -80,12 +82,12 @@ export const meliDevolucoesFinalizar = createServerFn({ method: "POST" })
   });
 
 export const meliDevolucoesCancelar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as { romaneio_id: string; justificativa: string })
-  .handler(async ({ data }) => {
-    // RPC: meli_romaneio_cancelar
-    const { data: res, error } = await supabase.rpc('meli_romaneio_cancelar', {
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_romaneio_cancelar', {
       p_romaneio_id: data.romaneio_id,
-      p_justificativa: data.justificativa
+      p_justificativa: data.justificativa,
     });
 
     if (error) throw error;
@@ -93,11 +95,11 @@ export const meliDevolucoesCancelar = createServerFn({ method: "POST" })
   });
 
 export const meliDevolucoesDetalhar = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as { romaneio_id: string })
-  .handler(async ({ data }) => {
-    // RPC: meli_romaneio_detalhar
-    const { data: res, error } = await supabase.rpc('meli_romaneio_detalhar', {
-      p_romaneio_id: data.romaneio_id
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_romaneio_detalhar', {
+      p_romaneio_id: data.romaneio_id,
     });
 
     if (error) throw error;
