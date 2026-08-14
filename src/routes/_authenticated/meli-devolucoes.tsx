@@ -494,9 +494,27 @@ function MeliDevolucoesPage() {
 
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <PackageCheck className="h-4 w-4" /> Recebimento físico na base
-            </CardTitle>
+            <div className="space-y-1">
+              <CardTitle className="text-base flex items-center gap-2">
+                <PackageCheck className="h-4 w-4" /> Recebimento físico na base
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono text-primary bg-primary/5 border-primary/20 px-2 py-1">
+                  ID: {recebimentoId}
+                </Badge>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                  onClick={onGerarRecebimento}
+                  disabled={gerandoRec || !baseId}
+                  title="Finalizar este e gerar novo recebimento"
+                >
+                  {gerandoRec ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                </Button>
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -506,28 +524,7 @@ function MeliDevolucoesPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <form className="grid gap-3 md:grid-cols-[200px_1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
-              <div className="space-y-1">
-                <Label>Recebimento</Label>
-                <div className="flex gap-2">
-                  <Input
-                    className="bg-muted font-mono"
-                    value={recebimentoId}
-                    readOnly
-                    placeholder="REC..."
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    onClick={onGerarRecebimento}
-                    disabled={gerandoRec || !baseId}
-                    title="Gerar novo ID de recebimento"
-                  >
-                    {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
+            <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
               <div className="space-y-1">
                 <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
                 <Input
