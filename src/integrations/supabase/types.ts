@@ -947,6 +947,13 @@ export type Database = {
             referencedRelation: "meli_rotas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meli_devolucoes_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas_ativas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       meli_devolucoes_eventos: {
@@ -1168,6 +1175,13 @@ export type Database = {
             referencedRelation: "meli_rotas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meli_pacotes_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas_ativas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       meli_rotas: {
@@ -1199,6 +1213,7 @@ export type Database = {
           route_status: string | null
           route_substatus: string | null
           stops_total: number | null
+          sync_batch_id: string | null
           total_impressos: number
           total_pacotes: number
           updated_at: string
@@ -1233,6 +1248,7 @@ export type Database = {
           route_status?: string | null
           route_substatus?: string | null
           stops_total?: number | null
+          sync_batch_id?: string | null
           total_impressos?: number
           total_pacotes?: number
           updated_at?: string
@@ -1267,6 +1283,7 @@ export type Database = {
           route_status?: string | null
           route_substatus?: string | null
           stops_total?: number | null
+          sync_batch_id?: string | null
           total_impressos?: number
           total_pacotes?: number
           updated_at?: string
@@ -1316,6 +1333,152 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "meli_rotas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_rotas_payload_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: true
+            referencedRelation: "meli_rotas_ativas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meli_sync_ciclos: {
+        Row: {
+          ativo: boolean
+          base_id: string
+          created_at: string
+          data_operacional: string
+          estado: string
+          finalizado_em: string | null
+          iniciado_em: string
+          iniciado_por: string | null
+          mensagem: string | null
+          origem: string
+          pacotes_recebidos: number
+          rotas_esperadas: number | null
+          rotas_recebidas: number
+          sync_batch_id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          base_id: string
+          created_at?: string
+          data_operacional: string
+          estado?: string
+          finalizado_em?: string | null
+          iniciado_em?: string
+          iniciado_por?: string | null
+          mensagem?: string | null
+          origem?: string
+          pacotes_recebidos?: number
+          rotas_esperadas?: number | null
+          rotas_recebidas?: number
+          sync_batch_id: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          base_id?: string
+          created_at?: string
+          data_operacional?: string
+          estado?: string
+          finalizado_em?: string | null
+          iniciado_em?: string
+          iniciado_por?: string | null
+          mensagem?: string | null
+          origem?: string
+          pacotes_recebidos?: number
+          rotas_esperadas?: number | null
+          rotas_recebidas?: number
+          sync_batch_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_sync_ciclos_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meli_sync_pacotes_staging: {
+        Row: {
+          ordem: number | null
+          recebido_em: string
+          route_id: string
+          sync_batch_id: string
+          tracking_id: string
+        }
+        Insert: {
+          ordem?: number | null
+          recebido_em?: string
+          route_id: string
+          sync_batch_id: string
+          tracking_id: string
+        }
+        Update: {
+          ordem?: number | null
+          recebido_em?: string
+          route_id?: string
+          sync_batch_id?: string
+          tracking_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_sync_pacotes_staging_sync_batch_id_route_id_fkey"
+            columns: ["sync_batch_id", "route_id"]
+            isOneToOne: false
+            referencedRelation: "meli_sync_rotas_staging"
+            referencedColumns: ["sync_batch_id", "route_id"]
+          },
+        ]
+      }
+      meli_sync_rotas_staging: {
+        Row: {
+          base_id: string
+          data_rota: string | null
+          payload_normalizado: Json
+          recebido_em: string
+          route_id: string
+          sync_batch_id: string
+          total_pacotes: number
+        }
+        Insert: {
+          base_id: string
+          data_rota?: string | null
+          payload_normalizado: Json
+          recebido_em?: string
+          route_id: string
+          sync_batch_id: string
+          total_pacotes?: number
+        }
+        Update: {
+          base_id?: string
+          data_rota?: string | null
+          payload_normalizado?: Json
+          recebido_em?: string
+          route_id?: string
+          sync_batch_id?: string
+          total_pacotes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_sync_rotas_staging_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_sync_rotas_staging_sync_batch_id_fkey"
+            columns: ["sync_batch_id"]
+            isOneToOne: false
+            referencedRelation: "meli_sync_ciclos"
+            referencedColumns: ["sync_batch_id"]
           },
         ]
       }
@@ -2147,6 +2310,59 @@ export type Database = {
       }
     }
     Views: {
+      meli_rotas_ativas: {
+        Row: {
+          area_risco_detectado_em: string | null
+          area_risco_parcial: boolean | null
+          base_id: string | null
+          carrier: string | null
+          cluster: string | null
+          codigo_area_risco: string | null
+          created_at: string | null
+          data_rota: string | null
+          delivered_total: number | null
+          driver_id: string | null
+          driver_name: string | null
+          executed_finish_date: string | null
+          facility: string | null
+          finish_date: string | null
+          id: string | null
+          init_date: string | null
+          last_synced_at: string | null
+          motivo_area_risco: string | null
+          occurrence_total: number | null
+          origem_area_risco: string | null
+          origem_importacao: string | null
+          pending_total: number | null
+          rota_area_risco: boolean | null
+          route_id: string | null
+          route_status: string | null
+          route_substatus: string | null
+          stops_total: number | null
+          sync_batch_id: string | null
+          total_impressos: number | null
+          total_pacotes: number | null
+          updated_at: string | null
+          valor_original_area_risco: Json | null
+          vehicle_license: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_rotas_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_rotas_origem_importacao_fkey"
+            columns: ["origem_importacao"]
+            isOneToOne: false
+            referencedRelation: "meli_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motoristas_safe: {
         Row: {
           ativo: boolean | null
@@ -2188,6 +2404,15 @@ export type Database = {
     }
     Functions: {
       _meli_safe_int: { Args: { p: string }; Returns: number }
+      _meli_sync_marcar: {
+        Args: {
+          p_estado: string
+          p_mensagem: string
+          p_motivo: string
+          p_sync_batch_id: string
+        }
+        Returns: Json
+      }
       anexar_evidencia_transferencia: {
         Args: {
           p_etapa: string
@@ -2355,6 +2580,38 @@ export type Database = {
         }
         Returns: string
       }
+      meli_sync_ciclo_abandonar: {
+        Args: { p_mensagem?: string; p_sync_batch_id: string }
+        Returns: Json
+      }
+      meli_sync_ciclo_finalizar: {
+        Args: {
+          p_base_codigo: string
+          p_data_operacional?: string
+          p_estado?: string
+          p_mensagem?: string
+          p_pacotes?: number
+          p_rotas?: number
+          p_sync_batch_id: string
+        }
+        Returns: Json
+      }
+      meli_sync_ciclo_iniciar: {
+        Args: {
+          p_base_codigo: string
+          p_data_operacional?: string
+          p_origem?: string
+          p_rotas_esperadas?: number
+          p_sync_batch_id: string
+        }
+        Returns: Json
+      }
+      meli_sync_lotes_status: { Args: { p_data?: string }; Returns: Json }
+      meli_sync_rota_staging: {
+        Args: { p_payload: Json; p_sync_batch_id: string }
+        Returns: Json
+      }
+      meli_sync_staging_limpar: { Args: { p_dias?: number }; Returns: Json }
       meli_sync_status: { Args: never; Returns: Json }
       meli_sync_status_bases: { Args: never; Returns: Json }
       meli_worker_registrar_execucao: {
