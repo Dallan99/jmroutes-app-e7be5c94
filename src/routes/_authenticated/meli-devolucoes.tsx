@@ -113,6 +113,8 @@ function MeliDevolucoesPage() {
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+
 
   const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
