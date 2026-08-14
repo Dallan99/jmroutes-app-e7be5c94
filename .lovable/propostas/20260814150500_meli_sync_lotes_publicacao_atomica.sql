@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRATION DEFINITIVA (NÃO APLICADA)
+-- MIGRATION DEFINITIVA
 -- Nome: 20260814150500_meli_sync_lotes_publicacao_atomica.sql
 -- Parte A: staging isolado + view do lote ativo + RPCs de ciclo
 -- Parte B: recriação explícita das 9 RPCs de leitura (lote ativo)
