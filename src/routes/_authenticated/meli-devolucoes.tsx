@@ -280,7 +280,7 @@ function MeliDevolucoesPage() {
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `devolucoes-meli-${dataDe}_${dataAte}.csv`;
+    a.download = `devolucoes-${dataDe}_${dataAte}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
