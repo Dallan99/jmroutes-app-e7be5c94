@@ -619,9 +619,8 @@ function MeliDevolucoesPage() {
             )}
           </CardContent>
         </Card>
-          </Card>
-        </div>
-      )}
+      </div>
+    )}
 
 
       <Card>
