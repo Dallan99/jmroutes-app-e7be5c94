@@ -109,11 +109,29 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [recebimentoId, setRecebimentoId] = useState("");
+  const [recebimentoId, setRecebimentoId] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") || "";
+    return "";
+  });
+  const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
-  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") ? true : false;
+    return false;
+  });
+
+  const updateActiveRec = (id: string) => {
+    setRecebimentoId(id);
+    if (id) {
+      localStorage.setItem("active_rec_id", id);
+      setIniciandoRecebimento(true);
+    } else {
+      localStorage.removeItem("active_rec_id");
+      setIniciandoRecebimento(false);
+    }
+  };
   const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
 
 
@@ -192,9 +210,8 @@ function MeliDevolucoesPage() {
     setGerandoRec(true);
     try {
       const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
-      setRecebimentoId(id);
+      updateActiveRec(id);
       setPacotesDesteLote([]); // Limpa a lista de pacotes para o novo lote
-      setIniciandoRecebimento(true);
       toast.success(`Novo recebimento gerado: ${id}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao gerar recebimento.");
@@ -506,7 +523,7 @@ function MeliDevolucoesPage() {
       ) : (
         <div className="space-y-4">
           <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="py-4 flex items-center justify-between">
+            <CardContent className="py-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="bg-primary text-primary-foreground p-3 rounded-full">
                   <PackageCheck className="h-6 w-6" />
@@ -516,26 +533,51 @@ function MeliDevolucoesPage() {
                   <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onGerarRecebimento}
-                  disabled={gerandoRec}
-                >
-                  {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
-                  Novo Recebimento
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
+              <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
+                <div className="flex gap-2">
+                  <Input
+                    className="h-8 w-40 font-mono text-xs"
+                    placeholder="REC..."
+                    value={buscarRecId}
+                    onChange={(e) => setBuscarRecId(e.target.value)}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => {
+                      if (!buscarRecId.trim()) return;
+                      updateActiveRec(buscarRecId.trim().toUpperCase());
+                      setPacotesDesteLote([]);
+                      toast.info(`Continuando recebimento: ${buscarRecId.trim().toUpperCase()}`);
+                    }}
+                  >
+                    Continuar
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onGerarRecebimento}
+                    disabled={gerandoRec}
+                  >
+                    {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
+                    Novo
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                    updateActiveRec("");
                     stopAlarm();
-                    setIniciandoRecebimento(false);
-                  }}
-                >
-                  Sair
-                </Button>
+                    }}
+                  >
+                    Sair
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
