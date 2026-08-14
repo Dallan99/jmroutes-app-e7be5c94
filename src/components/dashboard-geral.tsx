@@ -79,6 +79,7 @@ export function DashboardGeral({
           Progresso automático da operação — entregues sobre o total da base
         </p>
 
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {bases.length === 0 && (
             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">

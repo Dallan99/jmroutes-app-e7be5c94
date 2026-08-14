@@ -231,8 +231,9 @@ function MeliDevolucoesPage() {
         startAlarm();
         setAlertaCritico(
           res.mensagem ??
-            `Pacote ${res.codigo} retornou fisicamente, porém o Meli indica ENTREGUE. Registre a divergência.`,
+            `Pacote ${res.codigo} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
         );
+
       } else {
         beepOk();
         toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
@@ -514,9 +515,10 @@ function MeliDevolucoesPage() {
           </form>
 
           <p className="text-xs text-muted-foreground mt-2">
-            O recebimento só é registrado por leitura física. Mudança de status no Meli nunca marca
+            O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
             um pacote como recebido.
           </p>
+
         </CardContent>
       </Card>
 
