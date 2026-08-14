@@ -91,13 +91,11 @@ function fmt(dt: string | null | undefined) {
   });
 }
 
-function MeliDevolucoesPage() {
-  const buscarPainel = useServerFn(meliDevolucoesPainel);
-  const sincronizar = useServerFn(meliDevolucoesSincronizar);
-  const receber = useServerFn(meliDevolucaoReceber);
-  const historico = useServerFn(meliDevolucaoHistorico);
-  const buscarBases = useServerFn(listarBasesSimples);
-  const gerarRecebimento = useServerFn(gerarRecebimentoId);
+  const abrirRomaneio = useServerFn(meliRomaneioAbrirComPrimeiroPacote);
+  const biparRomaneio = useServerFn(meliRomaneioBipar);
+  const finalizarRomaneio = useServerFn(meliRomaneioFinalizar);
+  const listarRomaneios = useServerFn(meliRomaneioListar);
+
 
   const hoje = hojeOperacional();
   const [dataDe, setDataDe] = useState(() => {
