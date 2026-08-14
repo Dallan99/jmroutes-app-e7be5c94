@@ -40,6 +40,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
+import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
 
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
