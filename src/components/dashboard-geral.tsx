@@ -176,11 +176,13 @@ function pct(n: number | null | undefined) {
 
 function BaseDetalheDialog({
   base,
+  data,
   rotas,
   pmProgramadas,
   onClose,
 }: {
   base: { id: string | null; codigo: string; nome: string } | null;
+  data: string;
   rotas: MeliDashboardRota[];
   pmProgramadas: MeliDashboardPmProgramada[];
   onClose: () => void;
@@ -189,7 +191,12 @@ function BaseDetalheDialog({
   const [rotaSel, setRotaSel] = useState<MeliDashboardRota | null>(null);
   /** Situação escolhida nos cartões do detalhe da rota (Pacotes/Entregues/Em rota/Falhas). */
   const [situacaoSel, setSituacaoSel] = useState<"total" | "entregue" | "em_rota" | "insucesso">("total");
+  /** Situação escolhida nos cartões da base (Rotas/Pacotes/Entregues/Em rota/Falhas). */
+  const [situacaoBase, setSituacaoBase] = useState<"rotas" | "total" | "entregue" | "em_rota" | "insucesso">(
+    "rotas",
+  );
   const fetchPacotes = useServerFn(meliDashboardPacotesRota);
+  const fetchBase = useServerFn(meliDashboardOperacional);
 
   const pacotesQuery = useQuery({
     queryKey: ["dashboard-geral-pacotes", rotaSel?.rota_id],
@@ -197,15 +204,30 @@ function BaseDetalheDialog({
     enabled: !!rotaSel,
   });
 
+  /** Motivos reais de insucesso da base — só busca quando o card Falhas é aberto. */
+  const motivosQuery = useQuery({
+    queryKey: ["dashboard-geral-motivos", base?.id ?? base?.codigo, data],
+    queryFn: () => fetchBase({ data: { data, base_id: base?.id ?? null } }),
+    enabled: !!base && situacaoBase === "insucesso" && !rotaSel,
+  });
+  const motivos =
+    motivosQuery.data?.status === "ok" ? (motivosQuery.data.motivos_insucesso ?? []) : [];
+
   const filtradas = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    if (!t) return rotas;
-    return rotas.filter((r) =>
-      [r.nome_operacional, r.route_id, r.driver_name, r.vehicle_license]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(t)),
-    );
-  }, [rotas, busca]);
+    const porBusca = !t
+      ? rotas
+      : rotas.filter((r) =>
+          [r.nome_operacional, r.route_id, r.driver_name, r.vehicle_license]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(t)),
+        );
+    if (situacaoBase === "rotas" || situacaoBase === "total") return porBusca;
+    return porBusca
+      .filter((r) => (r[situacaoBase] ?? 0) > 0)
+      .slice()
+      .sort((a, b) => (b[situacaoBase] ?? 0) - (a[situacaoBase] ?? 0));
+  }, [rotas, busca, situacaoBase]);
 
   const totais = useMemo(
     () =>
@@ -226,6 +248,7 @@ function BaseDetalheDialog({
     if (situacaoSel === "total") return pacotes;
     return pacotes.filter((p) => p.situacao === situacaoSel);
   }, [pacotes, situacaoSel]);
+
 
   return (
     <Dialog
