@@ -20,7 +20,7 @@ export const meliDevolucoesCriarDevolucao = createServerFn({ method: "POST" })
     const { data: res, error } = await supabase.rpc('meli_romaneio_abrir_com_primeiro_pacote', {
       p_base_id: data.base_id,
       p_tracking_id: data.tracking_id,
-      p_observacao: (data.observacao ?? null) as string | null
+      p_observacao: (data.observacao ?? null) as any
     });
 
     if (error) throw error;
@@ -40,7 +40,7 @@ export const meliDevolucoesBipar = createServerFn({ method: "POST" })
       p_romaneio_id: data.romaneio_id,
       p_base_id: data.base_id,
       p_tracking_id: data.tracking_id,
-      p_observacao: (data.observacao ?? null) as string | null
+      p_observacao: (data.observacao ?? null) as any
     });
 
     if (error) throw error;
@@ -57,10 +57,10 @@ export const meliDevolucoesListar = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     // RPC: meli_romaneios_listar
     const { data: res, error } = await supabase.rpc('meli_romaneios_listar', {
-      p_base_id: (data.base_id ?? null) as string | null,
-      p_status: (data.status ?? null) as "cancelado" | "concluido" | "em_andamento" | null,
-      p_data_de: (data.data_de ?? null) as string | null,
-      p_data_ate: (data.data_ate ?? null) as string | null
+      p_base_id: (data.base_id ?? null) as any,
+      p_status: (data.status ?? null) as any,
+      p_data_de: (data.data_de ?? null) as any,
+      p_data_ate: (data.data_ate ?? null) as any
     });
 
     if (error) throw error;
