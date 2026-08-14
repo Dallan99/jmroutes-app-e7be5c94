@@ -315,9 +315,9 @@ function BaseDetalheDialog({
             </div>
 
             {situacaoBase === "insucesso" && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+              <div className="rounded-md border p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-destructive">
+                  <h3 className="text-sm font-semibold">
                     Status dos insucessos — {base?.codigo}
                   </h3>
                   <span className="text-xs text-muted-foreground tabular-nums">
