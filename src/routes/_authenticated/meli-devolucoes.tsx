@@ -678,7 +678,7 @@ function MeliDevolucoesPage() {
               className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
               onSubmit={(e) => {
                 e.preventDefault();
-                onReceber();
+                onReceber(e);
               }}
             >
 
