@@ -87,7 +87,7 @@ const NAV_OPERACIONAL: NavItem[] = [
   { title: "Recebimento", to: "/recebimento", icon: ScanBarcode },
   { title: "Triagem", to: "/triagem", icon: PackageSearch },
   { title: "Contagem", to: "/contagem", icon: ClipboardList },
-  { title: "Devoluções", to: "/meli-devolucoes", icon: RotateCcw },
+  { title: "Romaneio Meli", to: "/meli-devolucoes", icon: RotateCcw },
   { title: "Inventário", to: "/inventario-central", icon: ClipboardList },
 ];
 const NAV_GESTAO: NavItem[] = [
