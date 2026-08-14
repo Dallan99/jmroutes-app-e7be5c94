@@ -30,7 +30,12 @@ export type MeliDashboardCards = {
   perc_entrega: number;
   rotas: number;
   rotas_risco: number;
+  /** Rotas PM da ESP16 ainda não iniciadas — fora dos indicadores de hoje. */
+  pm_nao_iniciadas?: number;
+  /** Pacotes dessas rotas PM não iniciadas (fora do numerador e do denominador). */
+  pm_pacotes_fora?: number;
 };
+
 
 export type MeliDashboardRota = {
   rota_id: string;
