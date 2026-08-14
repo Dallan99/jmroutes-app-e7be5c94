@@ -44,10 +44,12 @@ export type MeliDevolucaoLinha = {
   dias_corridos: number;
   recebido_em: string | null;
   recebido_base_id: string | null;
+  recebimento_id: string | null;
   metodo_confirmacao: string | null;
   observacao_recebimento: string | null;
   divergencia_delivered: boolean;
 };
+
 
 export type MeliDevolucoesCards = {
   total: number;
