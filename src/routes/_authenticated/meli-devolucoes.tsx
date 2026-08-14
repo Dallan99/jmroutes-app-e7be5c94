@@ -674,7 +674,14 @@ function MeliDevolucoesPage() {
               </CardTitle>
             </CardHeader>
           <CardContent className="pt-6">
-            <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+            <form
+              className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onReceber();
+              }}
+            >
+
               <div className="space-y-1">
                 <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
                 <Input
