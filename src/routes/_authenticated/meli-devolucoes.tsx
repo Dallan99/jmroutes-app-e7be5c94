@@ -610,11 +610,11 @@ function MeliDevolucoesPage() {
                   {detalhe.cluster ?? detalhe.route_id ?? "—"}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Ocorrência Meli:</span>{" "}
+                  <span className="text-muted-foreground">Ocorrência:</span>{" "}
                   {detalhe.occurrence_code}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Status Meli:</span>{" "}
+                  <span className="text-muted-foreground">Status:</span>{" "}
                   {detalhe.situacao_meli ?? detalhe.meli_status ?? "—"}
                 </div>
                 <div>
@@ -625,13 +625,20 @@ function MeliDevolucoesPage() {
                   <span className="text-muted-foreground">Recebido em:</span>{" "}
                   {fmt(detalhe.recebido_em)}
                 </div>
+                {detalhe.recebimento_id && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">ID Recebimento:</span>{" "}
+                    <span className="font-mono text-xs">{detalhe.recebimento_id}</span>
+                  </div>
+                )}
               </div>
               {detalhe.divergencia_delivered && (
                 <div className="rounded-md border border-purple-600/40 bg-purple-600/10 p-3 text-purple-500 text-sm">
-                  Divergência crítica: pacote recebido fisicamente, mas o Meli indica entrega ao
+                  Divergência crítica: pacote recebido fisicamente, mas o sistema indica entrega ao
                   cliente.
                 </div>
               )}
+
               <div>
                 <div className="text-xs uppercase text-muted-foreground mb-1">Histórico</div>
                 <ScrollArea className="h-48 rounded-md border p-2">
