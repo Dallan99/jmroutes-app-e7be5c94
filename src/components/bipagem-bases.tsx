@@ -30,7 +30,8 @@ export function BipagemBasesPanel({ data, tv = false, refetchInterval = 30_000, 
     refetchInterval,
   });
 
-  const bases = (q.data?.bases ?? []).filter((b) => b.total_pacotes > 0);
+  // O usuário solicitou que apareçam todas as bases, mesmo as sem pacotes
+  const bases = q.data?.bases ?? [];
   const total = bases.reduce((s, b) => s + b.total_pacotes, 0);
   const recebidos = bases.reduce((s, b) => s + b.recebidos, 0);
   const pctGeral = total ? (recebidos / total) * 100 : 0;
