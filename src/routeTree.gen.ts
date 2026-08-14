@@ -41,6 +41,7 @@ import { Route as TvGerencialRouteImport } from './routes/tv.gerencial'
 import { Route as TvMeliRouteImport } from './routes/tv.meli'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ApiPublicMeliCicloRouteImport } from './routes/api/public/meli/ciclo'
 import { Route as ApiPublicMeliImportarRotaBrutaRouteImport } from './routes/api/public/meli/importar-rota-bruta'
 
 const IndexRoute = IndexRouteImport.update({
@@ -212,6 +213,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicMeliCicloRoute = ApiPublicMeliCicloRouteImport.update({
+  id: '/api/public/meli/ciclo',
+  path: '/api/public/meli/ciclo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicMeliImportarRotaBrutaRoute =
   ApiPublicMeliImportarRotaBrutaRouteImport.update({
     id: '/api/public/meli/importar-rota-bruta',
@@ -251,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 export interface FileRoutesByTo {
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 export interface FileRoutesById {
@@ -321,6 +329,7 @@ export interface FileRoutesById {
   '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 export interface FileRouteTypes {
@@ -357,6 +366,7 @@ export interface FileRouteTypes {
     | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-rota-bruta'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-rota-bruta'
   id:
     | '__root__'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-rota-bruta'
   fileRoutesById: FileRoutesById
 }
@@ -441,6 +453,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicMeliCicloRoute: typeof ApiPublicMeliCicloRoute
   ApiPublicMeliImportarRotaBrutaRoute: typeof ApiPublicMeliImportarRotaBrutaRoute
 }
 
@@ -670,6 +683,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/meli/ciclo': {
+      id: '/api/public/meli/ciclo'
+      path: '/api/public/meli/ciclo'
+      fullPath: '/api/public/meli/ciclo'
+      preLoaderRoute: typeof ApiPublicMeliCicloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/meli/importar-rota-bruta': {
       id: '/api/public/meli/importar-rota-bruta'
       path: '/api/public/meli/importar-rota-bruta'
@@ -752,6 +772,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicMeliCicloRoute: ApiPublicMeliCicloRoute,
   ApiPublicMeliImportarRotaBrutaRoute: ApiPublicMeliImportarRotaBrutaRoute,
 }
 export const routeTree = rootRouteImport
