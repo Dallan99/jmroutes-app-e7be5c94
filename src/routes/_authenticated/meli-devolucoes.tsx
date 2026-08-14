@@ -190,15 +190,19 @@ function MeliDevolucoesPage() {
         },
       });
       if (res.status === "erro") {
+        beepError();
         toast.error(res.mensagem ?? "Não foi possível registrar o retorno.");
       } else if (res.status === "duplicado") {
-        toast.warning(res.mensagem ?? "Pacote já recebido nesta base.");
+        beepError();
+        toast.error(res.mensagem ?? "Divergência: pacote já lido/recebido nesta base.");
       } else if (res.divergencia_delivered) {
+        startAlarm();
         setAlertaCritico(
           res.mensagem ??
             `Pacote ${res.codigo} retornou fisicamente, porém o Meli indica ENTREGUE. Registre a divergência.`,
         );
       } else {
+        beepOk();
         toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
       }
       setCodigo("");
