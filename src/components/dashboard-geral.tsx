@@ -5,7 +5,9 @@ import {
   meliDashboardOperacional,
   meliDashboardPacotesRota,
   type MeliDashboardRota,
+  type MeliDashboardPmProgramada,
 } from "@/lib/meli-dashboard.functions";
+import { avisoPmProgramadas } from "@/lib/meli-pm";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +50,14 @@ export function DashboardGeral({
   const bases = (d?.bases ?? []).slice().sort((a, b) => (a.base_codigo ?? "").localeCompare(b.base_codigo ?? ""));
   const c = d?.cards;
 
+  const pmProgramadas = d?.pm_programadas ?? [];
   const [baseAberta, setBaseAberta] = useState<{ id: string | null; codigo: string; nome: string } | null>(null);
+  const pmDaBase = useMemo(() => {
+    if (!baseAberta) return [];
+    return pmProgramadas.filter((r) =>
+      baseAberta.id ? r.base_id === baseAberta.id : (r.base_codigo ?? "") === baseAberta.codigo,
+    );
+  }, [pmProgramadas, baseAberta]);
   const rotasDaBase = useMemo(() => {
     if (!baseAberta) return [];
     return (d?.rotas ?? [])
@@ -117,6 +126,13 @@ export function DashboardGeral({
                   <MiniStat label="Entregues" value={nf(b.entregue)} className="text-success" />
                 </div>
 
+                {(() => {
+                  const aviso = avisoPmProgramadas(b.pm_nao_iniciadas ?? 0, b.pm_pacotes_fora ?? 0);
+                  if (!aviso) return null;
+                  return (
+                    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{aviso}</p>
+                  );
+                })()}
               </Card>
             );
           })}
@@ -137,6 +153,7 @@ export function DashboardGeral({
       <BaseDetalheDialog
         base={baseAberta}
         rotas={rotasDaBase}
+        pmProgramadas={pmDaBase}
         onClose={() => setBaseAberta(null)}
       />
     </section>
@@ -150,10 +167,12 @@ function pct(n: number | null | undefined) {
 function BaseDetalheDialog({
   base,
   rotas,
+  pmProgramadas,
   onClose,
 }: {
   base: { id: string | null; codigo: string; nome: string } | null;
   rotas: MeliDashboardRota[];
+  pmProgramadas: MeliDashboardPmProgramada[];
   onClose: () => void;
 }) {
   const [busca, setBusca] = useState("");
@@ -225,6 +244,8 @@ function BaseDetalheDialog({
               <MiniBox label="Em rota" value={nf(totais.em_rota)} tone="text-[var(--info)]" />
               <MiniBox label="Falhas" value={nf(totais.insucesso)} tone="text-destructive" />
             </div>
+
+            <h3 className="text-sm font-semibold">Rotas operacionais de hoje</h3>
 
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
@@ -298,6 +319,28 @@ function BaseDetalheDialog({
                 </tbody>
               </table>
             </ScrollArea>
+
+            {pmProgramadas.length > 0 && (
+              <div className="rounded-md border border-dashed p-3">
+                <h3 className="text-sm font-semibold">PM programadas para amanhã</h3>
+                <p className="text-xs text-muted-foreground">
+                  {avisoPmProgramadas(
+                    pmProgramadas.length,
+                    pmProgramadas.reduce((a, r) => a + (r.total ?? 0), 0),
+                  )}
+                </p>
+                <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                  {pmProgramadas.map((r) => (
+                    <li key={r.rota_id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate font-medium">{r.nome_operacional}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {nf(r.total)} pacotes
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
         ) : (
           <>
