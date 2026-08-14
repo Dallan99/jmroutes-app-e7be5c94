@@ -5,9 +5,8 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => ({
     validator: () => ({
       handler: (h: any) => {
-        const fn = async (args: any) => await h(args);
-        (fn as any).handler = h;
-        return fn;
+        // Retorna uma função que chama o handler com os argumentos mockados
+        return async (args: any) => await h(args);
       }
     })
   })
@@ -33,9 +32,15 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
   });
 
   it('deve chamar a RPC de criar devolução com os parâmetros corretos', async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({ 
-      data: { status: 'ok', romaneio_id: '123', codigo_romaneio: 'EXP-123' }, 
-      error: null 
+    // Definimos o comportamento do mock explicitamente aqui
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'meli_romaneio_abrir_com_primeiro_pacote') {
+        return Promise.resolve({ 
+          data: { status: 'ok', romaneio_id: '123', codigo_romaneio: 'EXP-123' }, 
+          error: null 
+        });
+      }
+      return Promise.resolve({ data: null, error: new Error('not mocked') });
     });
     
     const result = await (meliDevolucoesCriarDevolucao as any)({ 
@@ -56,7 +61,6 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
       error: { message: 'permission denied', code: '42501' } 
     });
     
-    // A função meliDevolucoesBipar é a função asíncrona que chama o rpc e lança erro se error existir
     await expect((meliDevolucoesBipar as any)({ 
       data: { 
         romaneio_id: 'rom-uuid', 
