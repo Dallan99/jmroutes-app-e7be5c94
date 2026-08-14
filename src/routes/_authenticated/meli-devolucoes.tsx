@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import {
   meliDevolucoesPainel,
   meliDevolucoesSincronizar,
-  meliRomaneioAbrirComPrimeiroPacote,
-  meliRomaneioBipar,
-  meliRomaneioListar,
-  meliRomaneioFinalizar,
-  meliRomaneioCancelar,
-  meliRomaneioDetalhar,
+  meliDevolucoesCriarDevolucao,
+  meliDevolucoesBipar,
+  meliDevolucoesListar,
+  meliDevolucoesFinalizar,
+  meliDevolucoesCancelar,
+  meliDevolucoesDetalhar,
   meliDevolucaoHistorico,
   type MeliDevolucaoLinha,
   type MeliRomaneioLinha,
@@ -97,12 +97,12 @@ function fmt(dt: string | null | undefined) {
 function MeliDevolucoesPage() {
   const buscarPainel = useServerFn(meliDevolucoesPainel);
   const sincronizar = useServerFn(meliDevolucoesSincronizar);
-  const abrirRomaneio = useServerFn(meliRomaneioAbrirComPrimeiroPacote);
-  const biparRomaneio = useServerFn(meliRomaneioBipar);
-  const finalizar = useServerFn(meliRomaneioFinalizar);
-  const listarRomaneios = useServerFn(meliRomaneioListar);
-  const cancelarRomaneio = useServerFn(meliRomaneioCancelar);
-  const detalharRomaneio = useServerFn(meliRomaneioDetalhar);
+  const abrirRomaneio = useServerFn(meliDevolucoesCriarDevolucao);
+  const biparRomaneio = useServerFn(meliDevolucoesBipar);
+  const finalizar = useServerFn(meliDevolucoesFinalizar);
+  const listarRomaneios = useServerFn(meliDevolucoesListar);
+  const cancelarRomaneio = useServerFn(meliDevolucoesCancelar);
+  const detalharRomaneio = useServerFn(meliDevolucoesDetalhar);
   const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
 
@@ -493,7 +493,7 @@ function MeliDevolucoesPage() {
                   className="h-8"
                   onClick={() => window.print()}
                 >
-                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir devolução
                 </Button>
               )}
             </DialogTitle>
@@ -725,7 +725,7 @@ function MeliDevolucoesPage() {
                     className="h-7 text-[10px] uppercase tracking-wider"
                     onClick={() => window.print()}
                   >
-                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir Lote
+                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
                   </Button>
                 </div>
                 <ScrollArea className="h-48 border rounded-md">
