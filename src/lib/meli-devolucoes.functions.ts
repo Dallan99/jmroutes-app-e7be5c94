@@ -205,13 +205,15 @@ export const meliRomaneioAbrirComPrimeiroPacote = createServerFn({ method: "POST
     );
     if (error) throw new Error(error.message);
     return res as {
-      status: string;
+      status: "ok" | "erro" | "duplicado";
       romaneio_id: string;
       codigo_romaneio: string;
       tracking_id: string;
       divergencia_delivered: boolean;
+      mensagem?: string;
     };
   });
+
 
 const romaneioBiparSchema = z.object({
   romaneio_id: z.string().uuid(),
