@@ -1,3 +1,6 @@
+# Diff das RPCs de leitura (proposta x definições atuais)
+# Alteração 1 (11 pontos): fonte das rotas passa de public.meli_rotas para a view public.meli_rotas_ativas.
+
 --- /tmp/leitura_atual.sql	2026-08-14 15:06:51.939906729 +0000
 +++ .lovable/propostas/meli_leitura_lote_ativo.sql	2026-08-14 14:31:49.411936734 +0000
 @@ -1,6 +1,6 @@
@@ -107,3 +110,21 @@
     WHERE upper(p.tracking_id) = v_cod OR upper(coalesce(p.shipment_id,'')) = v_cod
     ORDER BY p.updated_at DESC NULLS LAST
     LIMIT 1;
+
+# Alteração 2 (exclusiva de meli_sync_status_bases): CTE ciclo + campo sincronizando
+@@ meli_sync_status_bases() @@
++  ciclo AS (
++    SELECT c.base_id, bool_or(c.estado = 'em_processamento') AS sincronizando
++    FROM public.meli_sync_ciclos c
++    WHERE c.data_operacional >= (now() AT TIME ZONE 'America/Sao_Paulo')::date - 1
++    GROUP BY c.base_id
++  )
+@@
+-             'data_rota',          u.data_rota
++             'data_rota',          u.data_rota,
++             'sincronizando',      coalesce(s.sincronizando, false)
+@@
+   LEFT JOIN exec x ON x.base_id = b.id
++  LEFT JOIN ciclo s ON s.base_id = b.id;
+
+# Alteração 3: bloco de ACLs ao final (REVOKE ALL ... FROM PUBLIC, anon + GRANT EXECUTE ... TO authenticated, service_role) para as 9 funções.
