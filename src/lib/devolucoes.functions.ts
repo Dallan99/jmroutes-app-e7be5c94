@@ -230,6 +230,11 @@ export const listarDevolucoes = createServerFn({ method: "POST" })
       devolvido_em: string;
       cancelado: boolean;
       devolvido_por: string | null;
+      lote_id: string | null;
+      occurrence_code: string | null;
+      motivo_descricao: string | null;
+      tratamento: string | null;
+      divergencia_delivered: boolean | null;
     };
 
     const rows = await paginarTodasDevolucoes<Row>(
@@ -237,7 +242,7 @@ export const listarDevolucoes = createServerFn({ method: "POST" })
         supabase
           .from("devolucoes")
           .select(
-            "id, shipment_codigo, motivo, observacao, rota, motorista, devolvido_em, cancelado, devolvido_por",
+            "id, shipment_codigo, motivo, observacao, rota, motorista, devolvido_em, cancelado, devolvido_por, lote_id, occurrence_code, motivo_descricao, tratamento, divergencia_delivered",
           )
           .eq("base_id", data.baseId)
           .gte("devolvido_em", inicio)
@@ -249,6 +254,7 @@ export const listarDevolucoes = createServerFn({ method: "POST" })
           error: { message: string } | null;
         }>,
     );
+
 
     const userIds = Array.from(
       new Set(rows.map((r) => r.devolvido_por).filter(Boolean)),
@@ -268,8 +274,14 @@ export const listarDevolucoes = createServerFn({ method: "POST" })
       devolvido_em: r.devolvido_em,
       cancelado: r.cancelado,
       operador_nome: r.devolvido_por ? (nomes.get(r.devolvido_por) ?? null) : null,
+      lote_id: r.lote_id,
+      occurrence_code: r.occurrence_code,
+      motivo_descricao: r.motivo_descricao,
+      tratamento: r.tratamento,
+      divergencia_delivered: !!r.divergencia_delivered,
     }));
   });
+
 
 export const cancelarDevolucao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
