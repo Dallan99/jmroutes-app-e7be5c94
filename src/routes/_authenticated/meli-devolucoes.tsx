@@ -306,9 +306,6 @@ function MeliDevolucoesPage() {
           <Button variant="outline" size="sm" onClick={exportarCsv} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-2" /> CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()} disabled={linhas.length === 0}>
-            <Printer className="h-4 w-4 mr-2" /> Imprimir
-          </Button>
         </div>
       </header>
 
@@ -598,7 +595,23 @@ function MeliDevolucoesPage() {
       <Dialog open={!!detalhe} onOpenChange={(o) => !o && setDetalhe(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-mono text-base">{detalhe?.tracking_id}</DialogTitle>
+            <DialogTitle className="font-mono text-base flex items-center justify-between">
+              {detalhe?.tracking_id}
+              {detalhe && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => {
+                    // Lógica de impressão específica ou apenas window.print()
+                    // Idealmente, poderíamos ter um componente de impressão oculto ou formatar o modal para print
+                    window.print();
+                  }}
+                >
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                </Button>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {detalhe && (
             <div className="space-y-3 text-sm">
