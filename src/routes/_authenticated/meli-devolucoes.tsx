@@ -476,13 +476,22 @@ function MeliDevolucoesPage() {
             <Button
               size="lg"
               className="px-8 py-6 text-lg h-auto"
-              onClick={() => setIniciandoRecebimento(true)}
+              onClick={onGerarRecebimento}
+              disabled={gerandoRec}
             >
-              Iniciar Recebimento
+              {gerandoRec ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Iniciando...
+                </>
+              ) : (
+                "Gerar ou Iniciar Recebimento"
+              )}
             </Button>
           </CardContent>
         </Card>
       ) : (
+
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
