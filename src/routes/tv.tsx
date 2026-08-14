@@ -53,7 +53,7 @@ function TvShell() {
   }
 
   return (
-    <div ref={rootRef} className="min-h-screen bg-[var(--brand-navy)] text-white flex flex-col">
+    <div ref={rootRef} className="h-screen overflow-hidden bg-[var(--brand-navy)] text-white flex flex-col">
       <header className="flex items-center justify-between gap-4 px-6 py-3 border-b border-white/10 bg-black/20">
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] font-semibold text-[var(--brand-yellow)]">
@@ -87,7 +87,7 @@ function TvShell() {
           </Link>
         </div>
       </header>
-      <main className="flex-1 overflow-auto">
+      <main className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </main>
     </div>

@@ -240,7 +240,7 @@ function TvMeli() {
   const rotacaoAtiva = prefs.rotacaoAuto && !pausado;
 
   return (
-    <div className="flex h-screen flex-col gap-3 overflow-hidden p-4 xl:p-6">
+    <div className="flex h-full flex-col gap-3 overflow-hidden p-4 xl:p-6">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-black leading-tight tracking-tight xl:text-4xl">
