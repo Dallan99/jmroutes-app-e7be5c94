@@ -6,7 +6,7 @@ import {
   estadoOperacionalRota,
   pmExcluidaDosIndicadores,
   rotaEhPM,
-} from "@/lib/meli-pm";
+} from "../../src/lib/meli-pm";
 
 const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260814013934_296838e0-23f3-42df-a1c8-4f369625a98a.sql"),
