@@ -274,8 +274,14 @@ export const listarDevolucoes = createServerFn({ method: "POST" })
       devolvido_em: r.devolvido_em,
       cancelado: r.cancelado,
       operador_nome: r.devolvido_por ? (nomes.get(r.devolvido_por) ?? null) : null,
+      lote_id: r.lote_id,
+      occurrence_code: r.occurrence_code,
+      motivo_descricao: r.motivo_descricao,
+      tratamento: r.tratamento,
+      divergencia_delivered: !!r.divergencia_delivered,
     }));
   });
+
 
 export const cancelarDevolucao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
