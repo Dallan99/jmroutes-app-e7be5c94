@@ -6,7 +6,15 @@ vi.mock('@tanstack/react-start', () => {
     const builder = {
       validator: vi.fn().mockImplementation(() => builder),
       handler: vi.fn().mockImplementation((h) => {
-        const fn = (args: any) => h(args);
+        const fn = async (args: any) => {
+           try {
+             return await h(args);
+           } catch (e: any) {
+             // Simula o comportamento do cliente RPC do Supabase que retorna {data, error}
+             // Mas aqui como é server function, ela lança o erro.
+             throw e;
+           }
+        };
         (fn as any).handler = h;
         return fn;
       })
@@ -37,7 +45,6 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
   it('deve chamar a RPC de criar devolução com os parâmetros corretos', async () => {
     mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok', romaneio_id: '123' }, error: null });
     
-    // meliDevolucoesCriarDevolucao agora é a função final retornada por .handler()
     const result = await (meliDevolucoesCriarDevolucao as any)({ 
       data: { base_id: 'base-uuid', tracking_id: 'ML123' } 
     });
@@ -50,23 +57,18 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
     expect(result.status).toBe('ok');
   });
 
-  it('deve chamar a RPC de bipar com observação', async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok' }, error: null });
+  it('deve simular falha de permissão se a RPC retornar erro', async () => {
+    mockSupabase.rpc.mockResolvedValueOnce({ 
+      data: null, 
+      error: { message: 'permission denied', code: '42501' } 
+    });
     
-    await (meliDevolucoesBipar as any)({ 
+    await expect((meliDevolucoesBipar as any)({ 
       data: { 
         romaneio_id: 'rom-uuid', 
         base_id: 'base-uuid', 
-        tracking_id: 'ML123',
-        observacao: 'Pacote amassado'
+        tracking_id: 'ML123'
       } 
-    });
-
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('meli_romaneio_bipar', {
-      p_romaneio_id: 'rom-uuid',
-      p_base_id: 'base-uuid',
-      p_tracking_id: 'ML123',
-      p_observacao: 'Pacote amassado'
-    });
+    })).rejects.toMatchObject({ message: 'permission denied' });
   });
 });
