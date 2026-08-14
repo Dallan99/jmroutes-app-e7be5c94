@@ -142,9 +142,10 @@ function MeliRiscoPage() {
             Rotas em Área de Risco
           </h1>
           <p className="text-sm text-muted-foreground">
-            Somente indicadores reais informados pelo Meli. Insucesso, por si só, não classifica
+            Somente indicadores reais informados pelo sistema. Insucesso, por si só, não classifica
             área de risco.
           </p>
+
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => riscoQuery.refetch()}>
