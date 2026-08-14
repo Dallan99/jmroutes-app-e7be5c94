@@ -6,8 +6,6 @@ import { toast } from "sonner";
 import {
   meliDevolucoesPainel,
   meliDevolucoesSincronizar,
-  meliDevolucaoReceber,
-  meliDevolucaoHistorico,
   meliRomaneioAbrirComPrimeiroPacote,
   meliRomaneioBipar,
   meliRomaneioListar,
