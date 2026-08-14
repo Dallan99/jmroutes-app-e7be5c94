@@ -215,16 +215,15 @@ function MeliDevolucoesPage() {
     }
     setGerandoRec(true);
     try {
-      const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
-      updateActiveRec(id);
-      setPacotesDesteLote([]); // Limpa a lista de pacotes para o novo lote
-      toast.success(`Novo recebimento gerado: ${id}`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar recebimento.");
+      // Abertura automática agora requer o primeiro pacote biapdo
+      toast.info("Para abrir um novo romaneio, bipe o primeiro pacote.");
+      updateActiveRec("NOVO"); // Sinalizador visual de que estamos abrindo
+      setPacotesDesteLote([]);
     } finally {
       setGerandoRec(false);
     }
   }
+
 
 
   async function onReceber(e: React.FormEvent) {
