@@ -493,7 +493,7 @@ function MeliDevolucoesPage() {
                   className="h-8"
                   onClick={() => window.print()}
                 >
-                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir devolução
                 </Button>
               )}
             </DialogTitle>
@@ -725,7 +725,7 @@ function MeliDevolucoesPage() {
                     className="h-7 text-[10px] uppercase tracking-wider"
                     onClick={() => window.print()}
                   >
-                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir Lote
+                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
                   </Button>
                 </div>
                 <ScrollArea className="h-48 border rounded-md">
