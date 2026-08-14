@@ -272,6 +272,9 @@ function MeliDevolucoesPage() {
           <Button variant="outline" size="sm" onClick={exportarCsv} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-2" /> CSV
           </Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()} disabled={linhas.length === 0}>
+            <Printer className="h-4 w-4 mr-2" /> Imprimir
+          </Button>
         </div>
       </header>
 
