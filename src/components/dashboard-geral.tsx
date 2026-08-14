@@ -108,7 +108,7 @@ export function DashboardGeral({
                 <div className="mt-2">
                   {(() => {
                     const s = syncPorCodigo?.get(b.base_codigo ?? "");
-                    return <SyncBaseIndicador situacao={s?.situacao ?? "sem_info"} minutos={s?.minutos ?? null} />;
+                    return <SyncBaseIndicador situacao={s?.situacao ?? "sem_info"} minutos={s?.minutos ?? null} status={s?.status} />;
                   })()}
                 </div>
                 <div className="mt-2 grid grid-cols-3 text-center">

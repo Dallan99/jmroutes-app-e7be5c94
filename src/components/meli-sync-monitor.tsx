@@ -65,12 +65,17 @@ export function situacaoGeral(bases: MeliSyncBase[], serverTime: string | null |
   return "atualizado";
 }
 
-export function textoAtraso(min: number | null, situacao: SituacaoSync) {
+export function textoAtraso(min: number | null, situacao: SituacaoSync, status?: string | null) {
   if (min === null) return "Sem informação de sincronização";
   const quando = min <= 0 ? "há menos de 1 min" : `há ${min} min`;
+  
+  const statusLower = (status ?? "").toLowerCase();
+  const isParcial = statusLower === "sucesso_parcial" || statusLower === "divergencia_totais";
+
   if (situacao === "atualizado") return `Atualizado ${quando}`;
-  if (situacao === "atencao") return `Atrasado ${quando}`;
-  return `Sem atualizar ${quando}`;
+  if (isParcial) return `Atualização parcial ${quando}`;
+  if (situacao === "atencao") return `Atenção — última atualização ${quando}`;
+  return `Desatualizado ${quando}`;
 }
 
 function fmtHora(iso: string | null | undefined) {
@@ -105,13 +110,14 @@ export function useMeliSync() {
   const serverTime = q.data?.status === "ok" ? (q.data.server_time ?? null) : null;
 
   const porCodigo = useMemo(() => {
-    const m = new Map<string, { base: MeliSyncBase; situacao: SituacaoSync; minutos: number | null }>();
+    const m = new Map<string, { base: MeliSyncBase; situacao: SituacaoSync; minutos: number | null; status: string | null }>();
     for (const b of bases) {
       if (!b.base_codigo) continue;
       m.set(b.base_codigo, {
         base: b,
         situacao: situacaoDaBase(b, serverTime),
         minutos: minutosDesde(b.ultimo_sucesso_em, serverTime),
+        status: b.status,
       });
     }
     return m;
@@ -141,14 +147,16 @@ export function SyncDot({ situacao, className }: { situacao: SituacaoSync; class
 export function SyncBaseIndicador({
   situacao,
   minutos,
+  status,
 }: {
   situacao: SituacaoSync;
   minutos: number | null;
+  status?: string | null;
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: COR_SITUACAO_SYNC[situacao] }}>
       <SyncDot situacao={situacao} />
-      {textoAtraso(minutos, situacao)}
+      {textoAtraso(minutos, situacao, status)}
     </span>
   );
 }
@@ -211,7 +219,7 @@ export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync>
                       </span>
                     </div>
                     <dl className="mt-2 space-y-1 text-[11px]">
-                      <Linha rotulo="Último sucesso" valor={`${fmtHora(b.ultimo_sucesso_em)}${min === null ? "" : ` (${min <= 0 ? "há menos de 1 min" : `há ${min} min`})`}`} />
+                      <Linha rotulo="Último sucesso" valor={`${fmtHora(b.ultimo_sucesso_em)}${min === null ? "" : ` (${textoAtraso(min, sit, b.status).toLowerCase()})`}`} />
                       <Linha rotulo="Última tentativa" valor={fmtHora(b.ultima_tentativa_em)} />
                       <Linha rotulo="Rotas" valor={b.rotas_encontradas.toLocaleString("pt-BR")} />
                       <Linha rotulo="Pacotes" valor={b.pacotes_encontrados.toLocaleString("pt-BR")} />
