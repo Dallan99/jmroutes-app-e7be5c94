@@ -492,24 +492,25 @@ function MeliDevolucoesPage() {
         </Card>
       ) : (
 
-        <Card>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-border/50 bg-muted/5">
             <div className="space-y-1">
               <CardTitle className="text-base flex items-center gap-2">
-                <PackageCheck className="h-4 w-4" /> Recebimento físico na base
+                <PackageCheck className="h-4 w-4 text-primary" /> Recebimento físico na base
               </CardTitle>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="font-mono text-primary bg-primary/5 border-primary/20 px-2 py-1">
-                  ID: {recebimentoId}
+                <Badge variant="outline" className="font-mono text-primary bg-primary/5 border-primary/20 px-2 py-1 flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground uppercase font-sans">Lote:</span>
+                  {recebimentoId}
                 </Badge>
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                  className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/5"
                   onClick={onGerarRecebimento}
                   disabled={gerandoRec || !baseId}
-                  title="Finalizar este e gerar novo recebimento"
+                  title="Finalizar este lote e iniciar um novo"
                 >
                   {gerandoRec ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
                 </Button>
@@ -518,13 +519,16 @@ function MeliDevolucoesPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIniciandoRecebimento(false)}
+              onClick={() => {
+                stopAlarm();
+                setIniciandoRecebimento(false);
+              }}
             >
               Voltar
             </Button>
           </CardHeader>
-          <CardContent>
-            <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+          <CardContent className="pt-6">
+            <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
               <div className="space-y-1">
                 <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
                 <Input
