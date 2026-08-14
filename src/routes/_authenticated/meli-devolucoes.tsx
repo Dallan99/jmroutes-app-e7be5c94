@@ -114,30 +114,57 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [recebimentoId, setRecebimentoId] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") || "";
-    return "";
+  
+  // v3: Identificadores de estado ativo
+  // active_romaneio_uuid: UUID interno do banco (segurança/RPC)
+  // active_rec_id: Código operacional (ex: EXP-REC-...) - meramente visual/legado
+  const [romaneioUuid, setRomaneioUuid] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const val = localStorage.getItem("active_romaneio_uuid") || "";
+    // Validação básica de formato UUID (simplificada)
+    if (val && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+      return "";
+    }
+    return val;
   });
+  const [recebimentoId, setRecebimentoId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    // Preserva apenas se houver um UUID válido acompanhando
+    const uuid = localStorage.getItem("active_romaneio_uuid");
+    if (!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+      return "";
+    }
+    return localStorage.getItem("active_rec_id") || "";
+  });
+
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
-  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") ? true : false;
-    return false;
-  });
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false); // Será definido no useEffect após validação
 
   const updateActiveRec = (id: string, uuid?: string) => {
-    setRecebimentoId(id);
-    if (id) {
-      localStorage.setItem("active_rec_id", id);
-      if (uuid) localStorage.setItem("active_romaneio_uuid", uuid);
-      setIniciandoRecebimento(true);
-    } else {
+    // Limpeza
+    if (!id || !uuid) {
+      setRecebimentoId("");
+      setRomaneioUuid("");
       localStorage.removeItem("active_rec_id");
       localStorage.removeItem("active_romaneio_uuid");
       setIniciandoRecebimento(false);
+      return;
     }
+
+    // Validação de UUID antes de persistir
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+      console.warn("Tentativa de ativar romaneio com UUID inválido:", uuid);
+      return;
+    }
+
+    setRecebimentoId(id);
+    setRomaneioUuid(uuid);
+    localStorage.setItem("active_rec_id", id);
+    localStorage.setItem("active_romaneio_uuid", uuid);
+    setIniciandoRecebimento(true);
   };
 
   const [pacotesDesteLote, setPacotesDesteLote] = useState<any[]>([]);
