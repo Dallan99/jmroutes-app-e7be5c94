@@ -502,7 +502,7 @@ function TvMeli() {
           )}
 
           {visao === "bases" && (
-            <TvCard titulo={`Bases integradas ao Worker Meli (${basesComDados.length})`} className="h-full">
+            <TvCard titulo={`Bases integradas ao Worker (${basesComDados.length})`} className="h-full">
               <table className="w-full text-base xl:text-lg">
                 <thead>
                   <tr className="border-b border-white/15 text-left text-xs uppercase tracking-wider text-white/60">
@@ -532,7 +532,7 @@ function TvMeli() {
                   {basesComDados.length === 0 && (
                     <tr>
                       <td colSpan={8} className="p-6 text-center text-white/60">
-                        Nenhuma base com dados Meli no dia operacional. Integração ativa hoje: {TV_BASES_INTEGRADAS.join(", ")}.
+                        Nenhuma base com dados no dia operacional. Integração ativa hoje: {TV_BASES_INTEGRADAS.join(", ")}.
                       </td>
                     </tr>
                   )}

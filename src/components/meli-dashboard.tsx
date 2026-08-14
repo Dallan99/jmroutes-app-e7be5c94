@@ -296,7 +296,7 @@ export function MeliDashboardSection({
           <Kpi label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} icon={CheckCircle2} tom="success" />
         </div>
 
-        {/* Filtros Meli — compactos e recolhidos (data e base vêm do topo) */}
+        {/* Filtros — compactos e recolhidos (data e base vêm do topo) */}
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setVerFiltros((v) => !v)}>
             <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
@@ -317,7 +317,7 @@ export function MeliDashboardSection({
               <Input id="meli-rota" value={rota} onChange={(e) => setRota(e.target.value)} placeholder="Cluster ou ID" />
             </div>
             <div>
-              <Label className="text-[11px] text-muted-foreground">Status Meli</Label>
+              <Label className="text-[11px] text-muted-foreground">Status</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
