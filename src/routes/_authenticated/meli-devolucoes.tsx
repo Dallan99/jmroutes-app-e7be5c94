@@ -148,6 +148,14 @@ function MeliDevolucoesPage() {
 
   const cards = painelQuery.data?.cards;
 
+  const linhasCard = useMemo(() => {
+    if (!cardDetalhe) return [] as MeliDevolucaoLinha[];
+    if (!cardDetalhe.id) return linhas;
+    if (cardDetalhe.id === "divergencia_delivered")
+      return linhas.filter((l) => l.divergencia_delivered);
+    return linhas.filter((l) => l.estado === cardDetalhe.id);
+  }, [linhas, cardDetalhe]);
+
   async function onSincronizar() {
     const res = await sincronizar({
       data: { data_de: dataDe, data_ate: dataAte, base_id: baseId || null },
