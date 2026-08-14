@@ -8,7 +8,11 @@ import type { MeliImportBrutoResult, MeliImportResult } from "@/lib/meli.functio
 export async function importarRotaBrutaComClient(
   supabase: SupabaseClient<never>,
   bruto: Record<string, unknown>,
-  opts: { arquivo_nome?: string; confirmar_divergencia?: boolean } = {},
+  opts: {
+    arquivo_nome?: string;
+    confirmar_divergencia?: boolean;
+    aceitar_divergencia_automatica?: boolean;
+  } = {},
 ): Promise<MeliImportBrutoResult> {
   if (bruto.id === undefined || bruto.id === null || bruto.id === "") {
     return { status: "erro", erro: "payload sem 'id' de rota do Meli." };
@@ -29,10 +33,11 @@ export async function importarRotaBrutaComClient(
       resumo,
     };
   }
+  const temDivergencia = resumo.diferenca !== null && resumo.diferenca !== 0;
   if (
-    resumo.diferenca !== null &&
-    resumo.diferenca !== 0 &&
-    opts.confirmar_divergencia !== true
+    temDivergencia &&
+    opts.confirmar_divergencia !== true &&
+    opts.aceitar_divergencia_automatica !== true
   ) {
     return {
       status: "erro",
@@ -69,5 +74,5 @@ export async function importarRotaBrutaComClient(
       : (pub as NonNullable<MeliImportBrutoResult["publicacao"]>);
   }
 
-  return { ...importado, resumo, publicacao };
+  return { ...importado, resumo, publicacao, alerta_divergencia: temDivergencia };
 }

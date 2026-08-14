@@ -200,6 +200,7 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
             payload as Record<string, unknown>,
             {
               confirmar_divergencia: confirmar_divergencia === true,
+              aceitar_divergencia_automatica: origemImportacao === "worker",
               arquivo_nome: ARQUIVO_POR_ORIGEM[origemImportacao],
             },
           );
@@ -248,7 +249,10 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
               invalidos: result.pacotes_invalidos ?? 0,
               duplicados: result.pacotes_duplicados_no_payload ?? 0,
               ordem_invalida: result.pacotes_com_ordem_invalida ?? 0,
-              alerta_divergencia: null,
+              alerta_divergencia: result.alerta_divergencia ?? false,
+              total_meli: result.resumo?.total_informado ?? null,
+              total_extraido: result.resumo?.total_extraidos ?? null,
+              diferenca: result.resumo?.diferenca ?? null,
               mensagem: "Rota importada com sucesso",
             },
             200,
