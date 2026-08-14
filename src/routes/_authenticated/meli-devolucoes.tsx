@@ -101,8 +101,11 @@ function MeliDevolucoesPage() {
   const biparRomaneio = useServerFn(meliRomaneioBipar);
   const finalizar = useServerFn(meliRomaneioFinalizar);
   const listarRomaneios = useServerFn(meliRomaneioListar);
+  const cancelarRomaneio = useServerFn(meliRomaneioCancelar);
+  const detalharRomaneio = useServerFn(meliRomaneioDetalhar);
   const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
+
 
 
 
