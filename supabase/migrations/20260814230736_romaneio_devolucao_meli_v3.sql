@@ -229,3 +229,111 @@ BEGIN
         EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I TO service_role', rpc);
     END LOOP;
 END $$;
+
+-- Continuação das RPCs Externas
+
+CREATE OR REPLACE FUNCTION public.meli_romaneio_bipar(
+    p_romaneio_id UUID,
+    p_base_id UUID,
+    p_tracking_id TEXT,
+    p_observacao TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Não autenticado'; END IF;
+    IF NOT public.has_base_access(v_uid, p_base_id) THEN RAISE EXCEPTION 'Sem acesso à base'; END IF;
+
+    RETURN public.internal_meli_devolucao_processar_bip(p_romaneio_id, p_base_id, p_tracking_id, p_observacao, v_uid);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.meli_romaneio_finalizar(p_romaneio_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_r public.meli_devolucao_romaneios;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Não autenticado'; END IF;
+
+    SELECT * INTO v_r FROM public.meli_devolucao_romaneios WHERE id = p_romaneio_id FOR UPDATE;
+    IF v_r.id IS NULL THEN RAISE EXCEPTION 'Romaneio não encontrado'; END IF;
+    IF NOT public.has_base_access(v_uid, v_r.base_id) THEN RAISE EXCEPTION 'Sem acesso à base'; END IF;
+
+    IF v_r.status = 'concluido' THEN
+        RETURN jsonb_build_object('status', 'ok', 'mensagem', 'Romaneio já estava concluído.');
+    END IF;
+
+    IF v_r.status = 'cancelado' THEN RAISE EXCEPTION 'Não é possível finalizar um romaneio cancelado'; END IF;
+
+    UPDATE public.meli_devolucao_romaneios
+    SET status = 'concluido',
+        concluido_em = now(),
+        concluido_por = v_uid
+    WHERE id = p_romaneio_id;
+
+    INSERT INTO public.meli_devolucoes_eventos (base_id, tipo, detalhes, registrado_por)
+    VALUES (v_r.base_id, 'romaneio_finalizado', jsonb_build_object('romaneio_id', p_romaneio_id), v_uid);
+
+    RETURN jsonb_build_object('status', 'ok');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.meli_romaneio_cancelar(p_romaneio_id UUID, p_justificativa TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID := auth.uid();
+    v_r public.meli_devolucao_romaneios;
+BEGIN
+    IF v_uid IS NULL THEN RAISE EXCEPTION 'Não autenticado'; END IF;
+    IF NOT (public.has_role(v_uid, 'admin') OR public.has_role(v_uid, 'gerente')) THEN
+        RAISE EXCEPTION 'Apenas administradores ou gerentes podem cancelar romaneios';
+    END IF;
+
+    SELECT * INTO v_r FROM public.meli_devolucao_romaneios WHERE id = p_romaneio_id FOR UPDATE;
+    IF v_r.id IS NULL THEN RAISE EXCEPTION 'Romaneio não encontrado'; END IF;
+
+    UPDATE public.meli_devolucao_romaneios
+    SET status = 'cancelado',
+        cancelado_em = now(),
+        cancelado_por = v_uid,
+        justificativa_cancelamento = p_justificativa
+    WHERE id = p_romaneio_id;
+
+    -- Opcional: desvincular pacotes ou mantê-los vinculados ao romaneio cancelado?
+    -- Decisão: Mantemos o vínculo para auditoria, mas o estado do pacote permanece 'recebido' 
+    -- a menos que explicitamente revertido.
+
+    INSERT INTO public.meli_devolucoes_eventos (base_id, tipo, detalhes, registrado_por)
+    VALUES (v_r.base_id, 'romaneio_cancelado', jsonb_build_object('romaneio_id', p_romaneio_id, 'justificativa', p_justificativa), v_uid);
+
+    RETURN jsonb_build_object('status', 'ok');
+END;
+$$;
+
+-- Permissões Adicionais
+DO $$ 
+DECLARE
+    rpc text;
+    rpcs text[] := ARRAY['meli_romaneio_bipar', 'meli_romaneio_finalizar', 'meli_romaneio_cancelar'];
+BEGIN
+    FOREACH rpc IN ARRAY rpcs LOOP
+        EXECUTE format('REVOKE ALL ON FUNCTION public.%I FROM PUBLIC', rpc);
+        EXECUTE format('REVOKE ALL ON FUNCTION public.%I FROM anon', rpc);
+        EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I TO authenticated', rpc);
+        EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I TO service_role', rpc);
+    END LOOP;
+END $$;
