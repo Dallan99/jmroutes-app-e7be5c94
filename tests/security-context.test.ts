@@ -1,22 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mocks manuais ANTES de importar o módulo testado
-vi.mock('@tanstack/react-start', () => {
-  const createServerFn = () => {
-    const builder = {
-      validator: vi.fn().mockImplementation(() => builder),
-      handler: vi.fn().mockImplementation((h) => {
-        const fn = async (args: any) => {
-           return await h(args);
-        };
+// Mocks manuais antes de importar qualquer coisa do projeto
+vi.mock('@tanstack/react-start', () => ({
+  createServerFn: () => ({
+    validator: () => ({
+      handler: (h: any) => {
+        const fn = async (args: any) => await h(args);
         (fn as any).handler = h;
         return fn;
-      })
-    };
-    return builder;
-  };
-  return { createServerFn };
-});
+      }
+    })
+  })
+}));
 
 const mockSupabase = {
   rpc: vi.fn(),
@@ -26,6 +21,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase
 }));
 
+// Agora importa as funções a serem testadas
 import { 
   meliDevolucoesCriarDevolucao, 
   meliDevolucoesBipar
@@ -37,7 +33,10 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
   });
 
   it('deve chamar a RPC de criar devolução com os parâmetros corretos', async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok', romaneio_id: '123' }, error: null });
+    mockSupabase.rpc.mockResolvedValueOnce({ 
+      data: { status: 'ok', romaneio_id: '123', codigo_romaneio: 'EXP-123' }, 
+      error: null 
+    });
     
     const result = await (meliDevolucoesCriarDevolucao as any)({ 
       data: { base_id: 'base-uuid', tracking_id: 'ML123' } 
@@ -57,12 +56,13 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
       error: { message: 'permission denied', code: '42501' } 
     });
     
+    // A função meliDevolucoesBipar é a função asíncrona que chama o rpc e lança erro se error existir
     await expect((meliDevolucoesBipar as any)({ 
       data: { 
         romaneio_id: 'rom-uuid', 
         base_id: 'base-uuid', 
         tracking_id: 'ML123'
       } 
-    })).rejects.toMatchObject({ message: expect.stringContaining('permission denied') });
+    })).rejects.toMatchObject({ message: 'permission denied' });
   });
 });
