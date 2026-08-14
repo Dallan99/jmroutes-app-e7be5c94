@@ -405,8 +405,18 @@ function MeliDevolucoesPage() {
       <Dialog open={!!cardDetalhe} onOpenChange={(o) => !o && setCardDetalhe(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              {cardDetalhe?.label} — {linhasCard.length} pacote(s)
+            <DialogTitle className="text-base flex items-center justify-between">
+              <span>{cardDetalhe?.label} — {linhasCard.length} pacote(s)</span>
+              {linhasCard.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
