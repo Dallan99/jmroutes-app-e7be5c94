@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { meliRotasAreaRisco, type MeliRiscoRota } from "@/lib/meli-risco.functions";
+import { meliRotasAreaRisco, type SistemaRiscoRota } from "@/lib/meli-risco.functions";
 import { meliDashboardPacotesRota } from "@/lib/meli-dashboard.functions";
 import { listarBasesSimples } from "@/lib/bases.functions";
 import { classificarRiscoRota } from "@/lib/meli-devolucoes-domain";
@@ -40,14 +40,14 @@ export const Route = createFileRoute("/_authenticated/meli-risco")({
     ],
   }),
 
-  component: MeliRiscoPage,
+  component: SistemaRiscoPage,
 });
 
 function pct(n: number) {
   return `${Number(n ?? 0).toFixed(1)}%`;
 }
 
-function MeliRiscoPage() {
+function SistemaRiscoPage() {
   const buscarRisco = useServerFn(meliRotasAreaRisco);
   const buscarPacotes = useServerFn(meliDashboardPacotesRota);
   const buscarBases = useServerFn(listarBasesSimples);
@@ -56,7 +56,7 @@ function MeliRiscoPage() {
   const [baseId, setBaseId] = useState<string>("");
   const [risco, setRisco] = useState<"qualquer" | "integral" | "parcial">("qualquer");
   const [busca, setBusca] = useState("");
-  const [rotaAberta, setRotaAberta] = useState<MeliRiscoRota | null>(null);
+  const [rotaAberta, setRotaAberta] = useState<SistemaRiscoRota | null>(null);
 
   const basesQuery = useQuery({
     queryKey: ["bases-simples"],

@@ -281,7 +281,7 @@ export function MeliDashboardSection({
       <section className="space-y-4">
         {q.data?.status === "erro" && (
           <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
-            Falha ao consultar o painel Meli: {q.data.erro}. Mostrando os últimos dados válidos.
+            Falha ao consultar o painel: {q.data.erro}. Mostrando os últimos dados válidos.
           </div>
         )}
 
