@@ -97,16 +97,6 @@ function DashboardPage() {
     if (k === "date" && typeof v === "string" && v) salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, v);
     setFilters((prev) => ({ ...prev, [k]: v }));
   }
-  function clearAll() {
-    setFilters({
-      date: hojeOperacional(),
-      base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
-    });
-    salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, hojeOperacional());
-  }
-
-  const activeFiltersCount = Object.values(cleanFilters).filter(Boolean).length;
-
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
       {/* Imagem institucional ao fundo (decorativa) */}
@@ -318,30 +308,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium mt-2">
       {children}
-    </div>
-  );
-}
-
-function FilterSelect({
-  label, value, onChange, options,
-}: {
-  label: string;
-  value: string | null | undefined;
-  onChange: (v: string | null) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      <Select value={value ?? NONE} onValueChange={(v) => onChange(v === NONE ? null : v)}>
-        <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>Todos</SelectItem>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
     </div>
   );
 }
