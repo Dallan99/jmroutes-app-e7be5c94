@@ -1,24 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mocks manuais antes da importação
+// Mocks manuais ANTES de importar o módulo testado
 vi.mock('@tanstack/react-start', () => {
-  const handlerMock = (options: any) => ({
-    handler: options.handler,
-    validator: () => handlerMock(options)
-  });
-  
-  const createServerFn = (options: any) => {
-    const obj = {
-      handler: (h: any) => {
-        const finalFn = (args: any) => h(args);
-        (finalFn as any).handler = h;
-        return finalFn;
-      },
-      validator: () => obj
+  const createServerFn = () => {
+    const builder = {
+      validator: vi.fn().mockImplementation(() => builder),
+      handler: vi.fn().mockImplementation((h) => {
+        const fn = (args: any) => h(args);
+        (fn as any).handler = h;
+        return fn;
+      })
     };
-    return obj;
+    return builder;
   };
-
   return { createServerFn };
 });
 
