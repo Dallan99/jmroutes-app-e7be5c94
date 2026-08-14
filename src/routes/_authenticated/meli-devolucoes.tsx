@@ -317,18 +317,23 @@ function MeliDevolucoesPage() {
 
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
         {[
-          { l: "Total", v: cards?.total ?? 0, c: "" },
-          { l: "Aguardando", v: cards?.aguardando_retorno ?? 0, c: CLASSE_FAIXA.verde },
-          { l: "Próximo do prazo", v: cards?.proximo_do_prazo ?? 0, c: CLASSE_FAIXA.amarelo },
-          { l: "Atrasado", v: cards?.atrasado ?? 0, c: CLASSE_FAIXA.vermelho },
-          { l: "Recebidos", v: cards?.recebido_na_base ?? 0, c: CLASSE_FAIXA.verde },
+          { id: "", l: "Total", v: cards?.total ?? 0, c: "" },
+          { id: "aguardando_retorno", l: "Aguardando", v: cards?.aguardando_retorno ?? 0, c: CLASSE_FAIXA.verde },
+          { id: "proximo_do_prazo", l: "Próximo do prazo", v: cards?.proximo_do_prazo ?? 0, c: CLASSE_FAIXA.amarelo },
+          { id: "atrasado", l: "Atrasado", v: cards?.atrasado ?? 0, c: CLASSE_FAIXA.vermelho },
+          { id: "recebido_na_base", l: "Recebidos", v: cards?.recebido_na_base ?? 0, c: CLASSE_FAIXA.verde },
           {
+            id: "divergencia_delivered",
             l: "Divergência Meli",
             v: cards?.divergencia_delivered ?? 0,
             c: CLASSE_FAIXA.critico,
           },
         ].map((c) => (
-          <Card key={c.l} className={c.c ? `border ${c.c}` : undefined}>
+          <Card
+            key={c.l}
+            className={`cursor-pointer transition-colors hover:bg-muted/50 ${c.c ? `border ${c.c}` : ""} ${estado === c.id ? "ring-2 ring-primary" : ""}`}
+            onClick={() => setEstado(c.id)}
+          >
             <CardContent className="pt-4">
               <div className="text-xs uppercase text-muted-foreground">{c.l}</div>
               <div className="text-2xl font-semibold tabular-nums">{c.v}</div>
