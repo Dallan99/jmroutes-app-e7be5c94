@@ -176,6 +176,13 @@ function MeliDevolucoesPage() {
     refetchInterval: 60_000,
   });
 
+  const romaneiosQuery = useQuery({
+    queryKey: ["meli-romaneios", baseId, dataDe, dataAte],
+    queryFn: () => listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } }),
+    enabled: !!baseId || !!dataDe,
+  });
+
+
   const historicoQuery = useQuery({
     queryKey: ["meli-devolucao-historico", detalhe?.id],
     queryFn: () => historico({ data: { devolucao_id: detalhe!.id } }),
