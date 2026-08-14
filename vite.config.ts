@@ -14,6 +14,8 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    // O plugin compara caminhos com separadores POSIX e falha no build local
+    // do Windows. Ele continua ativo no ambiente Lovable/Linux.
+    plugins: process.platform === "win32" ? [] : [mcpPlugin()],
   },
 });

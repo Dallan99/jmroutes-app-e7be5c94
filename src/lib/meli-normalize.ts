@@ -102,6 +102,7 @@ const CHAVES_RISCO = [
   "risk_area",
   "isRiskZone",
   "isRiskArea",
+  "isDriverRisky",
   "dangerousArea",
   "dangerous_area",
   "dangerZone",
@@ -150,7 +151,6 @@ const CODIGOS_OCORRENCIA_RISCO = new Set([
   "risk_area",
   "risk_zone",
   "dangerous_area",
-  "blocked_by_keyword",
   "conflict_zone",
   "restricted_area",
 ]);
@@ -189,6 +189,13 @@ function detectarRisco(
     };
   }
   return vazio;
+}
+
+/** O AdminML envia o indicador integral dentro de `driver.isDriverRisky`. */
+function detectarRiscoRota(obj: AnyRec, camposDetectados: Set<string>): ClassificacaoRisco {
+  const direto = detectarRisco(obj, "rota", camposDetectados);
+  if (direto.area_risco) return direto;
+  return detectarRisco(asRec(obj.driver), "rota", camposDetectados);
 }
 
 function riscoPorOcorrencia(codigo: string | null, camposDetectados: Set<string>): ClassificacaoRisco | null {
@@ -268,7 +275,7 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
     const finais = Array.from(dedup.values());
 
     const routeId = s(p.route_id) ?? s(p.meli_route_id) ?? "";
-    const riscoRota = detectarRisco(p, "rota", camposRisco);
+    const riscoRota = detectarRiscoRota(p, camposRisco);
     const comRisco = finais.filter((x) => x.area_risco).length;
     const rotaIntegral = riscoRota.area_risco || (finais.length > 0 && comRisco === finais.length);
     const parcial = !rotaIntegral && comRisco > 0;
@@ -311,7 +318,7 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
   // Formato bruto do route-detail do Meli.
   const stops = asArr(payloadInput.stops);
   const brutos: PacoteNormalizado[] = [];
-  const riscoRota = detectarRisco(payloadInput, "rota", camposRisco);
+  const riscoRota = detectarRiscoRota(payloadInput, camposRisco);
 
   for (const stopRaw of stops) {
     const stop = asRec(stopRaw);
