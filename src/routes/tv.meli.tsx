@@ -32,12 +32,13 @@ const SITUACOES: SituacaoMeli[] = [
 const RISCOS: Risco[] = ["qualquer", "integral", "parcial"];
 
 export const Route = createFileRoute("/tv/meli")({
+
   head: () => ({
     meta: [
-      { title: "Operação Meli — Modo TV | JMRoutes" },
-      { name: "description", content: "Painel de televisão da operação Meli em tempo real: rotas, entregas, insucessos e área de risco." },
-      { property: "og:title", content: "Operação Meli — Modo TV | JMRoutes" },
-      { property: "og:description", content: "Painel de televisão da operação Meli em tempo real." },
+      { title: "Operação — Modo TV | JMRoutes" },
+      { name: "description", content: "Painel de televisão da operação em tempo real: rotas, entregas, insucessos e área de risco." },
+      { property: "og:title", content: "Operação — Modo TV | JMRoutes" },
+      { property: "og:description", content: "Painel de televisão da operação em tempo real." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -244,7 +245,7 @@ function TvMeli() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-black leading-tight tracking-tight xl:text-4xl">
-            Operação Meli — Modo TV
+            Operação — Modo TV
           </h1>
           <p className="text-sm text-white/70 xl:text-base">
             Dia <span className="font-semibold tabular-nums">{d?.data_operacional ?? busca.data ?? "—"}</span>
@@ -501,7 +502,7 @@ function TvMeli() {
           )}
 
           {visao === "bases" && (
-            <TvCard titulo={`Bases integradas ao Worker Meli (${basesComDados.length})`} className="h-full">
+            <TvCard titulo={`Bases integradas ao Worker (${basesComDados.length})`} className="h-full">
               <table className="w-full text-base xl:text-lg">
                 <thead>
                   <tr className="border-b border-white/15 text-left text-xs uppercase tracking-wider text-white/60">
@@ -531,7 +532,7 @@ function TvMeli() {
                   {basesComDados.length === 0 && (
                     <tr>
                       <td colSpan={8} className="p-6 text-center text-white/60">
-                        Nenhuma base com dados Meli no dia operacional. Integração ativa hoje: {TV_BASES_INTEGRADAS.join(", ")}.
+                        Nenhuma base com dados no dia operacional. Integração ativa hoje: {TV_BASES_INTEGRADAS.join(", ")}.
                       </td>
                     </tr>
                   )}

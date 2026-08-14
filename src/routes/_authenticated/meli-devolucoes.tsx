@@ -8,9 +8,11 @@ import {
   meliDevolucoesSincronizar,
   meliDevolucaoReceber,
   meliDevolucaoHistorico,
+  gerarRecebimentoId,
   type MeliDevolucaoLinha,
 } from "@/lib/meli-devolucoes.functions";
 import { listarBasesSimples } from "@/lib/bases.functions";
+
 import {
   CLASSE_FAIXA,
   LABEL_ESTADO,
@@ -46,17 +48,18 @@ import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
     meta: [
-      { title: "Devoluções Meli — JMRoutes" },
+      { title: "Devoluções — JMRoutes" },
       {
         name: "description",
         content:
-          "Controle de devoluções Meli: prazo de retorno de 3 dias, recebimento físico na base e alertas de divergência.",
+          "Controle de devoluções: prazo de retorno de 3 dias, recebimento físico na base e alertas de divergência.",
       },
-      { property: "og:title", content: "Devoluções Meli — JMRoutes" },
+      { property: "og:title", content: "Devoluções — JMRoutes" },
       {
         property: "og:description",
-        content: "Acompanhe prazos, recebimento físico e divergências das devoluções Meli.",
+        content: "Acompanhe prazos, recebimento físico e divergências das devoluções.",
       },
+
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -91,6 +94,7 @@ function MeliDevolucoesPage() {
   const receber = useServerFn(meliDevolucaoReceber);
   const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
+  const gerarRecebimento = useServerFn(gerarRecebimentoId);
 
   const hoje = hojeOperacional();
   const [dataDe, setDataDe] = useState(() => {
@@ -105,8 +109,11 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [recebimentoId, setRecebimentoId] = useState("");
+  const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
+
   const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -172,6 +179,23 @@ function MeliDevolucoesPage() {
     painelQuery.refetch();
   }
 
+  async function onGerarRecebimento() {
+    if (!baseId) {
+      toast.error("Selecione a base antes de gerar o recebimento.");
+      return;
+    }
+    setGerandoRec(true);
+    try {
+      const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
+      setRecebimentoId(id);
+      toast.success(`Novo recebimento gerado: ${id}`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar recebimento.");
+    } finally {
+      setGerandoRec(false);
+    }
+  }
+
   async function onReceber(e: React.FormEvent) {
     e.preventDefault();
     const bloqueio = validarRecebimento({ codigo, baseSelecionadaId: baseId || null });
@@ -181,6 +205,11 @@ function MeliDevolucoesPage() {
     }
     if (bloqueio === "sem_codigo") return;
 
+    if (!recebimentoId) {
+      toast.error("Gere um ID de recebimento antes de iniciar as bipagens.");
+      return;
+    }
+
     setEnviando(true);
     try {
       const res = await receber({
@@ -189,6 +218,7 @@ function MeliDevolucoesPage() {
           base_id: baseId,
           metodo: "scanner",
           observacao: observacao.trim() || null,
+          recebimento_id: recebimentoId,
         },
       });
       if (res.status === "erro") {
@@ -201,8 +231,9 @@ function MeliDevolucoesPage() {
         startAlarm();
         setAlertaCritico(
           res.mensagem ??
-            `Pacote ${res.codigo} retornou fisicamente, porém o Meli indica ENTREGUE. Registre a divergência.`,
+            `Pacote ${res.codigo} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
         );
+
       } else {
         beepOk();
         toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
@@ -215,6 +246,7 @@ function MeliDevolucoesPage() {
       setEnviando(false);
     }
   }
+
 
   function exportarCsv() {
     const head = [
@@ -249,7 +281,7 @@ function MeliDevolucoesPage() {
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `devolucoes-meli-${dataDe}_${dataAte}.csv`;
+    a.download = `devolucoes-${dataDe}_${dataAte}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -260,7 +292,7 @@ function MeliDevolucoesPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
             <RotateCcw className="h-6 w-6 text-primary" />
-            Controle de Devoluções Meli
+            Controle de Devoluções
           </h1>
           <p className="text-sm text-muted-foreground">
             Todo pacote com ocorrência de rua deve retornar à base de origem em até 3 dias corridos.
@@ -268,8 +300,9 @@ function MeliDevolucoesPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onSincronizar}>
-            <RefreshCcw className="h-4 w-4 mr-2" /> Sincronizar ocorrências
+            <RefreshCcw className="h-4 w-4 mr-2" /> Sincronizar
           </Button>
+
           <Button variant="outline" size="sm" onClick={exportarCsv} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-2" /> CSV
           </Button>
@@ -342,11 +375,12 @@ function MeliDevolucoesPage() {
           { id: "recebido_na_base", l: "Recebidos", v: cards?.recebido_na_base ?? 0, c: CLASSE_FAIXA.verde },
           {
             id: "divergencia_delivered",
-            l: "Divergência Meli",
+            l: "Divergência Status",
             v: cards?.divergencia_delivered ?? 0,
             c: CLASSE_FAIXA.critico,
           },
         ].map((c) => (
+
           <Card
             key={c.l}
             role="button"
@@ -430,7 +464,28 @@ function MeliDevolucoesPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+          <form className="grid gap-3 md:grid-cols-[200px_1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+            <div className="space-y-1">
+              <Label>Recebimento</Label>
+              <div className="flex gap-2">
+                <Input
+                  className="bg-muted font-mono"
+                  value={recebimentoId}
+                  readOnly
+                  placeholder="REC..."
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  onClick={onGerarRecebimento}
+                  disabled={gerandoRec || !baseId}
+                  title="Gerar novo ID de recebimento"
+                >
+                  {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
             <div className="space-y-1">
               <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
               <Input
@@ -440,6 +495,7 @@ function MeliDevolucoesPage() {
                 autoComplete="off"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
+                disabled={!recebimentoId}
                 placeholder="Tracking / shipment"
               />
             </div>
@@ -449,17 +505,20 @@ function MeliDevolucoesPage() {
                 id="dev-obs"
                 value={observacao}
                 onChange={(e) => setObservacao(e.target.value)}
+                disabled={!recebimentoId}
                 placeholder="Avaria, embalagem aberta..."
               />
             </div>
-            <Button type="submit" disabled={enviando || !codigo.trim()}>
+            <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
               {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
             </Button>
           </form>
+
           <p className="text-xs text-muted-foreground mt-2">
-            O recebimento só é registrado por leitura física. Mudança de status no Meli nunca marca
+            O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
             um pacote como recebido.
           </p>
+
         </CardContent>
       </Card>
 
@@ -553,11 +612,11 @@ function MeliDevolucoesPage() {
                   {detalhe.cluster ?? detalhe.route_id ?? "—"}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Ocorrência Meli:</span>{" "}
+                  <span className="text-muted-foreground">Ocorrência:</span>{" "}
                   {detalhe.occurrence_code}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Status Meli:</span>{" "}
+                  <span className="text-muted-foreground">Status:</span>{" "}
                   {detalhe.situacao_meli ?? detalhe.meli_status ?? "—"}
                 </div>
                 <div>
@@ -568,13 +627,20 @@ function MeliDevolucoesPage() {
                   <span className="text-muted-foreground">Recebido em:</span>{" "}
                   {fmt(detalhe.recebido_em)}
                 </div>
+                {detalhe.recebimento_id && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">ID Recebimento:</span>{" "}
+                    <span className="font-mono text-xs">{detalhe.recebimento_id}</span>
+                  </div>
+                )}
               </div>
               {detalhe.divergencia_delivered && (
                 <div className="rounded-md border border-purple-600/40 bg-purple-600/10 p-3 text-purple-500 text-sm">
-                  Divergência crítica: pacote recebido fisicamente, mas o Meli indica entrega ao
+                  Divergência crítica: pacote recebido fisicamente, mas o sistema indica entrega ao
                   cliente.
                 </div>
               )}
+
               <div>
                 <div className="text-xs uppercase text-muted-foreground mb-1">Histórico</div>
                 <ScrollArea className="h-48 rounded-md border p-2">

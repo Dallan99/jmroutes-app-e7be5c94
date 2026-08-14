@@ -8,7 +8,8 @@ import {
   type MeliDashboardRota,
 } from "@/lib/meli-dashboard.functions";
 import { LABEL_SITUACAO, descreverMotivo, type SituacaoMeli } from "@/lib/meli-status";
-import { MeliRankingMotoristasSection } from "@/components/meli-ranking-motoristas";
+import { RankingMotoristasSection } from "@/components/meli-ranking-motoristas";
+
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -222,7 +223,7 @@ export function MeliDashboardSection({
 
   const baixarCsvDrill = () => {
     const cab = [
-      "Rota", "ID Meli", "Base", "Base nome", "Motorista", "Placa", "Total",
+      "Rota", "ID", "Base", "Base nome", "Motorista", "Placa", "Total",
       "Nao iniciados", "Em rota", "Entregues", "Insucessos", "Cancelados",
       "Pacotes risco", "% Entrega", "Ultima sync",
     ];
@@ -280,7 +281,7 @@ export function MeliDashboardSection({
       <section className="space-y-4">
         {q.data?.status === "erro" && (
           <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
-            Falha ao consultar o painel Meli: {q.data.erro}. Mostrando os últimos dados válidos.
+            Falha ao consultar o painel: {q.data.erro}. Mostrando os últimos dados válidos.
           </div>
         )}
 
@@ -295,7 +296,7 @@ export function MeliDashboardSection({
           <Kpi label="% Entrega" valor={cards ? `${cards.perc_entrega}%` : undefined} icon={CheckCircle2} tom="success" />
         </div>
 
-        {/* Filtros Meli — compactos e recolhidos (data e base vêm do topo) */}
+        {/* Filtros — compactos e recolhidos (data e base vêm do topo) */}
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setVerFiltros((v) => !v)}>
             <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
@@ -313,10 +314,10 @@ export function MeliDashboardSection({
             </div>
             <div>
               <Label htmlFor="meli-rota" className="text-[11px] text-muted-foreground">Rota</Label>
-              <Input id="meli-rota" value={rota} onChange={(e) => setRota(e.target.value)} placeholder="Cluster ou ID Meli" />
+              <Input id="meli-rota" value={rota} onChange={(e) => setRota(e.target.value)} placeholder="Cluster ou ID" />
             </div>
             <div>
-              <Label className="text-[11px] text-muted-foreground">Status Meli</Label>
+              <Label className="text-[11px] text-muted-foreground">Status</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
@@ -463,7 +464,7 @@ export function MeliDashboardSection({
             </ul>
           </Card>
         )}
-        <MeliRankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
+        <RankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
 
         {/* Tabela operacional por rota */}
 
@@ -546,7 +547,7 @@ export function MeliDashboardSection({
                   id="meli-drill-busca"
                   value={drillBusca}
                   onChange={(e) => setDrillBusca(e.target.value)}
-                  placeholder="Rota, ID Meli, base, motorista ou placa"
+                  placeholder="Rota, ID, base, motorista ou placa"
                 />
               </div>
               <Button type="button" variant="outline" onClick={baixarCsvDrill} disabled={rotasDoDrill.length === 0}>
@@ -580,7 +581,7 @@ export function MeliDashboardSection({
                   ? <>
                       {pacotesQuery.data.rota.nome_operacional}
                       <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        ID Meli: {pacotesQuery.data.rota.route_id}
+                        ID: {pacotesQuery.data.rota.route_id}
                       </span>
                     </>
                   : "Pacotes da rota"}
@@ -602,7 +603,7 @@ export function MeliDashboardSection({
                 />
               </div>
               <div className="w-52">
-                <Label>Situação Meli</Label>
+                <Label>Situação</Label>
                 <Select
                   value={pedidoStatus}
                   onValueChange={(v) => setPedidoStatus(v as SituacaoMeli | "total")}
@@ -632,12 +633,12 @@ export function MeliDashboardSection({
                     <th className="p-2">Tracking</th>
                     <th className="p-2">Shipment</th>
                     <th className="p-2">Parada</th>
-                    <th className="p-2">Situação Meli</th>
+                    <th className="p-2">Situação</th>
                     <th className="p-2">Status</th>
                     <th className="p-2">Substatus</th>
                     <th className="p-2">Ocorrência</th>
                     <th className="p-2">Área de risco</th>
-                    <th className="p-2">Atualização Meli</th>
+                    <th className="p-2">Atualização</th>
                     <th className="p-2">Físico JM</th>
                     <th className="p-2">Triagem JM</th>
                   </tr>
@@ -753,7 +754,7 @@ function TabelaRotas({
             >
               <td className="p-2">
                 <div className="font-semibold">{r.nome_operacional}</div>
-                <div className="text-[10px] text-muted-foreground">ID Meli: {r.route_id}</div>
+                <div className="text-[10px] text-muted-foreground">ID: {r.route_id}</div>
                 {(r.rota_area_risco || r.area_risco_parcial) && (
                   <SeloRisco
                     motivo={r.rota_area_risco ? "Rota integralmente de risco" : "Rota parcialmente de risco"}

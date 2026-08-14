@@ -866,6 +866,7 @@ export type Database = {
           recebido_base_id: string | null
           recebido_em: string | null
           recebido_por: string | null
+          recebimento_id: string | null
           rota_id: string | null
           route_id: string | null
           situacao_meli: string | null
@@ -892,6 +893,7 @@ export type Database = {
           recebido_base_id?: string | null
           recebido_em?: string | null
           recebido_por?: string | null
+          recebimento_id?: string | null
           rota_id?: string | null
           route_id?: string | null
           situacao_meli?: string | null
@@ -918,6 +920,7 @@ export type Database = {
           recebido_base_id?: string | null
           recebido_em?: string | null
           recebido_por?: string | null
+          recebimento_id?: string | null
           rota_id?: string | null
           route_id?: string | null
           situacao_meli?: string | null
@@ -2470,6 +2473,10 @@ export type Database = {
         Args: { p_inventario_id: string; p_observacao?: string }
         Returns: Json
       }
+      gerar_sequencia_recebimento: {
+        Args: { p_base_id: string; p_data: string }
+        Returns: string
+      }
       get_allowed_bases: { Args: { _user_id: string }; Returns: string[] }
       has_base_access: {
         Args: { _base_id: string; _user_id: string }
@@ -2507,15 +2514,26 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number; p_rota_id: string }
         Returns: Json
       }
-      meli_devolucao_receber: {
-        Args: {
-          p_base_id: string
-          p_metodo?: string
-          p_observacao?: string
-          p_tracking: string
-        }
-        Returns: Json
-      }
+      meli_devolucao_receber:
+        | {
+            Args: {
+              p_base_id: string
+              p_metodo?: string
+              p_observacao?: string
+              p_tracking: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_base_id: string
+              p_metodo?: string
+              p_observacao?: string
+              p_recebimento_id?: string
+              p_tracking: string
+            }
+            Returns: Json
+          }
       meli_devolucoes_painel: {
         Args: {
           p_base_id?: string
