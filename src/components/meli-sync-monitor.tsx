@@ -214,7 +214,13 @@ export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync>
                       <Linha rotulo="Pacotes" valor={b.pacotes_encontrados.toLocaleString("pt-BR")} />
                       <Linha
                         rotulo="Último ciclo"
-                        valor={b.status ? b.status.replace(/_/g, " ") : "sem registro de ciclo"}
+                        valor={
+                          b.status === "divergencia_totais"
+                            ? "Divergência de totais — dados recebidos parcialmente"
+                            : b.status
+                              ? b.status.replace(/_/g, " ")
+                              : "sem registro de ciclo"
+                        }
                       />
                     </dl>
                     {b.mensagem_segura && (
