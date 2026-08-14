@@ -82,6 +82,7 @@ function PainelOperacionalPage() {
               <tr>
                 <th className="text-left px-3 py-2">Base</th>
                 <th className="text-left px-3 py-2">Rota</th>
+                <th className="text-left px-3 py-2">Motorista</th>
                 <th className="text-right px-3 py-2">Total</th>
                 <th className="text-right px-3 py-2">Bipados</th>
                 <th className="text-right px-3 py-2">Faltando</th>
@@ -94,6 +95,7 @@ function PainelOperacionalPage() {
                 <tr key={`${r.base_id}-${r.nro_rota}`} className="border-t">
                   <td className="px-3 py-1.5 font-medium">{r.base_codigo}</td>
                   <td className="px-3 py-1.5">{r.nro_rota}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">{"—"}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{r.total}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{r.recebido}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{r.faltando}</td>
