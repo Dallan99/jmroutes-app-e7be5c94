@@ -28,9 +28,6 @@ import {
   LogOut,
   Boxes,
   RotateCcw,
-  Truck,
-  ListChecks,
-  PackageOpen,
   ShieldAlert,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
