@@ -177,6 +177,8 @@ function BaseDetalheDialog({
 }) {
   const [busca, setBusca] = useState("");
   const [rotaSel, setRotaSel] = useState<MeliDashboardRota | null>(null);
+  /** Situação escolhida nos cartões do detalhe da rota (Pacotes/Entregues/Em rota/Falhas). */
+  const [situacaoSel, setSituacaoSel] = useState<"total" | "entregue" | "em_rota" | "insucesso">("total");
   const fetchPacotes = useServerFn(meliDashboardPacotesRota);
 
   const pacotesQuery = useQuery({
@@ -210,6 +212,10 @@ function BaseDetalheDialog({
   );
 
   const pacotes = pacotesQuery.data?.status === "ok" ? (pacotesQuery.data.pacotes ?? []) : [];
+  const pacotesVisiveis = useMemo(() => {
+    if (situacaoSel === "total") return pacotes;
+    return pacotes.filter((p) => p.situacao === situacaoSel);
+  }, [pacotes, situacaoSel]);
 
   return (
     <Dialog
@@ -345,10 +351,51 @@ function BaseDetalheDialog({
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <MiniBox label="Pacotes" value={nf(rotaSel.total)} />
-              <MiniBox label="Entregues" value={nf(rotaSel.entregue)} tone="text-success" />
-              <MiniBox label="Em rota" value={nf(rotaSel.em_rota)} tone="text-[var(--info)]" />
-              <MiniBox label="Falhas" value={nf(rotaSel.insucesso)} tone="text-destructive" />
+              <MiniBox
+                label="Pacotes"
+                value={nf(rotaSel.total)}
+                ativo={situacaoSel === "total"}
+                onClick={() => setSituacaoSel("total")}
+              />
+              <MiniBox
+                label="Entregues"
+                value={nf(rotaSel.entregue)}
+                tone="text-success"
+                ativo={situacaoSel === "entregue"}
+                onClick={() => setSituacaoSel("entregue")}
+              />
+              <MiniBox
+                label="Em rota"
+                value={nf(rotaSel.em_rota)}
+                tone="text-[var(--info)]"
+                ativo={situacaoSel === "em_rota"}
+                onClick={() => setSituacaoSel("em_rota")}
+              />
+              <MiniBox
+                label="Falhas"
+                value={nf(rotaSel.insucesso)}
+                tone="text-destructive"
+                ativo={situacaoSel === "insucesso"}
+                onClick={() => setSituacaoSel("insucesso")}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                {situacaoSel === "total"
+                  ? "Todos os pedidos da rota"
+                  : situacaoSel === "insucesso"
+                    ? "Pedidos com ocorrência (falha de entrega)"
+                    : situacaoSel === "entregue"
+                      ? "Pedidos entregues"
+                      : "Pedidos em rota"}
+                {" · "}
+                {nf(pacotesVisiveis.length)} pedido(s)
+              </span>
+              {situacaoSel !== "total" && (
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setSituacaoSel("total")}>
+                  Ver todos
+                </Button>
+              )}
             </div>
             <ScrollArea className="h-[52vh]">
               {pacotesQuery.isLoading ? (
@@ -365,14 +412,16 @@ function BaseDetalheDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {pacotes.length === 0 && (
+                    {pacotesVisiveis.length === 0 && (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-muted-foreground">
-                          Nenhum pacote nesta rota.
+                          {situacaoSel === "total"
+                            ? "Nenhum pacote nesta rota."
+                            : "Nenhum pedido nesta situação."}
                         </td>
                       </tr>
                     )}
-                    {pacotes.map((p) => (
+                    {pacotesVisiveis.map((p) => (
                       <tr key={p.tracking_id} className="border-t">
                         <td className="py-2 pr-2 text-muted-foreground tabular-nums">{p.ordem ?? "—"}</td>
                         <td className="py-2 pr-2 font-mono text-xs">{p.tracking_id}</td>
@@ -402,12 +451,39 @@ function BaseDetalheDialog({
   );
 }
 
-function MiniBox({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-3">
+function MiniBox({
+  label,
+  value,
+  tone,
+  ativo,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  ativo?: boolean;
+  onClick?: () => void;
+}) {
+  const conteudo = (
+    <>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className={`font-display text-xl font-bold tabular-nums ${tone ?? ""}`}>{value}</div>
-    </div>
+    </>
+  );
+  if (!onClick) {
+    return <div className="rounded-lg border bg-muted/30 p-3">{conteudo}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={!!ativo}
+      className={`rounded-lg border p-3 text-left transition hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        ativo ? "border-primary bg-muted/60 ring-1 ring-primary/40" : "bg-muted/30"
+      }`}
+    >
+      {conteudo}
+    </button>
   );
 }
 

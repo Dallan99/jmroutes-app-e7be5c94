@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData, dashboardFiltrosOpcoes, type DashboardFilters } from "@/lib/dashboard.functions";
 import { MeliDashboardSection } from "@/components/meli-dashboard";
-import { MeliSyncMonitor, fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
+import { fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
 
 import { DashboardGeral } from "@/components/dashboard-geral";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
@@ -23,7 +23,7 @@ import {
   Line, LineChart, Pie, PieChart, Cell, Legend,
 } from "recharts";
 import {
-  Activity, AlertOctagon, AlertTriangle, CheckCircle2, Clock, Filter, Gauge,
+  Activity, AlertOctagon, AlertTriangle, CheckCircle2, Clock, Gauge,
   Package, PackageCheck, PackageSearch, RefreshCcw, Timer, TrendingUp, Truck, Tv, UserCog,
 } from "lucide-react";
 
@@ -48,7 +48,6 @@ function fmtDuration(ms: number | null | undefined) {
 
 function DashboardPage() {
   const qc = useQueryClient();
-  const [maisFiltros, setMaisFiltros] = useState(false);
   const [verInternos, setVerInternos] = useState(false);
   const sync = useMeliSync();
 
@@ -98,16 +97,6 @@ function DashboardPage() {
     if (k === "date" && typeof v === "string" && v) salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, v);
     setFilters((prev) => ({ ...prev, [k]: v }));
   }
-  function clearAll() {
-    setFilters({
-      date: hojeOperacional(),
-      base_id: null, operador_id: null, motorista_id: null, transportadora: null, turno: null,
-    });
-    salvarDiaEscolhido(CHAVE_DIA_DASHBOARD, hojeOperacional());
-  }
-
-  const activeFiltersCount = Object.values(cleanFilters).filter(Boolean).length;
-
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
       {/* Imagem institucional ao fundo (decorativa) */}
@@ -157,62 +146,11 @@ function DashboardPage() {
           </Button>
           </div>
         </div>
-        <MeliSyncMonitor sync={sync} />
       </header>
 
       {/* ── Cartões da operação (primeiro de tudo) ── */}
       <DashboardGeral data={filters.date ?? hojeOperacional()} syncPorCodigo={sync.porCodigo} />
 
-      {/* Filtros compactos — data, base e o restante recolhido */}
-      <Card className="p-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            className="h-8 w-[150px]"
-            type="date"
-            aria-label="Data"
-            value={filters.date ?? ""}
-            onChange={(e) => setF("date", e.target.value || null)}
-          />
-          <div className="w-[220px]">
-            <Select
-              value={filters.base_id ?? NONE}
-              onValueChange={(v) => setF("base_id", v === NONE ? null : v)}
-            >
-              <SelectTrigger className="h-8"><SelectValue placeholder="Todas as bases" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>Todas as bases</SelectItem>
-                {(op?.bases ?? []).map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="ghost" size="sm" className="h-8" onClick={() => setMaisFiltros((v) => !v)}>
-            <Filter className="w-3.5 h-3.5 mr-1.5" /> {maisFiltros ? "Menos" : "Mais filtros"}
-            {activeFiltersCount > 2 && <Badge variant="secondary" className="ml-2">{activeFiltersCount}</Badge>}
-          </Button>
-          {activeFiltersCount > 1 && (
-            <Button variant="ghost" size="sm" className="h-8" onClick={clearAll}>Limpar</Button>
-          )}
-        </div>
-        {maisFiltros && (
-          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-            <FilterSelect label="Operador" value={filters.operador_id} onChange={(v) => setF("operador_id", v)}
-              options={(op?.operadores ?? []).map((o) => ({ value: o.id, label: o.nome }))} />
-            <FilterSelect label="Motorista" value={filters.motorista_id} onChange={(v) => setF("motorista_id", v)}
-              options={(op?.motoristas ?? []).map((m) => ({ value: m.id, label: m.nome }))} />
-            <FilterSelect label="Transportadora" value={filters.transportadora} onChange={(v) => setF("transportadora", v)}
-              options={(op?.transportadoras ?? []).map((t) => ({ value: t, label: t }))} />
-            <FilterSelect label="Turno" value={filters.turno ?? null} onChange={(v) => setF("turno", v as any)}
-              options={[
-                { value: "madrugada", label: "Madrugada (00-06)" },
-                { value: "manha", label: "Manhã (06-12)" },
-                { value: "tarde", label: "Tarde (12-18)" },
-                { value: "noite", label: "Noite (18-24)" },
-              ]} />
-          </div>
-        )}
-      </Card>
 
       {/* ── Detalhamento da operação (mesmo dashboard) ── */}
       <MeliDashboardSection
@@ -370,30 +308,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium mt-2">
       {children}
-    </div>
-  );
-}
-
-function FilterSelect({
-  label, value, onChange, options,
-}: {
-  label: string;
-  value: string | null | undefined;
-  onChange: (v: string | null) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      <Select value={value ?? NONE} onValueChange={(v) => onChange(v === NONE ? null : v)}>
-        <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>Todos</SelectItem>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
     </div>
   );
 }
