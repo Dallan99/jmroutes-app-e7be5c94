@@ -94,6 +94,7 @@ function MeliDevolucoesPage() {
   const receber = useServerFn(meliDevolucaoReceber);
   const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
+  const gerarRecebimento = useServerFn(gerarRecebimentoId);
 
   const hoje = hojeOperacional();
   const [dataDe, setDataDe] = useState(() => {
@@ -108,8 +109,11 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [recebimentoId, setRecebimentoId] = useState("");
+  const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
+
   const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
