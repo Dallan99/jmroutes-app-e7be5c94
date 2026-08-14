@@ -739,7 +739,13 @@ function MeliDevolucoesPage() {
                       ))}
                     </tbody>
                   </table>
-                </ScrollArea>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Romaneios Recentes</CardTitle>
@@ -793,11 +799,6 @@ function MeliDevolucoesPage() {
         </CardContent>
       </Card>
 
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    )}
 
 
       <Card>
