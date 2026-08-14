@@ -226,7 +226,10 @@ function DevolucoesPage() {
         return;
       }
       beepOk();
-      toast.success(`Devolução criada: ${res.lote.nome_exibicao}`);
+      toast.success(
+        "lote" in res ? `Devolução criada: ${res.lote.nome_exibicao}` : "Devolução criada.",
+      );
+
       invalidarTudo();
       setTimeout(() => inputRef.current?.focus(), 80);
     },
