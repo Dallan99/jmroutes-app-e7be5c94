@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/meli-risco")({
       {
         name: "description",
         content:
-          "Visão operacional das rotas e pacotes marcados pelo Meli como área de risco, com detalhamento por rota.",
+          "Visão operacional das rotas e pacotes marcados como área de risco, com detalhamento por rota.",
       },
       { property: "og:title", content: "Rotas em Área de Risco — JMRoutes" },
       {
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/meli-risco")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+
   component: MeliRiscoPage,
 });
 

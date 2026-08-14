@@ -8,7 +8,8 @@ import {
   type MeliDashboardRota,
 } from "@/lib/meli-dashboard.functions";
 import { LABEL_SITUACAO, descreverMotivo, type SituacaoMeli } from "@/lib/meli-status";
-import { MeliRankingMotoristasSection } from "@/components/meli-ranking-motoristas";
+import { RankingMotoristasSection } from "@/components/meli-ranking-motoristas";
+
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
