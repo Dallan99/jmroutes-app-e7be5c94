@@ -110,6 +110,7 @@ function MeliDevolucoesPage() {
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
   const [recebimentoId, setRecebimentoId] = useState("");
+  const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
@@ -515,8 +516,55 @@ function MeliDevolucoesPage() {
                   <h2 className="text-xl font-bold font-mono">{recebimentoId}</h2>
                   <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
                 </div>
+                </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
+                <div className="flex gap-2">
+                  <Input
+                    className="h-8 w-40 font-mono text-xs"
+                    placeholder="REC..."
+                    value={buscarRecId}
+                    onChange={(e) => setBuscarRecId(e.target.value)}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => {
+                      if (!buscarRecId.trim()) return;
+                      setRecebimentoId(buscarRecId.trim().toUpperCase());
+                      setPacotesDesteLote([]);
+                      setIniciandoRecebimento(true);
+                      toast.info(`Continuando recebimento: ${buscarRecId.trim().toUpperCase()}`);
+                    }}
+                  >
+                    Continuar
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onGerarRecebimento}
+                    disabled={gerandoRec}
+                  >
+                    {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
+                    Novo
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      stopAlarm();
+                      setIniciandoRecebimento(false);
+                    }}
+                  >
+                    Sair
+                  </Button>
+                </div>
+              </div>
                 <Button
                   variant="outline"
                   size="sm"
