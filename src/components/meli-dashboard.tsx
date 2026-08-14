@@ -8,6 +8,8 @@ import {
   type MeliDashboardRota,
 } from "@/lib/meli-dashboard.functions";
 import { LABEL_SITUACAO, descreverMotivo, type SituacaoMeli } from "@/lib/meli-status";
+import { MeliRankingMotoristasSection } from "@/components/meli-ranking-motoristas";
+
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -461,8 +463,10 @@ export function MeliDashboardSection({
             </ul>
           </Card>
         )}
+        <MeliRankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
 
         {/* Tabela operacional por rota */}
+
         <Card className="p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Rotas do dia ({rotasOrdenadas.length})
