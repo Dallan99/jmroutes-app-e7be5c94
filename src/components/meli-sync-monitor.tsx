@@ -187,9 +187,10 @@ export function SyncBaseIndicador({
 }
 
 /**
- * Situação da operação Meli — calculada apenas com o último sucesso
+ * Situação da operação — calculada apenas com o último sucesso
  * registrado pelo backend por base (nunca pelo temporizador da tela).
  */
+
 export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync> }) {
   const [aberto, setAberto] = useState(false);
   const { bases, serverTime, geral } = sync;
@@ -206,7 +207,7 @@ export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync>
           role="status"
         >
           <SyncDot situacao={geral} />
-          Situação da operação Meli: {LABEL_SITUACAO_SYNC[geral]}
+          Situação da operação: {LABEL_SITUACAO_SYNC[geral]}
           {geral === "desatualizado" && bases.some(b => (b.base_codigo === "ESP16" || b.base_nome?.toLowerCase().includes("guaruja")) && situacaoDaBase(b, serverTime) === "desatualizado") && (
             <span className="ml-2 lowercase opacity-80">(parece que o problema é na base do guaruja)</span>
           )}
