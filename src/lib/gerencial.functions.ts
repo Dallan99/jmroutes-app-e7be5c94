@@ -74,8 +74,6 @@ export type RotaBaseRow = {
   base_codigo: string;
   base_nome: string;
   nro_rota: string;
-  motorista: string | null;
-  placa: string | null;
   total: number;
   recebido: number;
   devolvido: number;
