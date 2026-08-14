@@ -237,13 +237,15 @@ export const meliRomaneioBipar = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     return res as {
-      status: "ok" | "duplicado" | "erro";
-      tracking_id?: string;
-      divergencia_delivered?: boolean;
+      status: "ok" | "erro" | "duplicado";
+      romaneio_id: string;
+      codigo_romaneio: string;
+      tracking_id: string;
+      divergencia_delivered: boolean;
       mensagem?: string;
-      codigo?: string;
     };
   });
+
 
 const romaneioListarSchema = z.object({
   base_id: z.string().uuid().optional().nullable(),
