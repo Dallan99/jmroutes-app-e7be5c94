@@ -130,6 +130,7 @@ const receberSchema = z.object({
   base_id: z.string().uuid(),
   metodo: z.enum(["scanner", "digitado"]).optional(),
   observacao: z.string().trim().max(500).optional().nullable(),
+  recebimento_id: z.string().trim().max(50).optional().nullable(),
 });
 
 export type MeliDevolucaoReceberResult = {
@@ -153,11 +154,33 @@ export const meliDevolucaoReceber = createServerFn({ method: "POST" })
         p_base_id: data.base_id,
         p_metodo: data.metodo ?? "scanner",
         p_observacao: data.observacao ?? null,
+        p_recebimento_id: data.recebimento_id ?? null,
       },
     );
     if (error) return { status: "erro", mensagem: error.message };
     return res as MeliDevolucaoReceberResult;
   });
+
+const gerarRecSchema = z.object({
+  base_id: z.string().uuid(),
+  data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const gerarRecebimentoId = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => gerarRecSchema.parse(d))
+  .handler(async ({ data, context }): Promise<string> => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "gerar_sequencia_recebimento",
+      {
+        p_base_id: data.base_id,
+        p_data: data.data,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return res as string;
+  });
+
 
 const historicoSchema = z.object({ devolucao_id: z.string().uuid() });
 
