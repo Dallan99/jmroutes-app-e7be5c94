@@ -293,19 +293,19 @@ function MeliDevolucoesPage() {
 
       if (res.status === "erro") {
         beepError();
-        toast.error(res.mensagem ?? "Não foi possível registrar o retorno.");
+        toast.error((res as any).mensagem ?? "Não foi possível registrar o retorno.");
       } else if (res.status === "duplicado") {
         beepError();
-        toast.error(res.mensagem ?? "Divergência: pacote já lido/recebido neste romaneio.");
+        toast.error((res as any).mensagem ?? "Divergência: pacote já lido/recebido neste romaneio.");
       } else if (res.divergencia_delivered) {
         startAlarm();
         setAlertaCritico(
-          res.mensagem ??
+          (res as any).mensagem ??
             `Pacote ${res.tracking_id} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
         );
       } else {
         beepOk();
-        toast.success(res.mensagem ?? `Retorno de ${res.tracking_id} registrado.`);
+        toast.success((res as any).mensagem ?? `Retorno de ${res.tracking_id} registrado.`);
         // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
         const p = linhas.find(l => l.tracking_id === res.tracking_id);
         if (p) {
@@ -322,6 +322,7 @@ function MeliDevolucoesPage() {
     } finally {
       setEnviando(false);
     }
+
 
   }
 
