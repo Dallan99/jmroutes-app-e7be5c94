@@ -2177,6 +2177,15 @@ export type Database = {
         Args: { p_data_operacional?: string; p_rota_id: string }
         Returns: Json
       }
+      meli_rota_estado_operacional: {
+        Args: { p_rota_id: string }
+        Returns: string
+      }
+      meli_rota_pm: {
+        Args: { p_nome: string; p_route_id?: string }
+        Returns: boolean
+      }
+      meli_rota_pm_excluida: { Args: { p_rota_id: string }; Returns: boolean }
       meli_rotas_area_risco: {
         Args: {
           p_base_id?: string
