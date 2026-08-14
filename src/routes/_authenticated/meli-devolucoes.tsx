@@ -40,6 +40,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
+import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
 
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
@@ -190,15 +191,19 @@ function MeliDevolucoesPage() {
         },
       });
       if (res.status === "erro") {
+        beepError();
         toast.error(res.mensagem ?? "Não foi possível registrar o retorno.");
       } else if (res.status === "duplicado") {
-        toast.warning(res.mensagem ?? "Pacote já recebido nesta base.");
+        beepError();
+        toast.error(res.mensagem ?? "Divergência: pacote já lido/recebido nesta base.");
       } else if (res.divergencia_delivered) {
+        startAlarm();
         setAlertaCritico(
           res.mensagem ??
             `Pacote ${res.codigo} retornou fisicamente, porém o Meli indica ENTREGUE. Registre a divergência.`,
         );
       } else {
+        beepOk();
         toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
       }
       setCodigo("");
@@ -595,7 +600,15 @@ function MeliDevolucoesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!alertaCritico} onOpenChange={(o) => !o && setAlertaCritico(null)}>
+      <Dialog
+        open={!!alertaCritico}
+        onOpenChange={(o) => {
+          if (!o) {
+            stopAlarm();
+            setAlertaCritico(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-lg border-purple-600/50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-purple-500">
@@ -608,7 +621,14 @@ function MeliDevolucoesPage() {
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
           />
-          <Button onClick={() => setAlertaCritico(null)}>Entendi, registrar e continuar</Button>
+          <Button
+            onClick={() => {
+              stopAlarm();
+              setAlertaCritico(null);
+            }}
+          >
+            Entendi, registrar e continuar
+          </Button>
         </DialogContent>
       </Dialog>
     </div>
