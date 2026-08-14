@@ -464,7 +464,7 @@ export function MeliDashboardSection({
             </ul>
           </Card>
         )}
-        <MeliRankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
+        <RankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
 
         {/* Tabela operacional por rota */}
 
