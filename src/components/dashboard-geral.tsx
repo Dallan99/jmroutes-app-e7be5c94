@@ -31,7 +31,7 @@ export function DashboardGeral({
 }: {
   data: string;
   /** Situação real de sincronização por código de base (backend/worker). */
-  syncPorCodigo?: Map<string, { situacao: SituacaoSync; minutos: number | null }>;
+  syncPorCodigo?: Map<string, { situacao: SituacaoSync; minutos: number | null; status?: string | null }>;
 }) {
   const fetchDados = useServerFn(meliDashboardOperacional);
 
