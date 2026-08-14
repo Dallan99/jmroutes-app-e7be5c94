@@ -160,10 +160,12 @@ export function DashboardGeral({
 
       <BaseDetalheDialog
         base={baseAberta}
+        data={data}
         rotas={rotasDaBase}
         pmProgramadas={pmDaBase}
         onClose={() => setBaseAberta(null)}
       />
+
     </section>
   );
 }
