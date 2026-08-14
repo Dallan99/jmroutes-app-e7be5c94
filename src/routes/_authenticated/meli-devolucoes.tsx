@@ -330,7 +330,7 @@ function MeliDevolucoesPage() {
       l.divergencia_delivered ? "SIM" : "",
     ]);
     const csv = [head, ...body]
-      .map((l) => l.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";"))
+      .map((l: any) => l.map((c: any) => `"${String(c).replaceAll('"', '""')}"`).join(";"))
       .join("\n");
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
