@@ -17,7 +17,7 @@ type OAuthNamespace = {
   approveAuthorization: (id: string) => Promise<OAuthResult>;
   denyAuthorization: (id: string) => Promise<OAuthResult>;
 };
-function oauth(): OAuthNamespace {
+function getOauthNs(): OAuthNamespace {
   const anySb = supabase as unknown as { auth: { oauth: OAuthNamespace } };
   return anySb.auth.oauth;
 }
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   },
   loader: async ({ location }) => {
     const authorizationId = new URLSearchParams(location.search).get("authorization_id")!;
-    const { data, error } = await oauth().getAuthorizationDetails(authorizationId);
+    const { data, error } = await getOauthNs().getAuthorizationDetails(authorizationId);
     if (error) throw new Error(error.message);
     const immediate = data?.redirect_url ?? data?.redirect_to;
     if (immediate && !data?.client) throw redirect({ href: immediate } as never);
@@ -66,8 +66,8 @@ function Consent() {
     setBusy(true);
     setError(null);
     const { data, error } = approve
-      ? await oauth().approveAuthorization(authorization_id)
-      : await oauth().denyAuthorization(authorization_id);
+      ? await getOauthNs().approveAuthorization(authorization_id)
+      : await getOauthNs().denyAuthorization(authorization_id);
     if (error) {
       setBusy(false);
       setError(error.message);
