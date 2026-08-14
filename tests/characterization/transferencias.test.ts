@@ -44,13 +44,15 @@ function evento(etapa: TransferenciaEvento["etapa"]): TransferenciaEvento {
 }
 
 describe("Transferências — fluxo operacional", () => {
-  it("exige os quatro marcos na ordem Service → Service → XPT → XPT", () => {
+  it("exige os três marcos na ordem Chegada Service → Saída Service → Chegada XPT", () => {
     expect(proximaEtapa([])).toBe("chegada_service");
     expect(proximaEtapa([evento("chegada_service")])).toBe("saida_service");
     expect(proximaEtapa([evento("chegada_service"), evento("saida_service")])).toBe("chegada_xpt");
-    expect(proximaEtapa([evento("chegada_service"), evento("saida_service"), evento("chegada_xpt")])).toBe("saida_xpt");
-    expect(proximaEtapa([evento("chegada_service"), evento("saida_service"), evento("chegada_xpt"), evento("saida_xpt")])).toBeNull();
+    expect(
+      proximaEtapa([evento("chegada_service"), evento("saida_service"), evento("chegada_xpt")]),
+    ).toBeNull();
   });
+
 
   it("cria caminho privado segmentado por base e transferência", () => {
     const path = caminhoEvidenciaTransferencia(
