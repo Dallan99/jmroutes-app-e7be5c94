@@ -151,6 +151,10 @@ function DashboardPage() {
       {/* ── Cartões da operação (primeiro de tudo) ── */}
       <DashboardGeral data={filters.date ?? hojeOperacional()} syncPorCodigo={sync.porCodigo} />
 
+      {/* ── Bipagem por base ── */}
+      <BipagemBasesPanel data={filters.date ?? hojeOperacional()} />
+
+
 
       {/* ── Detalhamento da operação (mesmo dashboard) ── */}
       <MeliDashboardSection
