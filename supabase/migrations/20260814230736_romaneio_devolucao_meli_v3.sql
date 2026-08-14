@@ -337,3 +337,107 @@ BEGIN
         EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I TO service_role', rpc);
     END LOOP;
 END $$;
+
+CREATE OR REPLACE FUNCTION public.meli_romaneios_listar(
+    p_base_id UUID DEFAULT NULL,
+    p_data_de DATE DEFAULT NULL,
+    p_data_ate DATE DEFAULT NULL,
+    p_status public.meli_romaneio_status DEFAULT NULL
+)
+RETURNS TABLE (
+    id UUID,
+    codigo TEXT,
+    base_id UUID,
+    base_codigo TEXT,
+    data_operacional DATE,
+    sequencial INTEGER,
+    status public.meli_romaneio_status,
+    route_id TEXT,
+    motorista TEXT,
+    aberto_em TIMESTAMPTZ,
+    aberto_por_nome TEXT,
+    total_pacotes BIGINT,
+    concluido_em TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Não autenticado'; END IF;
+
+    RETURN QUERY
+    SELECT 
+        r.id,
+        r.codigo,
+        r.base_id,
+        b.codigo as base_codigo,
+        r.data_operacional,
+        r.sequencial,
+        r.status,
+        r.route_id,
+        r.motorista,
+        r.aberto_em,
+        p.nome as aberto_por_nome,
+        (SELECT count(*) FROM public.meli_devolucoes d WHERE d.romaneio_id = r.id) as total_pacotes,
+        r.concluido_em
+    FROM public.meli_devolucao_romaneios r
+    JOIN public.bases b ON b.id = r.base_id
+    JOIN public.profiles p ON p.id = r.aberto_por
+    WHERE (p_base_id IS NULL OR r.base_id = p_base_id)
+      AND (p_data_de IS NULL OR r.data_operacional >= p_data_de)
+      AND (p_data_ate IS NULL OR r.data_operacional <= p_data_ate)
+      AND (p_status IS NULL OR r.status = p_status)
+      AND (public.has_role(auth.uid(), 'admin') OR public.has_base_access(auth.uid(), r.base_id))
+    ORDER BY r.aberto_em DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.meli_romaneio_detalhar(p_romaneio_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_r RECORD;
+    v_pacotes JSONB;
+BEGIN
+    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Não autenticado'; END IF;
+
+    SELECT 
+        r.*, 
+        b.codigo as base_codigo, 
+        p.nome as aberto_por_nome,
+        pc.nome as concluido_por_nome
+    INTO v_r
+    FROM public.meli_devolucao_romaneios r
+    JOIN public.bases b ON b.id = r.base_id
+    JOIN public.profiles p ON p.id = r.aberto_por
+    LEFT JOIN public.profiles pc ON pc.id = r.concluido_por
+    WHERE r.id = p_romaneio_id;
+
+    IF v_r.id IS NULL THEN RAISE EXCEPTION 'Romaneio não encontrado'; END IF;
+    IF NOT (public.has_role(auth.uid(), 'admin') OR public.has_base_access(auth.uid(), v_r.base_id)) THEN
+        RAISE EXCEPTION 'Sem acesso a este romaneio';
+    END IF;
+
+    SELECT jsonb_agg(t) INTO v_pacotes
+    FROM (
+        SELECT 
+            d.tracking_id, d.estado, d.recebido_em, d.divergencia_delivered, d.observacao_recebimento,
+            d.meli_status, d.meli_substatus, d.occurrence_code
+        FROM public.meli_devolucoes d
+        WHERE d.romaneio_id = p_romaneio_id
+        ORDER BY d.recebido_em DESC
+    ) t;
+
+    RETURN to_jsonb(v_r) || jsonb_build_object('pacotes', coalesce(v_pacotes, '[]'::jsonb));
+END;
+$$;
+
+-- Permissões
+REVOKE ALL ON FUNCTION public.meli_romaneios_listar FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.meli_romaneios_listar TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.meli_romaneio_detalhar FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.meli_romaneio_detalhar TO authenticated, service_role;
