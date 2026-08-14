@@ -114,6 +114,7 @@ function MeliDevolucoesPage() {
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
   const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+  const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
 
 
 
@@ -243,6 +244,11 @@ function MeliDevolucoesPage() {
       } else {
         beepOk();
         toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
+        // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
+        const p = linhas.find(l => l.tracking_id === res.codigo);
+        if (p) {
+          setPacotesDesteLote(prev => [p, ...prev]);
+        }
       }
       setCodigo("");
       setObservacao("");
@@ -561,6 +567,42 @@ function MeliDevolucoesPage() {
               O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
               um pacote como recebido.
             </p>
+
+            {pacotesDesteLote.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[10px] uppercase tracking-wider"
+                    onClick={() => window.print()}
+                  >
+                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir Lote
+                  </Button>
+                </div>
+                <ScrollArea className="h-48 border rounded-md">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                      <tr className="text-left border-b">
+                        <th className="py-2 px-3">Tracking</th>
+                        <th className="py-2 px-3">Rota</th>
+                        <th className="py-2 px-3">Ocorrência</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pacotesDesteLote.map((p) => (
+                        <tr key={p.id} className="border-b last:border-0">
+                          <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
+                          <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
+                          <td className="py-2 px-3">{p.occurrence_code}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
