@@ -38,6 +38,7 @@ import {
   PackageCheck,
   RefreshCcw,
   RotateCcw,
+  Printer,
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
 import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
