@@ -110,7 +110,16 @@ export function useMeliSync() {
   const serverTime = q.data?.status === "ok" ? (q.data.server_time ?? null) : null;
 
   const porCodigo = useMemo(() => {
-    const m = new Map<string, { base: MeliSyncBase; situacao: SituacaoSync; minutos: number | null; status: string | null }>();
+    const m = new Map<
+      string,
+      {
+        base: MeliSyncBase;
+        situacao: SituacaoSync;
+        minutos: number | null;
+        status: string | null;
+        sincronizando: boolean;
+      }
+    >();
     for (const b of bases) {
       if (!b.base_codigo) continue;
       m.set(b.base_codigo, {
@@ -118,6 +127,7 @@ export function useMeliSync() {
         situacao: situacaoDaBase(b, serverTime),
         minutos: minutosDesde(b.ultimo_sucesso_em, serverTime),
         status: b.status,
+        sincronizando: b.sincronizando === true,
       });
     }
     return m;
@@ -131,6 +141,21 @@ export function useMeliSync() {
   }, null);
 
   return { query: q, bases, serverTime, porCodigo, geral, ultimoSucessoGeral };
+}
+
+/**
+ * Selo "Sincronizando nova atualização" — indica que existe um lote em
+ * construção no staging. Os números exibidos continuam sendo do último lote
+ * completo; nada parcial é mostrado.
+ */
+export function SeloSincronizando({ ativo }: { ativo: boolean }) {
+  if (!ativo) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-info/40 bg-info/10 px-2 py-0.5 text-[11px] font-medium text-info">
+      <span aria-hidden className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-info" />
+      Sincronizando nova atualização
+    </span>
+  );
 }
 
 export function SyncDot({ situacao, className }: { situacao: SituacaoSync; className?: string }) {

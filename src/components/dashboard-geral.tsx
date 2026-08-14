@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SyncBaseIndicador, type SituacaoSync } from "@/components/meli-sync-monitor";
+import { SeloSincronizando, SyncBaseIndicador, type SituacaoSync } from "@/components/meli-sync-monitor";
 import { ChevronLeft, Search } from "lucide-react";
 
 
@@ -33,7 +33,10 @@ export function DashboardGeral({
 }: {
   data: string;
   /** Situação real de sincronização por código de base (backend/worker). */
-  syncPorCodigo?: Map<string, { situacao: SituacaoSync; minutos: number | null; status?: string | null }>;
+  syncPorCodigo?: Map<
+    string,
+    { situacao: SituacaoSync; minutos: number | null; status?: string | null; sincronizando?: boolean }
+  >;
 }) {
   const fetchDados = useServerFn(meliDashboardOperacional);
 
@@ -117,7 +120,12 @@ export function DashboardGeral({
                 <div className="mt-2">
                   {(() => {
                     const s = syncPorCodigo?.get(b.base_codigo ?? "");
-                    return <SyncBaseIndicador situacao={s?.situacao ?? "sem_info"} minutos={s?.minutos ?? null} status={s?.status} />;
+                    return (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <SyncBaseIndicador situacao={s?.situacao ?? "sem_info"} minutos={s?.minutos ?? null} status={s?.status} />
+                        <SeloSincronizando ativo={s?.sincronizando === true} />
+                      </div>
+                    );
                   })()}
                 </div>
                 <div className="mt-2 grid grid-cols-3 text-center">
