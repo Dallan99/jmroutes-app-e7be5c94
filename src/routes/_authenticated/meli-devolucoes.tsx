@@ -185,7 +185,7 @@ function MeliDevolucoesPage() {
 
   async function onGerarRecebimento() {
     if (!baseId) {
-      toast.error("Selecione a base antes de gerar o recebimento.");
+      toast.error("Selecione a base ANTES de gerar o recebimento.");
       setIniciandoRecebimento(false);
       return;
     }
@@ -483,7 +483,13 @@ function MeliDevolucoesPage() {
             <Button
               size="lg"
               className="px-8 py-6 text-lg h-auto"
-              onClick={onGerarRecebimento}
+              onClick={() => {
+                if (!baseId) {
+                  toast.error("Selecione a base ANTES de gerar o recebimento.");
+                  return;
+                }
+                onGerarRecebimento();
+              }}
               disabled={gerandoRec}
             >
               {gerandoRec ? (
