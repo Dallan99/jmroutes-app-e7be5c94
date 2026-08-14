@@ -48,17 +48,18 @@ import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
     meta: [
-      { title: "Devoluções Meli — JMRoutes" },
+      { title: "Devoluções — JMRoutes" },
       {
         name: "description",
         content:
-          "Controle de devoluções Meli: prazo de retorno de 3 dias, recebimento físico na base e alertas de divergência.",
+          "Controle de devoluções: prazo de retorno de 3 dias, recebimento físico na base e alertas de divergência.",
       },
-      { property: "og:title", content: "Devoluções Meli — JMRoutes" },
+      { property: "og:title", content: "Devoluções — JMRoutes" },
       {
         property: "og:description",
-        content: "Acompanhe prazos, recebimento físico e divergências das devoluções Meli.",
+        content: "Acompanhe prazos, recebimento físico e divergências das devoluções.",
       },
+
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
