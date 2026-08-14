@@ -740,7 +740,59 @@ function MeliDevolucoesPage() {
                     </tbody>
                   </table>
                 </ScrollArea>
-              </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Romaneios Recentes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {romaneiosQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando romaneios...
+            </div>
+          ) : (romaneiosQuery.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6">Nenhum romaneio recente.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="text-left border-b">
+                    <th className="py-2 pr-3">Código</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2 pr-3">Data</th>
+                    <th className="py-2 pr-3">Rota</th>
+                    <th className="py-2 pr-3">Motorista</th>
+                    <th className="py-2 pr-3 text-right">Pacotes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(romaneiosQuery.data ?? []).map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        updateActiveRec(r.codigo, r.id);
+                        setPacotesDesteLote([]);
+                      }}
+                    >
+                      <td className="py-2 pr-3 font-mono text-xs">{r.codigo}</td>
+                      <td className="py-2 pr-3">
+                        <Badge variant="outline" className="text-[10px] uppercase">
+                          {r.status.replace("_", " ")}
+                        </Badge>
+                      </td>
+                      <td className="py-2 pr-3 text-xs">{fmt(r.aberto_em)}</td>
+                      <td className="py-2 pr-3 text-xs">{r.route_id ?? "—"}</td>
+                      <td className="py-2 pr-3 text-xs">{r.motorista ?? "—"}</td>
+                      <td className="py-2 pr-3 text-right text-xs">{r.total_pacotes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
             )}
           </CardContent>
         </Card>
