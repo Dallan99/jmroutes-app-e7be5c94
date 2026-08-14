@@ -323,3 +323,33 @@ export const meliDevolucaoHistorico = createServerFn({ method: "GET" })
     return (rows ?? []) as MeliDevolucaoEvento[];
   });
 
+export const meliRomaneioCancelar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ romaneio_id: z.string().uuid(), justificativa: z.string().min(5) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_cancelar",
+      {
+        p_romaneio_id: data.romaneio_id,
+        p_justificativa: data.justificativa,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return res as { status: string; mensagem?: string };
+  });
+
+export const meliRomaneioDetalhar = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ romaneio_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_detalhar",
+      { p_romaneio_id: data.romaneio_id },
+    );
+    if (error) throw new Error(error.message);
+    return res as any;
+  });
+
+
