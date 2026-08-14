@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import {
   meliDevolucoesPainel,
   meliDevolucoesSincronizar,
-  meliRomaneioAbrirComPrimeiroPacote,
-  meliRomaneioBipar,
-  meliRomaneioListar,
-  meliRomaneioFinalizar,
-  meliRomaneioCancelar,
-  meliRomaneioDetalhar,
+  meliDevolucoesCriarDevolucao,
+  meliDevolucoesBipar,
+  meliDevolucoesListar,
+  meliDevolucoesFinalizar,
+  meliDevolucoesCancelar,
+  meliDevolucoesDetalhar,
   meliDevolucaoHistorico,
   type MeliDevolucaoLinha,
   type MeliRomaneioLinha,
@@ -97,12 +97,12 @@ function fmt(dt: string | null | undefined) {
 function MeliDevolucoesPage() {
   const buscarPainel = useServerFn(meliDevolucoesPainel);
   const sincronizar = useServerFn(meliDevolucoesSincronizar);
-  const abrirRomaneio = useServerFn(meliRomaneioAbrirComPrimeiroPacote);
-  const biparRomaneio = useServerFn(meliRomaneioBipar);
-  const finalizar = useServerFn(meliRomaneioFinalizar);
-  const listarRomaneios = useServerFn(meliRomaneioListar);
-  const cancelarRomaneio = useServerFn(meliRomaneioCancelar);
-  const detalharRomaneio = useServerFn(meliRomaneioDetalhar);
+  const abrirRomaneio = useServerFn(meliDevolucoesCriarDevolucao);
+  const biparRomaneio = useServerFn(meliDevolucoesBipar);
+  const finalizar = useServerFn(meliDevolucoesFinalizar);
+  const listarRomaneios = useServerFn(meliDevolucoesListar);
+  const cancelarRomaneio = useServerFn(meliDevolucoesCancelar);
+  const detalharRomaneio = useServerFn(meliDevolucoesDetalhar);
   const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
 

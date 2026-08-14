@@ -191,7 +191,7 @@ const romaneioAbrirSchema = z.object({
   observacao: z.string().trim().max(500).optional().nullable(),
 });
 
-export const meliRomaneioAbrirComPrimeiroPacote = createServerFn({ method: "POST" })
+export const meliDevolucoesCriarDevolucao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => romaneioAbrirSchema.parse(d))
   .handler(async ({ data, context }) => {
@@ -222,7 +222,7 @@ const romaneioBiparSchema = z.object({
   observacao: z.string().trim().max(500).optional().nullable(),
 });
 
-export const meliRomaneioBipar = createServerFn({ method: "POST" })
+export const meliDevolucoesBipar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => romaneioBiparSchema.parse(d))
   .handler(async ({ data, context }) => {
@@ -270,7 +270,7 @@ export type MeliRomaneioLinha = {
   concluido_em: string | null;
 };
 
-export const meliRomaneioListar = createServerFn({ method: "GET" })
+export const meliDevolucoesListar = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => romaneioListarSchema.parse(d ?? {}))
   .handler(async ({ data, context }) => {
@@ -287,7 +287,7 @@ export const meliRomaneioListar = createServerFn({ method: "GET" })
     return rows as MeliRomaneioLinha[];
   });
 
-export const meliRomaneioFinalizar = createServerFn({ method: "POST" })
+export const meliDevolucoesFinalizar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ romaneio_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
@@ -323,7 +323,7 @@ export const meliDevolucaoHistorico = createServerFn({ method: "GET" })
     return (rows ?? []) as MeliDevolucaoEvento[];
   });
 
-export const meliRomaneioCancelar = createServerFn({ method: "POST" })
+export const meliDevolucoesCancelar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z.object({ romaneio_id: z.string().uuid(), justificativa: z.string().min(5) }).parse(d),
@@ -340,7 +340,7 @@ export const meliRomaneioCancelar = createServerFn({ method: "POST" })
     return res as { status: string; mensagem?: string };
   });
 
-export const meliRomaneioDetalhar = createServerFn({ method: "GET" })
+export const meliDevolucoesDetalhar = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ romaneio_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
