@@ -330,7 +330,7 @@ function MeliDevolucoesPage() {
       l.divergencia_delivered ? "SIM" : "",
     ]);
     const csv = [head, ...body]
-      .map((l) => l.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";"))
+      .map((l: any) => l.map((c: any) => `"${String(c).replaceAll('"', '""')}"`).join(";"))
       .join("\n");
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
@@ -346,7 +346,7 @@ function MeliDevolucoesPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
             <RotateCcw className="h-6 w-6 text-primary" />
-            Devoluções Meli
+            Devoluções
           </h1>
           <p className="text-sm text-muted-foreground">
             Todo pacote com ocorrência de rua deve retornar à base de origem em até 3 dias corridos.

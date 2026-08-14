@@ -1,29 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock do Supabase
+// Mocks manuais antes de importar qualquer coisa do projeto
+vi.mock('@tanstack/react-start', () => ({
+  createServerFn: () => ({
+    validator: () => ({
+      handler: (h: any) => {
+        // Retorna uma função que chama o handler com os argumentos mockados
+        return async (args: any) => await h(args);
+      }
+    })
+  })
+}));
+
 const mockSupabase = {
   rpc: vi.fn(),
-  from: vi.fn().mockReturnThis(),
-  select: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  maybeSingle: vi.fn(),
-  insert: vi.fn(),
-  update: vi.fn(),
 };
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase
 }));
 
-// Mock do middleware
-vi.mock('@/integrations/supabase/auth-middleware', () => ({
-  requireSupabaseAuth: (fn: any) => fn
-}));
-
+// Agora importa as funções a serem testadas
 import { 
   meliDevolucoesCriarDevolucao, 
-  meliDevolucoesBipar,
-  meliDevolucoesListar
+  meliDevolucoesBipar
 } from '../src/lib/meli-devolucoes.functions';
 
 describe('Meli Devoluções Security Context (Simulated)', () => {
@@ -32,11 +32,20 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
   });
 
   it('deve chamar a RPC de criar devolução com os parâmetros corretos', async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok', romaneio_id: '123' }, error: null });
+    // Definimos o comportamento do mock explicitamente aqui
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'meli_romaneio_abrir_com_primeiro_pacote') {
+        return Promise.resolve({ 
+          data: { status: 'ok', romaneio_id: '123', codigo_romaneio: 'EXP-123' }, 
+          error: null 
+        });
+      }
+      return Promise.resolve({ data: null, error: new Error('not mocked') });
+    });
     
-    const result = await meliDevolucoesCriarDevolucao({ 
+    const result = await (meliDevolucoesCriarDevolucao as any)({ 
       data: { base_id: 'base-uuid', tracking_id: 'ML123' } 
-    } as any);
+    });
 
     expect(mockSupabase.rpc).toHaveBeenCalledWith('meli_romaneio_abrir_com_primeiro_pacote', {
       p_base_id: 'base-uuid',
@@ -46,23 +55,18 @@ describe('Meli Devoluções Security Context (Simulated)', () => {
     expect(result.status).toBe('ok');
   });
 
-  it('deve chamar a RPC de bipar com observação', async () => {
-    mockSupabase.rpc.mockResolvedValueOnce({ data: { status: 'ok' }, error: null });
+  it('deve simular falha de permissão se a RPC retornar erro', async () => {
+    mockSupabase.rpc.mockResolvedValueOnce({ 
+      data: null, 
+      error: { message: 'permission denied', code: '42501' } 
+    });
     
-    await meliDevolucoesBipar({ 
+    await expect((meliDevolucoesBipar as any)({ 
       data: { 
         romaneio_id: 'rom-uuid', 
         base_id: 'base-uuid', 
-        tracking_id: 'ML123',
-        observacao: 'Pacote amassado'
+        tracking_id: 'ML123'
       } 
-    } as any);
-
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('meli_romaneio_bipar', {
-      p_romaneio_id: 'rom-uuid',
-      p_base_id: 'base-uuid',
-      p_tracking_id: 'ML123',
-      p_observacao: 'Pacote amassado'
-    });
+    })).rejects.toMatchObject({ message: 'permission denied' });
   });
 });
