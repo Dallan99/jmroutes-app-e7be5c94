@@ -579,17 +579,51 @@ function MeliDevolucoesPage() {
                     variant="secondary"
                     size="sm"
                     className="h-8 px-3"
-                    onClick={() => {
+                    onClick={async () => {
                       if (!buscarRecId.trim()) return;
-                      updateActiveRec(buscarRecId.trim().toUpperCase());
-                      setPacotesDesteLote([]);
-                      toast.info(`Continuando recebimento: ${buscarRecId.trim().toUpperCase()}`);
+                      const q = buscarRecId.trim().toUpperCase();
+                      // Tenta localizar o UUID do romaneio pelo código
+                      try {
+                        const romaneios = await listarRomaneios({ data: { base_id: baseId || null } });
+                        const encontrado = romaneios.find(r => r.codigo === q);
+                        if (encontrado) {
+                          updateActiveRec(encontrado.codigo, encontrado.id);
+                          setPacotesDesteLote([]);
+                          toast.info(`Continuando romaneio: ${encontrado.codigo}`);
+                        } else {
+                          toast.error("Romaneio não encontrado para esta base.");
+                        }
+                      } catch (err) {
+                        toast.error("Erro ao buscar romaneio.");
+                      }
                     }}
                   >
                     Continuar
                   </Button>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={async () => {
+                      const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
+                      if (!romaneioUuid) {
+                        updateActiveRec("");
+                        return;
+                      }
+                      try {
+                        await finalizar({ data: { romaneio_id: romaneioUuid } });
+                        toast.success("Romaneio finalizado com sucesso.");
+                        updateActiveRec("");
+                        painelQuery.refetch();
+                      } catch (err: any) {
+                        toast.error(err.message || "Erro ao finalizar romaneio.");
+                      }
+                    }}
+                  >
+                    Finalizar
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -605,8 +639,8 @@ function MeliDevolucoesPage() {
                     size="sm"
                     className="h-8"
                     onClick={() => {
-                    updateActiveRec("");
-                    stopAlarm();
+                      updateActiveRec("");
+                      stopAlarm();
                     }}
                   >
                     Sair
@@ -615,6 +649,7 @@ function MeliDevolucoesPage() {
               </div>
             </CardContent>
           </Card>
+
 
 
           <Card className="border-primary/20 shadow-sm">
