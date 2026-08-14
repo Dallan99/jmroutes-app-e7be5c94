@@ -268,6 +268,74 @@ export type Database = {
           },
         ]
       }
+      devolucao_lotes: {
+        Row: {
+          base_id: string
+          codigo: string
+          created_at: string
+          criado_em: string
+          criado_por: string
+          data_operacional: string
+          estado: string
+          finalizado_em: string | null
+          finalizado_por: string | null
+          id: string
+          nome_exibicao: string
+          reaberto_em: string | null
+          reaberto_por: string | null
+          reabertura_justificativa: string | null
+          sequencia: number
+          total_pacotes: number
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          codigo: string
+          created_at?: string
+          criado_em?: string
+          criado_por: string
+          data_operacional: string
+          estado?: string
+          finalizado_em?: string | null
+          finalizado_por?: string | null
+          id?: string
+          nome_exibicao: string
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          reabertura_justificativa?: string | null
+          sequencia: number
+          total_pacotes?: number
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          codigo?: string
+          created_at?: string
+          criado_em?: string
+          criado_por?: string
+          data_operacional?: string
+          estado?: string
+          finalizado_em?: string | null
+          finalizado_por?: string | null
+          id?: string
+          nome_exibicao?: string
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          reabertura_justificativa?: string | null
+          sequencia?: number
+          total_pacotes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devolucao_lotes_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devolucoes: {
         Row: {
           base_id: string | null
@@ -275,16 +343,32 @@ export type Database = {
           cancelado: boolean
           cancelado_em: string | null
           cancelado_por: string | null
+          correcao_justificativa: string | null
+          corrigido_em: string | null
+          corrigido_por: string | null
           created_at: string
           devolvido_em: string
           devolvido_por: string
+          divergencia_delivered: boolean
           escala_id: string | null
           id: string
+          lote_id: string | null
+          meli_status: string | null
+          meli_substatus: string | null
           motivo: Database["public"]["Enums"]["motivo_devolucao"]
+          motivo_corrigido:
+            | Database["public"]["Enums"]["motivo_devolucao"]
+            | null
+          motivo_descricao: string | null
+          motivo_original:
+            | Database["public"]["Enums"]["motivo_devolucao"]
+            | null
           motorista: string | null
           observacao: string | null
+          occurrence_code: string | null
           rota: string | null
           shipment_codigo: string
+          tratamento: string | null
           updated_at: string
         }
         Insert: {
@@ -293,16 +377,32 @@ export type Database = {
           cancelado?: boolean
           cancelado_em?: string | null
           cancelado_por?: string | null
+          correcao_justificativa?: string | null
+          corrigido_em?: string | null
+          corrigido_por?: string | null
           created_at?: string
           devolvido_em?: string
           devolvido_por?: string
+          divergencia_delivered?: boolean
           escala_id?: string | null
           id?: string
+          lote_id?: string | null
+          meli_status?: string | null
+          meli_substatus?: string | null
           motivo: Database["public"]["Enums"]["motivo_devolucao"]
+          motivo_corrigido?:
+            | Database["public"]["Enums"]["motivo_devolucao"]
+            | null
+          motivo_descricao?: string | null
+          motivo_original?:
+            | Database["public"]["Enums"]["motivo_devolucao"]
+            | null
           motorista?: string | null
           observacao?: string | null
+          occurrence_code?: string | null
           rota?: string | null
           shipment_codigo: string
+          tratamento?: string | null
           updated_at?: string
         }
         Update: {
@@ -311,16 +411,32 @@ export type Database = {
           cancelado?: boolean
           cancelado_em?: string | null
           cancelado_por?: string | null
+          correcao_justificativa?: string | null
+          corrigido_em?: string | null
+          corrigido_por?: string | null
           created_at?: string
           devolvido_em?: string
           devolvido_por?: string
+          divergencia_delivered?: boolean
           escala_id?: string | null
           id?: string
+          lote_id?: string | null
+          meli_status?: string | null
+          meli_substatus?: string | null
           motivo?: Database["public"]["Enums"]["motivo_devolucao"]
+          motivo_corrigido?:
+            | Database["public"]["Enums"]["motivo_devolucao"]
+            | null
+          motivo_descricao?: string | null
+          motivo_original?:
+            | Database["public"]["Enums"]["motivo_devolucao"]
+            | null
           motorista?: string | null
           observacao?: string | null
+          occurrence_code?: string | null
           rota?: string | null
           shipment_codigo?: string
+          tratamento?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -343,6 +459,13 @@ export type Database = {
             columns: ["escala_id"]
             isOneToOne: false
             referencedRelation: "escalas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolucoes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "devolucao_lotes"
             referencedColumns: ["id"]
           },
         ]
@@ -2092,6 +2215,32 @@ export type Database = {
         }
         Returns: Json
       }
+      devolucao_corrigir_motivo: {
+        Args: {
+          p_devolucao_id: string
+          p_justificativa: string
+          p_motivo: string
+        }
+        Returns: Json
+      }
+      devolucao_lote_aberto: {
+        Args: { p_base_id: string; p_data_operacional: string }
+        Returns: Json
+      }
+      devolucao_lote_bipar: {
+        Args: { p_codigo: string; p_lote_id: string; p_observacao?: string }
+        Returns: Json
+      }
+      devolucao_lote_criar: {
+        Args: { p_base_id: string; p_data_operacional: string }
+        Returns: Json
+      }
+      devolucao_lote_finalizar: { Args: { p_lote_id: string }; Returns: Json }
+      devolucao_lote_reabrir: {
+        Args: { p_justificativa: string; p_lote_id: string }
+        Returns: Json
+      }
+      devolucao_motivo_do_meli: { Args: { p_codigo: string }; Returns: Json }
       finalizar_inventario: {
         Args: { p_inventario_id: string; p_observacao?: string }
         Returns: Json
