@@ -77,8 +77,16 @@ export function extrairBearer(request: Request): string | null {
   return token;
 }
 
+/** Cliente mínimo estrutural: só o que os endpoints usam. */
+export type SupabaseRpcClient = {
+  rpc: (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 export type ClienteAutenticado =
-  | { status: "ok"; supabase: ReturnType<typeof createClient>; userId: string }
+  | { status: "ok"; supabase: SupabaseRpcClient; userId: string }
   | { status: "config" }
   | { status: "nao_autenticado" };
 
@@ -102,5 +110,5 @@ export async function clienteDoUsuario(token: string): Promise<ClienteAutenticad
   const { data: claims, error } = await supabase.auth.getClaims(token);
   const sub = claims?.claims?.sub;
   if (error || !sub) return { status: "nao_autenticado" };
-  return { status: "ok", supabase, userId: String(sub) };
+  return { status: "ok", supabase: supabase as unknown as SupabaseRpcClient, userId: String(sub) };
 }
