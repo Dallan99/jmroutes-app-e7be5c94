@@ -54,6 +54,8 @@ export type MeliRiscoRota = {
   perc_conclusao: number;
 };
 
+export type SistemaRiscoRota = MeliRiscoRota;
+
 export type MeliRiscoResult = {
   status: "ok" | "erro";
   erro?: string;
