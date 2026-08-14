@@ -233,7 +233,7 @@ function MeliDevolucoesPage() {
     setGerandoRec(true);
     try {
       // Abertura automática agora requer o primeiro pacote biapdo
-      toast.info("Para abrir um novo romaneio, bipe o primeiro pacote.");
+      toast.info("Para criar uma nova devolução, bipe o primeiro pacote.");
       updateActiveRec("NOVO"); // Sinalizador visual de que estamos abrindo
       setPacotesDesteLote([]);
     } finally {
@@ -278,7 +278,7 @@ function MeliDevolucoesPage() {
         // Bipa em romaneio existente
         const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
         if (!romaneioUuid) {
-           toast.error("ID Interno do romaneio não encontrado. Tente reabrir.");
+           toast.error("ID Interno da devolução não encontrado. Tente reabrir.");
            return;
         }
         res = await biparRomaneio({
@@ -296,7 +296,7 @@ function MeliDevolucoesPage() {
         toast.error((res as any).mensagem ?? "Não foi possível registrar o retorno.");
       } else if (res.status === "duplicado") {
         beepError();
-        toast.error((res as any).mensagem ?? "Divergência: pacote já lido/recebido neste romaneio.");
+        toast.error((res as any).mensagem ?? "Divergência: pacote já lido/recebido nesta devolução.");
       } else if (res.divergencia_delivered) {
         startAlarm();
         setAlertaCritico(
@@ -371,7 +371,7 @@ function MeliDevolucoesPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
             <RotateCcw className="h-6 w-6 text-primary" />
-            Romaneio Meli
+            Devoluções Meli
           </h1>
           <p className="text-sm text-muted-foreground">
             Todo pacote com ocorrência de rua deve retornar à base de origem em até 3 dias corridos.
@@ -604,12 +604,12 @@ function MeliDevolucoesPage() {
                         if (encontrado) {
                           updateActiveRec(encontrado.codigo, encontrado.id);
                           setPacotesDesteLote([]);
-                          toast.info(`Continuando romaneio: ${encontrado.codigo}`);
+                          toast.info(`Continuando conferência: ${encontrado.codigo}`);
                         } else {
-                          toast.error("Romaneio não encontrado para esta base.");
+                          toast.error("Devolução não encontrada para esta base.");
                         }
                       } catch (err) {
-                        toast.error("Erro ao buscar romaneio.");
+                        toast.error("Erro ao buscar devolução.");
                       }
                     }}
                   >
@@ -629,11 +629,11 @@ function MeliDevolucoesPage() {
                       }
                       try {
                         await finalizar({ data: { romaneio_id: romaneioUuid } });
-                        toast.success("Romaneio finalizado com sucesso.");
+                        toast.success("Devolução finalizada com sucesso.");
                         updateActiveRec("");
                         painelQuery.refetch();
                       } catch (err: any) {
-                        toast.error(err.message || "Erro ao finalizar romaneio.");
+                        toast.error(err.message || "Erro ao finalizar devolução.");
                       }
                     }}
                   >
@@ -758,15 +758,15 @@ function MeliDevolucoesPage() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Romaneios Recentes</CardTitle>
+          <CardTitle className="text-base">Devoluções Recentes</CardTitle>
         </CardHeader>
         <CardContent>
           {romaneiosQuery.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-              <Loader2 className="h-4 w-4 animate-spin" /> Carregando romaneios...
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando devoluções...
             </div>
           ) : (romaneiosQuery.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6">Nenhum romaneio recente.</p>
+            <p className="text-sm text-muted-foreground py-6">Nenhuma devolução recente.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
