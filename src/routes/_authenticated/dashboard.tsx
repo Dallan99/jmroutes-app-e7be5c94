@@ -157,62 +157,11 @@ function DashboardPage() {
           </Button>
           </div>
         </div>
-        <MeliSyncMonitor sync={sync} />
       </header>
 
       {/* ── Cartões da operação (primeiro de tudo) ── */}
       <DashboardGeral data={filters.date ?? hojeOperacional()} syncPorCodigo={sync.porCodigo} />
 
-      {/* Filtros compactos — data, base e o restante recolhido */}
-      <Card className="p-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            className="h-8 w-[150px]"
-            type="date"
-            aria-label="Data"
-            value={filters.date ?? ""}
-            onChange={(e) => setF("date", e.target.value || null)}
-          />
-          <div className="w-[220px]">
-            <Select
-              value={filters.base_id ?? NONE}
-              onValueChange={(v) => setF("base_id", v === NONE ? null : v)}
-            >
-              <SelectTrigger className="h-8"><SelectValue placeholder="Todas as bases" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>Todas as bases</SelectItem>
-                {(op?.bases ?? []).map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="ghost" size="sm" className="h-8" onClick={() => setMaisFiltros((v) => !v)}>
-            <Filter className="w-3.5 h-3.5 mr-1.5" /> {maisFiltros ? "Menos" : "Mais filtros"}
-            {activeFiltersCount > 2 && <Badge variant="secondary" className="ml-2">{activeFiltersCount}</Badge>}
-          </Button>
-          {activeFiltersCount > 1 && (
-            <Button variant="ghost" size="sm" className="h-8" onClick={clearAll}>Limpar</Button>
-          )}
-        </div>
-        {maisFiltros && (
-          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-            <FilterSelect label="Operador" value={filters.operador_id} onChange={(v) => setF("operador_id", v)}
-              options={(op?.operadores ?? []).map((o) => ({ value: o.id, label: o.nome }))} />
-            <FilterSelect label="Motorista" value={filters.motorista_id} onChange={(v) => setF("motorista_id", v)}
-              options={(op?.motoristas ?? []).map((m) => ({ value: m.id, label: m.nome }))} />
-            <FilterSelect label="Transportadora" value={filters.transportadora} onChange={(v) => setF("transportadora", v)}
-              options={(op?.transportadoras ?? []).map((t) => ({ value: t, label: t }))} />
-            <FilterSelect label="Turno" value={filters.turno ?? null} onChange={(v) => setF("turno", v as any)}
-              options={[
-                { value: "madrugada", label: "Madrugada (00-06)" },
-                { value: "manha", label: "Manhã (06-12)" },
-                { value: "tarde", label: "Tarde (12-18)" },
-                { value: "noite", label: "Noite (18-24)" },
-              ]} />
-          </div>
-        )}
-      </Card>
 
       {/* ── Detalhamento da operação (mesmo dashboard) ── */}
       <MeliDashboardSection
