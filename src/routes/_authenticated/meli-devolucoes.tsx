@@ -128,16 +128,19 @@ function MeliDevolucoesPage() {
     return false;
   });
 
-  const updateActiveRec = (id: string) => {
+  const updateActiveRec = (id: string, uuid?: string) => {
     setRecebimentoId(id);
     if (id) {
       localStorage.setItem("active_rec_id", id);
+      if (uuid) localStorage.setItem("active_romaneio_uuid", uuid);
       setIniciandoRecebimento(true);
     } else {
       localStorage.removeItem("active_rec_id");
+      localStorage.removeItem("active_romaneio_uuid");
       setIniciandoRecebimento(false);
     }
   };
+
   const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
 
 
