@@ -95,7 +95,7 @@ function Linha({
     <>
       <tr className="cursor-pointer border-b transition hover:bg-muted/50" onClick={onToggle}>
         <td className="py-2.5 pl-4 pr-2 text-xs font-semibold text-muted-foreground">{posicao}º</td>
-        <td className="py-2.5 pr-2 font-medium">{m.motorista}</td>
+        <td className="py-2.5 pr-2 font-medium">{m.motorista || "Não identificado"}</td>
         <td className="py-2.5 pr-2 text-right text-xs text-muted-foreground">
           {m.bases.join(" / ") || "—"}
         </td>
