@@ -10,10 +10,13 @@ import {
   meliRomaneioBipar,
   meliRomaneioListar,
   meliRomaneioFinalizar,
+  meliRomaneioCancelar,
+  meliRomaneioDetalhar,
   meliDevolucaoHistorico,
   type MeliDevolucaoLinha,
   type MeliRomaneioLinha,
 } from "@/lib/meli-devolucoes.functions";
+
 
 import { listarBasesSimples } from "@/lib/bases.functions";
 
