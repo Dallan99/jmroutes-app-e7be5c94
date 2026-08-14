@@ -179,6 +179,23 @@ function MeliDevolucoesPage() {
     painelQuery.refetch();
   }
 
+  async function onGerarRecebimento() {
+    if (!baseId) {
+      toast.error("Selecione a base antes de gerar o recebimento.");
+      return;
+    }
+    setGerandoRec(true);
+    try {
+      const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
+      setRecebimentoId(id);
+      toast.success(`Novo recebimento gerado: ${id}`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar recebimento.");
+    } finally {
+      setGerandoRec(false);
+    }
+  }
+
   async function onReceber(e: React.FormEvent) {
     e.preventDefault();
     const bloqueio = validarRecebimento({ codigo, baseSelecionadaId: baseId || null });
@@ -188,6 +205,11 @@ function MeliDevolucoesPage() {
     }
     if (bloqueio === "sem_codigo") return;
 
+    if (!recebimentoId) {
+      toast.error("Gere um ID de recebimento antes de iniciar as bipagens.");
+      return;
+    }
+
     setEnviando(true);
     try {
       const res = await receber({
@@ -196,6 +218,7 @@ function MeliDevolucoesPage() {
           base_id: baseId,
           metodo: "scanner",
           observacao: observacao.trim() || null,
+          recebimento_id: recebimentoId,
         },
       });
       if (res.status === "erro") {
@@ -222,6 +245,7 @@ function MeliDevolucoesPage() {
       setEnviando(false);
     }
   }
+
 
   function exportarCsv() {
     const head = [
