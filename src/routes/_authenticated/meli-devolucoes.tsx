@@ -38,6 +38,7 @@ import {
   PackageCheck,
   RefreshCcw,
   RotateCcw,
+  Printer,
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
 import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
@@ -271,6 +272,9 @@ function MeliDevolucoesPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={exportarCsv} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()} disabled={linhas.length === 0}>
+            <Printer className="h-4 w-4 mr-2" /> Imprimir
           </Button>
         </div>
       </header>

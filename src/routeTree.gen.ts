@@ -31,6 +31,7 @@ import { Route as AuthenticatedInventarioRouteImport } from './routes/_authentic
 import { Route as AuthenticatedInventarioCentralRouteImport } from './routes/_authenticated/inventario-central'
 import { Route as AuthenticatedMeliDevolucoesRouteImport } from './routes/_authenticated/meli-devolucoes'
 import { Route as AuthenticatedMeliRiscoRouteImport } from './routes/_authenticated/meli-risco'
+import { Route as AuthenticatedPainelOperacionalRouteImport } from './routes/_authenticated/painel-operacional'
 import { Route as AuthenticatedRecebimentoRouteImport } from './routes/_authenticated/recebimento'
 import { Route as AuthenticatedTransferenciasRouteImport } from './routes/_authenticated/transferencias'
 import { Route as AuthenticatedTransferenciasLoteRouteImport } from './routes/_authenticated/transferencias-lote'
@@ -159,6 +160,12 @@ const AuthenticatedMeliRiscoRoute = AuthenticatedMeliRiscoRouteImport.update({
   path: '/meli-risco',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPainelOperacionalRoute =
+  AuthenticatedPainelOperacionalRouteImport.update({
+    id: '/painel-operacional',
+    path: '/painel-operacional',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRecebimentoRoute =
   AuthenticatedRecebimentoRouteImport.update({
     id: '/recebimento',
@@ -247,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/inventario-central': typeof AuthenticatedInventarioCentralRoute
   '/meli-devolucoes': typeof AuthenticatedMeliDevolucoesRoute
   '/meli-risco': typeof AuthenticatedMeliRiscoRoute
+  '/painel-operacional': typeof AuthenticatedPainelOperacionalRoute
   '/recebimento': typeof AuthenticatedRecebimentoRoute
   '/transferencias': typeof AuthenticatedTransferenciasRoute
   '/transferencias-lote': typeof AuthenticatedTransferenciasLoteRoute
@@ -282,6 +290,7 @@ export interface FileRoutesByTo {
   '/inventario-central': typeof AuthenticatedInventarioCentralRoute
   '/meli-devolucoes': typeof AuthenticatedMeliDevolucoesRoute
   '/meli-risco': typeof AuthenticatedMeliRiscoRoute
+  '/painel-operacional': typeof AuthenticatedPainelOperacionalRoute
   '/recebimento': typeof AuthenticatedRecebimentoRoute
   '/transferencias': typeof AuthenticatedTransferenciasRoute
   '/transferencias-lote': typeof AuthenticatedTransferenciasLoteRoute
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/_authenticated/inventario-central': typeof AuthenticatedInventarioCentralRoute
   '/_authenticated/meli-devolucoes': typeof AuthenticatedMeliDevolucoesRoute
   '/_authenticated/meli-risco': typeof AuthenticatedMeliRiscoRoute
+  '/_authenticated/painel-operacional': typeof AuthenticatedPainelOperacionalRoute
   '/_authenticated/recebimento': typeof AuthenticatedRecebimentoRoute
   '/_authenticated/transferencias': typeof AuthenticatedTransferenciasRoute
   '/_authenticated/transferencias-lote': typeof AuthenticatedTransferenciasLoteRoute
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/inventario-central'
     | '/meli-devolucoes'
     | '/meli-risco'
+    | '/painel-operacional'
     | '/recebimento'
     | '/transferencias'
     | '/transferencias-lote'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/inventario-central'
     | '/meli-devolucoes'
     | '/meli-risco'
+    | '/painel-operacional'
     | '/recebimento'
     | '/transferencias'
     | '/transferencias-lote'
@@ -427,6 +439,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventario-central'
     | '/_authenticated/meli-devolucoes'
     | '/_authenticated/meli-risco'
+    | '/_authenticated/painel-operacional'
     | '/_authenticated/recebimento'
     | '/_authenticated/transferencias'
     | '/_authenticated/transferencias-lote'
@@ -613,6 +626,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMeliRiscoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/painel-operacional': {
+      id: '/_authenticated/painel-operacional'
+      path: '/painel-operacional'
+      fullPath: '/painel-operacional'
+      preLoaderRoute: typeof AuthenticatedPainelOperacionalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/recebimento': {
       id: '/_authenticated/recebimento'
       path: '/recebimento'
@@ -714,6 +734,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventarioCentralRoute: typeof AuthenticatedInventarioCentralRoute
   AuthenticatedMeliDevolucoesRoute: typeof AuthenticatedMeliDevolucoesRoute
   AuthenticatedMeliRiscoRoute: typeof AuthenticatedMeliRiscoRoute
+  AuthenticatedPainelOperacionalRoute: typeof AuthenticatedPainelOperacionalRoute
   AuthenticatedRecebimentoRoute: typeof AuthenticatedRecebimentoRoute
   AuthenticatedTransferenciasRoute: typeof AuthenticatedTransferenciasRoute
   AuthenticatedTransferenciasLoteRoute: typeof AuthenticatedTransferenciasLoteRoute
@@ -735,6 +756,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventarioCentralRoute: AuthenticatedInventarioCentralRoute,
   AuthenticatedMeliDevolucoesRoute: AuthenticatedMeliDevolucoesRoute,
   AuthenticatedMeliRiscoRoute: AuthenticatedMeliRiscoRoute,
+  AuthenticatedPainelOperacionalRoute: AuthenticatedPainelOperacionalRoute,
   AuthenticatedRecebimentoRoute: AuthenticatedRecebimentoRoute,
   AuthenticatedTransferenciasRoute: AuthenticatedTransferenciasRoute,
   AuthenticatedTransferenciasLoteRoute: AuthenticatedTransferenciasLoteRoute,

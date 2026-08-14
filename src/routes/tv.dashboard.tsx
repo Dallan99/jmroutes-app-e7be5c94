@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData } from "@/lib/dashboard.functions";
+import { BipagemBasesPanel } from "@/components/bipagem-bases";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -61,6 +62,8 @@ function TvDashboard() {
         </div>
         <div className="font-display text-3xl xl:text-4xl font-bold tabular-nums text-[var(--brand-yellow)]">{now}</div>
       </div>
+
+      <BipagemBasesPanel tv refetchInterval={20_000} titulo="Bipagem por base (dia operacional)" />
 
       <Section title="Rotas">
         <TvKpi label="Previstas" value={d?.rotasPrevistas ?? "—"} icon={Truck} />

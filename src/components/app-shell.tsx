@@ -28,9 +28,6 @@ import {
   LogOut,
   Boxes,
   RotateCcw,
-  Truck,
-  ListChecks,
-  PackageOpen,
   ShieldAlert,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
@@ -86,19 +83,16 @@ type Role = "admin" | "supervisor" | "gerente" | "operador";
 const NAV_OPERACIONAL: NavItem[] = [
   { title: "Bases", to: "/bases", icon: Boxes },
   { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard, roles: ["admin", "supervisor", "gerente"] },
+  { title: "Painel Operacional", to: "/painel-operacional", icon: TrendingUp },
   { title: "Recebimento", to: "/recebimento", icon: ScanBarcode },
   { title: "Triagem", to: "/triagem", icon: PackageSearch },
   { title: "Contagem", to: "/contagem", icon: ClipboardList },
-  { title: "Devoluções", to: "/devolucoes", icon: RotateCcw },
-  { title: "Devoluções Meli", to: "/meli-devolucoes", icon: PackageOpen },
-  { title: "Transferências", to: "/transferencias", icon: Truck },
-  { title: "Transferências em lote", to: "/transferencias-lote", icon: ListChecks },
+  { title: "Devoluções", to: "/meli-devolucoes", icon: RotateCcw },
   { title: "Inventário", to: "/inventario-central", icon: ClipboardList },
 ];
 const NAV_GESTAO: NavItem[] = [
   { title: "Histórico", to: "/historico", icon: History, roles: ["admin", "supervisor", "gerente"] },
   { title: "Gerencial", to: "/gerencial", icon: TrendingUp, roles: ["admin", "supervisor", "gerente"] },
-  { title: "Integração Meli", to: "/integracao-meli", icon: PackageOpen, roles: ["admin", "supervisor", "gerente"] },
   { title: "Área de Risco", to: "/meli-risco", icon: ShieldAlert, roles: ["admin", "supervisor", "gerente"] },
 ];
 const NAV_ADMIN: NavItem[] = [
