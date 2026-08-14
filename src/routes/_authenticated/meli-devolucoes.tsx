@@ -116,6 +116,7 @@ function MeliDevolucoesPage() {
   const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
 
 
+
   const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -184,12 +185,14 @@ function MeliDevolucoesPage() {
   async function onGerarRecebimento() {
     if (!baseId) {
       toast.error("Selecione a base antes de gerar o recebimento.");
+      setIniciandoRecebimento(false); // Volta para o botão se não tiver base
       return;
     }
     setGerandoRec(true);
     try {
       const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
       setRecebimentoId(id);
+      setIniciandoRecebimento(true); // Garante que a tela de bipagem abra
       toast.success(`Novo recebimento gerado: ${id}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao gerar recebimento.");
@@ -197,6 +200,7 @@ function MeliDevolucoesPage() {
       setGerandoRec(false);
     }
   }
+
 
   async function onReceber(e: React.FormEvent) {
     e.preventDefault();
