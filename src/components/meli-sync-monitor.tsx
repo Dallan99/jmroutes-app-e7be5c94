@@ -174,6 +174,9 @@ export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync>
         >
           <SyncDot situacao={geral} />
           Situação da operação Meli: {LABEL_SITUACAO_SYNC[geral]}
+          {geral === "desatualizado" && bases.some(b => (b.base_codigo === "ESP16" || b.base_nome?.toLowerCase().includes("guaruja")) && situacaoDaBase(b, serverTime) === "desatualizado") && (
+            <span className="ml-2 lowercase opacity-80">(parece que o problema é na base do guaruja)</span>
+          )}
         </span>
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setAberto((v) => !v)}>
           Detalhes da sincronização
