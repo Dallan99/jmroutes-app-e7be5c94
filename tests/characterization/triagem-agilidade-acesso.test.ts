@@ -34,7 +34,7 @@ describe("Triagem — agilidade entre bips", () => {
 
 describe("Devoluções — acesso dos logins", () => {
   it("mantém a página no menu operacional sem restrição por cargo", () => {
-    expect(appShell).toContain('{ title: "Devoluções", to: "/devolucoes", icon: RotateCcw }');
+    expect(appShell).toContain('{ title: "Devoluções", to: "/meli-devolucoes", icon: RotateCcw }');
   });
 
   it("considera bases atribuídas por user_bases ao liberar a tela", () => {
