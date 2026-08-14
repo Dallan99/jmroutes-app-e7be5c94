@@ -9,6 +9,13 @@ import { CircuitBreaker } from "./state/breaker.js";
 import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pipeline/auth.js";
 import { executarCiclo } from "./pipeline/cycle.js";
 import { registrarExecucao, type Execucao } from "./telemetry/report.js";
+import {
+  abandonarCicloRemoto,
+  dataOperacionalBrt,
+  estadoParaFinalizacao,
+  finalizarCicloRemoto,
+  iniciarCicloRemoto,
+} from "./pipeline/ciclo-lote.js";
 import { randomUUID } from "node:crypto";
 
 let encerrando = false;
@@ -61,7 +68,14 @@ async function main() {
     site: cfg.siteId,
     intervalo_s: cfg.syncIntervalSeconds,
     dry_run: cfg.dryRun,
+    protocolo_lotes: cfg.protocoloLotes,
   });
+
+  if (!cfg.protocoloLotes) {
+    logger.info(
+      "Protocolo de lotes DESLIGADO (SYNC_PROTOCOL_LOTES != true): fluxo de ingestão atual preservado.",
+    );
+  }
 
   if (cfg.dryRun) {
     logger.info(
@@ -129,13 +143,62 @@ async function main() {
     }
 
     try {
-      const resultado = await executarCiclo({
+      // ── Protocolo de lotes (feature flag) ───────────────────────────────
+      // Off (default) => syncBatchId nulo => endpoint legado, comportamento atual.
+      const dataOperacional = dataOperacionalBrt();
+      let syncBatchId: string | null = null;
+      if (cfg.protocoloLotes) {
+        const candidato = randomUUID();
+        const abertura = await iniciarCicloRemoto(
+          cfg,
+          { syncBatchId: candidato, dataOperacional },
+          { accessToken: jmr.accessToken },
+        );
+        if (abertura.status === "ok") syncBatchId = candidato;
+      }
+
+      let resultado = await executarCiclo({
         cfg,
         transport: sessao.transport,
         accessToken: jmr.accessToken,
         breaker,
         estado,
+        syncBatchId,
       });
+
+      // Backend ainda sem a migration: abandona o ciclo e repete no fluxo legado.
+      if (resultado.protocoloLotesIndisponivel && syncBatchId) {
+        await abandonarCicloRemoto(
+          cfg,
+          { syncBatchId, mensagem: "protocolo_indisponivel" },
+          { accessToken: jmr.accessToken },
+        );
+        syncBatchId = null;
+        resultado = await executarCiclo({
+          cfg,
+          transport: sessao.transport,
+          accessToken: jmr.accessToken,
+          breaker,
+          estado,
+          syncBatchId: null,
+        });
+      }
+
+      if (syncBatchId) {
+        await finalizarCicloRemoto(
+          cfg,
+          {
+            syncBatchId,
+            dataOperacional,
+            rotas: resultado.execucao.rotas_processadas,
+            pacotes: null,
+            estado: estadoParaFinalizacao(resultado.execucao.status, resultado.execucao.erros),
+            mensagem: resultado.execucao.mensagem_segura,
+          },
+          { accessToken: jmr.accessToken },
+        );
+      }
+
       await registrarExecucao(cfg, resultado.execucao, { accessToken: jmr.accessToken });
       if (resultado.jmroutesSemSessao) jmr = null;
     } finally {
