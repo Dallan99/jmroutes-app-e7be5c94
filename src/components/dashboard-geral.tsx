@@ -414,7 +414,11 @@ function BaseDetalheDialog({
                     <tr
                       key={r.rota_id}
                       className="border-t cursor-pointer hover:bg-muted/50"
-                      onClick={() => setRotaSel(r)}
+                      onClick={() => {
+                        setSituacaoSel(situacaoBase === "rotas" ? "total" : situacaoBase);
+                        setRotaSel(r);
+                      }}
+
                     >
                       <td className="py-2 pr-2 font-medium">
                         {r.nome_operacional}
