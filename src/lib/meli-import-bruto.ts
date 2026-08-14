@@ -74,5 +74,5 @@ export async function importarRotaBrutaComClient(
       : (pub as NonNullable<MeliImportBrutoResult["publicacao"]>);
   }
 
-  return { ...importado, resumo, publicacao };
+  return { ...importado, resumo, publicacao, alerta_divergencia: temDivergencia };
 }
