@@ -186,14 +186,15 @@ function MeliDevolucoesPage() {
   async function onGerarRecebimento() {
     if (!baseId) {
       toast.error("Selecione a base antes de gerar o recebimento.");
-      setIniciandoRecebimento(false); // Volta para o botão se não tiver base
+      setIniciandoRecebimento(false);
       return;
     }
     setGerandoRec(true);
     try {
       const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
       setRecebimentoId(id);
-      setIniciandoRecebimento(true); // Garante que a tela de bipagem abra
+      setPacotesDesteLote([]); // Limpa a lista de pacotes para o novo lote
+      setIniciandoRecebimento(true);
       toast.success(`Novo recebimento gerado: ${id}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao gerar recebimento.");
