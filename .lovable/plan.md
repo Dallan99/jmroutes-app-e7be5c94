@@ -1,27 +1,46 @@
-# Plano de Correção e Melhoria do Painel Gerencial
+# Plano de Redesenho: Romaneio de Devolução
 
-O objetivo é fazer o Gerencial "funcionar" plenamente, corrigindo a exibição de dados e adicionando o campo de Motorista solicitado, seguindo o padrão já aplicado em outros painéis.
+O objetivo é transformar o atual módulo de Devoluções no "Romaneio Meli", com foco em conferência por bipagem, automação total de dados (motorista/rota/motivo) e geração de ID sequencial robusto.
 
-## Mudanças
+## 1. Alterações Estruturais e Nomenclatura
 
-### Backend (`src/lib/gerencial.functions.ts`)
+- **Menu Lateral (`src/components/app-shell.tsx`)**: Renomear "Devoluções" para "Romaneio Meli".
+- **Página de Devoluções (`src/routes/_authenticated/meli-devolucoes.tsx`)**:
+  - Título: "Romaneio de Devolução".
+  - Subtítulo: "Pacotes retornados pelo motorista à base — conferência e romaneio".
+  - Novos Cards: Registros recentes, Romaneios abertos, Pendências vencidas, Divergências críticas.
+  - Implementar o fluxo de "Bipar o primeiro pacote" para iniciar o romaneio.
 
-1.  **Atualizar `RotaBaseRow`**: Adicionar campos `motorista` e `placa` (string | null).
-2.  **Atualizar `rotasPorBase`**:
-    *   Incluir `motorista` e `placa` no `select` da tabela `escalas`.
-    *   No agrupamento por rota, capturar o motorista e placa (pegando o primeiro encontrado na escala daquela rota).
-3.  **Refinar `resumoOperacionalPorBase`**: Garantir que os limites de `100.000` registros sejam eficientes e que o mapeamento de bases cubra todas as bases ativas.
+## 2. Lógica de Negócio e Backend
 
-### Frontend (`src/routes/_authenticated/gerencial.tsx`)
+- **Nova Migration (`recebimentos_romaneio_v2`)**:
+  - Adicionar colunas ou tabela para suportar o status do romaneio (Em andamento/Concluído).
+  - Garantir o sequencial `EXP-REC-AAAAMMDD-BASE-XXX`.
+- **Server Functions (`src/lib/meli-devolucoes.functions.ts`)**:
+  - Refatorar `gerarRecebimentoId` para seguir o novo padrão `EXP-REC-...`.
+  - Refatorar `meliDevolucaoReceber` para:
+    - Buscar automaticamente motorista/rota/motivo do Mercado Livre.
+    - Impedir duplicidade entre romaneios abertos.
+    - Classificar automaticamente com base nas 10 ocorrências Meli (damaged, bad_address, etc).
+    - Gerar divergência crítica (Roxo) para pacotes `delivered`.
 
-1.  **Tabela "Detalhe por rota"**:
-    *   Adicionar coluna "Motorista" após a coluna "Rota".
-    *   Exibir o nome do motorista e placa (se disponível).
-2.  **Drill Down (Diálogo de Detalhes)**:
-    *   Garantir que o motorista seja exibido consistentemente nas métricas de Devoluções e Transferências no modal de detalhes.
+## 3. Interface de Conferência
+
+- **Novo Componente de Bipagem**:
+  - Campo de bipagem sempre em foco.
+  - Feedback visual por cores: Verde (OK), Amarelo (Duplicado), Vermelho (Desconhecido), Roxo (Crítico/Delivered).
+  - Botão de "Finalizar Romaneio" com trava de segurança.
+
+## 4. Impressão e Relatórios
+
+- Gerar layout de impressão em duas vias com campos para assinatura.
+- Exportação CSV com todos os detalhes técnicos solicitados.
 
 ## Detalhes Técnicos
 
-*   **Tipagem**: Atualização do `type RotaBaseRow` para incluir os novos campos.
-*   **Performance**: O uso de `.limit(50000)` ou `.limit(100000)` em server functions é necessário para volumes grandes, mas requer atenção ao tempo de execução em ambientes edge.
-*   **Fallback**: Exibir "—" ou "Não identificado" quando os dados de motorista estiverem ausentes.
+- **Sequencial**: Proteção via RPC Supabase com `FOR UPDATE` ou lógica de lock para evitar duplicidade em concorrência.
+- **Identidade Visual**: Manter o tema dark, minimalista e Apple-like do JMRoutes.
+- **Tecnologia**: TanStack Start v1, Tailwind v4, Lucide-react para ícones.
+
+---
+**Nota**: Antes de aplicar a migration, apresentarei o SQL para revisão.
