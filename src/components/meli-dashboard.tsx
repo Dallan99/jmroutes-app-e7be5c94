@@ -301,24 +301,6 @@ export function MeliDashboardSection({
             {verFiltros ? "Ocultar filtros da operação" : "Filtros da operação"}
           </Button>
           {q.isFetching && <span className="text-xs text-muted-foreground">Atualizando…</span>}
-          <Link
-            to="/tv/meli"
-            search={{
-              data,
-              base_id: baseId === NONE ? undefined : baseId,
-              motorista: motorista.trim() || undefined,
-              rota: rota.trim() || undefined,
-              status: status === NONE ? undefined : (status as SituacaoMeli),
-              transportadora: transportadora.trim() || undefined,
-              risco: risco === NONE ? undefined : (risco as "qualquer" | "integral" | "parcial"),
-            }}
-            className="ml-auto"
-            aria-label="Abrir Modo TV da operação Meli"
-          >
-            <Button size="sm" variant="outline" className="h-7 px-2 text-xs font-semibold">
-              <Tv className="mr-1.5 h-3.5 w-3.5" aria-hidden /> Modo TV
-            </Button>
-          </Link>
         </div>
 
         {verFiltros && (
