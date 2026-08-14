@@ -102,14 +102,19 @@ CREATE INDEX IF NOT EXISTS meli_rotas_sync_batch_idx ON public.meli_rotas (sync_
 
 -- 4) Fonte única de leitura do painel --------------------------------------
 DROP VIEW IF EXISTS public.meli_rotas_ativas;
+-- Fallback por base/data: havendo lote ativo concluído para (base_id, data_rota),
+-- somente as rotas desse lote aparecem; não havendo, somente as rotas legadas
+-- (sync_batch_id IS NULL). Nunca há mistura na mesma base/data.
 CREATE VIEW public.meli_rotas_ativas WITH (security_invoker = true) AS
-SELECT r.* FROM public.meli_rotas r
-WHERE r.sync_batch_id IS NULL
-   OR EXISTS (
-     SELECT 1 FROM public.meli_sync_ciclos c
-      WHERE c.sync_batch_id = r.sync_batch_id
-        AND c.ativo AND c.estado = 'concluido'
-   );
+SELECT r.*
+  FROM public.meli_rotas r
+  LEFT JOIN public.meli_sync_ciclos c
+    ON c.ativo
+   AND c.estado = 'concluido'
+   AND c.base_id = r.base_id
+   AND c.data_operacional = r.data_rota
+ WHERE (c.sync_batch_id IS NOT NULL AND r.sync_batch_id = c.sync_batch_id)
+    OR (c.sync_batch_id IS NULL AND r.sync_batch_id IS NULL);
 
 GRANT SELECT ON public.meli_rotas_ativas TO authenticated;
 GRANT SELECT ON public.meli_rotas_ativas TO service_role;
