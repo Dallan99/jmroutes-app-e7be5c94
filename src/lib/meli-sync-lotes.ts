@@ -67,10 +67,11 @@ export function sincronizandoNovaAtualizacao(
 
 /**
  * Visibilidade de uma rota no painel — mesma regra da view `meli_rotas_ativas`.
- * Rotas históricas (sem lote) continuam visíveis.
+ * Rotas históricas (sem lote e sem ciclo pendente) continuam visíveis.
  */
 export function rotaVisivelNoPainel(rota: RotaLote, ciclos: CicloSync[]): boolean {
-  if (!rota.sync_batch_id) return true;
+  // Rota nova, gravada por um ciclo em construção: invisível até a publicação.
+  if (!rota.sync_batch_id) return !rota.sync_batch_id_pendente;
   return ciclos.some(
     (c) => c.sync_batch_id === rota.sync_batch_id && c.ativo && c.estado === "concluido",
   );
