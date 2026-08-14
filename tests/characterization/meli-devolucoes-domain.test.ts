@@ -7,7 +7,7 @@ import {
   faixaEnvelhecimento,
   faixaVisual,
   validarRecebimento,
-} from "@/lib/meli-devolucoes-domain";
+} from "../../src/lib/meli-devolucoes-domain";
 
 describe("classificarOcorrencia", () => {
   it("trata ocorrências de rua como retorno obrigatório", () => {
