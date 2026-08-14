@@ -507,7 +507,7 @@ function MeliDevolucoesPage() {
       ) : (
         <div className="space-y-4">
           <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="py-4 flex items-center justify-between">
+            <CardContent className="py-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="bg-primary text-primary-foreground p-3 rounded-full">
                   <PackageCheck className="h-6 w-6" />
@@ -515,7 +515,6 @@ function MeliDevolucoesPage() {
                 <div>
                   <h2 className="text-xl font-bold font-mono">{recebimentoId}</h2>
                   <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
-                </div>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
@@ -564,26 +563,6 @@ function MeliDevolucoesPage() {
                     Sair
                   </Button>
                 </div>
-              </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onGerarRecebimento}
-                  disabled={gerandoRec}
-                >
-                  {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
-                  Novo Recebimento
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    stopAlarm();
-                    setIniciandoRecebimento(false);
-                  }}
-                >
-                  Sair
-                </Button>
               </div>
             </CardContent>
           </Card>
