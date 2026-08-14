@@ -1,0 +1,109 @@
+--- /tmp/leitura_atual.sql	2026-08-14 15:06:51.939906729 +0000
++++ .lovable/propostas/meli_leitura_lote_ativo.sql	2026-08-14 14:31:49.411936734 +0000
+@@ -1,6 +1,6 @@
+ -- ============================================================================
+ -- Leitura operacional: cada RPC recriada explicitamente lendo o LOTE ATIVO
+--- (public.meli_rotas) em vez de public.meli_rotas.
++-- (public.meli_rotas_ativas) em vez de public.meli_rotas.
+ -- Corpos idênticos aos atuais, exceto a fonte das rotas.
+ -- ============================================================================
+ 
+@@ -17,7 +17,7 @@
+          b.meli_service_center_id AS service_center, r.driver_name, r.vehicle_license, r.carrier,
+          r.data_rota, r.last_synced_at, r.rota_area_risco, r.area_risco_parcial,
+          r.motivo_area_risco, public.meli_rota_pm_excluida(r.id) AS pm_excluida
+-    FROM public.meli_rotas r
++    FROM public.meli_rotas_ativas r
+     CROSS JOIN dia
+     LEFT JOIN public.bases b ON b.id = r.base_id
+    WHERE (SELECT ok FROM perm)
+@@ -170,7 +170,7 @@
+ ),
+ sync AS (
+   SELECT max(r.last_synced_at) AS v
+-    FROM public.meli_rotas r CROSS JOIN dia
++    FROM public.meli_rotas_ativas r CROSS JOIN dia
+    WHERE (SELECT ok FROM perm) AND r.data_rota = dia.v
+ ),
+ sync_bases AS (
+@@ -221,7 +221,7 @@
+            'motivo_area_risco', r.motivo_area_risco, 'origem_area_risco', r.origem_area_risco,
+            'dia_anterior', r.data_rota < (now() AT TIME ZONE 'America/Sao_Paulo')::date)
+     INTO v_rota
+-    FROM public.meli_rotas r LEFT JOIN public.bases b ON b.id = r.base_id
++    FROM public.meli_rotas_ativas r LEFT JOIN public.bases b ON b.id = r.base_id
+    WHERE r.id = p_rota_id;
+ 
+   IF v_rota IS NULL THEN
+@@ -268,7 +268,7 @@
+     RETURN jsonb_build_object('status','erro','erro','sem_permissao');
+   END IF;
+ 
+-  SELECT to_jsonb(r) INTO v_rota FROM public.meli_rotas r WHERE r.id = p_rota_id;
++  SELECT to_jsonb(r) INTO v_rota FROM public.meli_rotas_ativas r WHERE r.id = p_rota_id;
+   IF v_rota IS NULL THEN
+     RETURN jsonb_build_object('status','erro','erro','rota_nao_encontrada');
+   END IF;
+@@ -326,7 +326,7 @@
+            r.created_at, r.updated_at,
+            i.iniciado_em AS ultima_importacao_em,
+            count(*) OVER() AS total_full
+-    FROM public.meli_rotas r
++    FROM public.meli_rotas_ativas r
+     LEFT JOIN public.meli_importacoes i ON i.id = r.origem_importacao
+     WHERE (p_cluster IS NULL OR r.cluster = p_cluster)
+       AND (p_data_de IS NULL OR r.data_rota >= p_data_de)
+@@ -369,7 +369,7 @@
+     RETURN jsonb_build_object('status','erro','erro','nao_autenticado');
+   END IF;
+ 
+-  SELECT max(last_synced_at) INTO v_latest FROM public.meli_rotas;
++  SELECT max(last_synced_at) INTO v_latest FROM public.meli_rotas_ativas;
+ 
+   SELECT to_jsonb(i) INTO v_imp
+   FROM public.meli_importacoes i
+@@ -417,7 +417,7 @@
+     SELECT r.base_id,
+            max(r.last_synced_at) AS ultimo_sucesso_em,
+            max(r.data_rota)      AS data_rota
+-    FROM public.meli_rotas r
++    FROM public.meli_rotas_ativas r
+     WHERE r.base_id IS NOT NULL
+     GROUP BY r.base_id
+   ),
+@@ -425,7 +425,7 @@
+     SELECT r.base_id,
+            count(*)::int AS rotas,
+            coalesce(sum(r.total_pacotes),0)::int AS pacotes
+-    FROM public.meli_rotas r
++    FROM public.meli_rotas_ativas r
+     JOIN ult u ON u.base_id = r.base_id AND r.data_rota = u.data_rota
+     GROUP BY r.base_id
+   ),
+@@ -499,7 +499,7 @@
+            coalesce(r.origem_area_risco, '') AS origem_area_risco,
+            p.pacote_area_risco,
+            public.meli_status_normalizado(p.status, p.substatus, p.occurrence_code) AS situacao
+-      FROM public.meli_rotas r
++      FROM public.meli_rotas_ativas r
+       JOIN public.meli_pacotes p ON p.rota_id = r.id
+       LEFT JOIN public.bases b ON b.id = r.base_id
+      WHERE (r.rota_area_risco OR r.area_risco_parcial OR p.pacote_area_risco)
+@@ -619,7 +619,7 @@
+            ro.driver_name, ro.carrier,
+            public.meli_status_normalizado(p.status, p.substatus, p.occurrence_code) AS situacao
+       FROM public.meli_pacotes p
+-      JOIN public.meli_rotas ro ON ro.id = p.rota_id
++      JOIN public.meli_rotas_ativas ro ON ro.id = p.rota_id
+      WHERE ro.base_id IS NOT NULL
+        AND public.has_base_access(v_uid, ro.base_id)
+        AND (p_base_id IS NULL OR ro.base_id = p_base_id)
+@@ -750,7 +750,7 @@
+          r.route_id, r.driver_name
+     INTO v_pac
+     FROM public.meli_pacotes p
+-    JOIN public.meli_rotas r ON r.id = p.rota_id
++    JOIN public.meli_rotas_ativas r ON r.id = p.rota_id
+    WHERE upper(p.tracking_id) = v_cod OR upper(coalesce(p.shipment_id,'')) = v_cod
+    ORDER BY p.updated_at DESC NULLS LAST
+    LIMIT 1;
