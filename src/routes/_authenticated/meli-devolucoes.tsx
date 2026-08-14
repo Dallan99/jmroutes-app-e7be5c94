@@ -189,8 +189,47 @@ function MeliDevolucoesPage() {
 
   const romaneiosQuery = useQuery({
     queryKey: ["meli-romaneios", baseId, dataDe, dataAte],
-    queryFn: () => listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } }),
+    queryFn: async () => {
+      try {
+        return await listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } });
+      } catch (err) {
+        console.error("Erro ao listar romaneios:", err);
+        throw err;
+      }
+    },
     enabled: !!baseId || !!dataDe,
+  });
+
+  // Validação de romaneio ativo ao carregar
+  useQuery({
+    queryKey: ["meli-romaneio-ativo-check", romaneioUuid],
+    queryFn: async () => {
+      if (!romaneioUuid) {
+        setIniciandoRecebimento(false);
+        return null;
+      }
+      try {
+        const res = (await detalharRomaneio({ data: { romaneio_id: romaneioUuid } })) as any;
+        // Se não existir, estiver concluído/cancelado ou base diferente (se baseId selecionada), descarta
+        if (!res || res.status !== "em_andamento" || (baseId && res.base_id !== baseId)) {
+          updateActiveRec("");
+          return null;
+        }
+        setIniciandoRecebimento(true);
+        // Atualiza o ID visual caso tenha mudado ou não estivesse sincronizado
+        if (res.codigo && res.codigo !== recebimentoId) {
+          setRecebimentoId(res.codigo);
+          localStorage.setItem("active_rec_id", res.codigo);
+        }
+        return res;
+      } catch (err) {
+        console.warn("UUID ativo inválido ou erro na consulta:", err);
+        updateActiveRec("");
+        return null;
+      }
+    },
+    enabled: !!romaneioUuid,
+    staleTime: 0, // Sempre verifica ao montar ou mudar UUID
   });
 
 
