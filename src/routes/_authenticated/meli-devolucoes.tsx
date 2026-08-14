@@ -405,8 +405,18 @@ function MeliDevolucoesPage() {
       <Dialog open={!!cardDetalhe} onOpenChange={(o) => !o && setCardDetalhe(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              {cardDetalhe?.label} — {linhasCard.length} pacote(s)
+            <DialogTitle className="text-base flex items-center justify-between">
+              <span>{cardDetalhe?.label} — {linhasCard.length} pacote(s)</span>
+              {linhasCard.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
@@ -595,22 +605,8 @@ function MeliDevolucoesPage() {
       <Dialog open={!!detalhe} onOpenChange={(o) => !o && setDetalhe(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-mono text-base flex items-center justify-between">
+            <DialogTitle className="font-mono text-base">
               {detalhe?.tracking_id}
-              {detalhe && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={() => {
-                    // Lógica de impressão específica ou apenas window.print()
-                    // Idealmente, poderíamos ter um componente de impressão oculto ou formatar o modal para print
-                    window.print();
-                  }}
-                >
-                  <Printer className="h-4 w-4 mr-2" /> Imprimir
-                </Button>
-              )}
             </DialogTitle>
           </DialogHeader>
           {detalhe && (
