@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { dashboardData } from "@/lib/dashboard.functions";
+import { BipagemBasesPanel } from "@/components/bipagem-bases";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
