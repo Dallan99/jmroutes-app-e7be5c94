@@ -26,6 +26,11 @@ export type CicloDeps = {
   maxRotasPorCiclo?: number;
   /** Sobrepõe cfg.dryRun (útil em teste). */
   dryRun?: boolean;
+  /**
+   * Protocolo de lotes: id do ciclo já aberto no backend. Quando definido, as
+   * rotas são enviadas para o staging do lote. Ausente = fluxo legado.
+   */
+  syncBatchId?: string | null;
 };
 
 /** Resumo de auditoria do ciclo — usado principalmente em DRY_RUN. */
@@ -61,6 +66,8 @@ export type CicloResultado = {
   resumo: CicloResumo;
   /** true quando nada foi enviado ao JMRoutes nem gravado no banco. */
   dryRun: boolean;
+  /** Backend recusou o protocolo de lotes: o loop deve repetir no fluxo legado. */
+  protocoloLotesIndisponivel: boolean;
 };
 
 function resumoDe(
@@ -111,7 +118,7 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
   const { cfg, transport, breaker } = deps;
   const dormir = deps.dormir ?? sleep;
   const estado = deps.estado ?? novoEstadoIncremental();
-  const batchId = randomUUID();
+  const batchId = deps.syncBatchId ?? randomUUID();
   const inicio = Date.now();
   const dryRun = deps.dryRun ?? cfg.dryRun === true;
 
@@ -124,6 +131,7 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
       jmroutesSemSessao: false,
       resumo: resumoDe(0, 0, 0, 0, inicio, 0),
       dryRun,
+      protocoloLotesIndisponivel: false,
     };
   }
 
@@ -144,6 +152,7 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
         jmroutesSemSessao: false,
         resumo: resumoDe(0, 0, 0, 0, inicio, 0),
         dryRun,
+        protocoloLotesIndisponivel: false,
       };
     }
     breaker.registrarFalha(lista.motivo);
@@ -160,6 +169,7 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
       jmroutesSemSessao: false,
       resumo: resumoDe(0, 0, 0, 0, inicio, 1),
       dryRun,
+      protocoloLotesIndisponivel: false,
     };
   }
 
@@ -178,11 +188,12 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
   let rateLimit = false;
   let sessaoExpirada = false;
   let semSessaoJmr = false;
+  let protocoloIndisponivel = false;
   let ultimaMensagem: string | null = null;
 
   // Concorrência 1 — sequencial, com jitter entre chamadas.
   for (const rota of selecionadas) {
-    if (sessaoExpirada || semSessaoJmr) break;
+    if (sessaoExpirada || semSessaoJmr || protocoloIndisponivel) break;
 
     const detalhe = await obterDetalheRota(transport, rota.routeId, cfg.siteId, dormir);
     if (!detalhe.ok) {
@@ -211,12 +222,17 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
     const envio = await enviarRotaBruta(cfg, detalhe.valor, {
       accessToken: deps.accessToken,
       fetchImpl: deps.fetchImpl,
+      syncBatchId: deps.syncBatchId ?? null,
     });
 
     if (envio.status === "ok") {
       processadas += 1;
       pacotes += envio.pacotes;
       registrarColeta(estado, rota);
+    } else if (envio.status === "protocolo_indisponivel") {
+      protocoloIndisponivel = true;
+      ultimaMensagem = "backend sem protocolo de lotes; reprocessando no fluxo legado.";
+      break;
     } else if (envio.status === "sem_sessao") {
       semSessaoJmr = true;
       ultimaMensagem = "sessão JMRoutes expirada durante o envio.";
@@ -234,7 +250,8 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
   }
 
   let status: CicloStatus;
-  if (semSessaoJmr) status = "jmroutes_sem_sessao";
+  if (protocoloIndisponivel) status = "erro";
+  else if (semSessaoJmr) status = "jmroutes_sem_sessao";
   else if (sessaoExpirada) status = "sessao_expirada";
   else if (rateLimit && processadas === 0 && consultadas === 0) status = "rate_limit";
   else if (erros > 0 && (processadas > 0 || (dryRun && consultadas > 0))) status = "sucesso_parcial";
@@ -267,5 +284,6 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
     jmroutesSemSessao: semSessaoJmr,
     resumo: resumoDe(encontradas, ativas, consultadas, pacotesEncontrados, inicio, erros),
     dryRun,
+    protocoloLotesIndisponivel: protocoloIndisponivel,
   };
 }
