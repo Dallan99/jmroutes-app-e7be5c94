@@ -1,0 +1,539 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  meliDevolucoesPainel,
+  meliDevolucoesSincronizar,
+  meliDevolucaoReceber,
+  meliDevolucaoHistorico,
+  type MeliDevolucaoLinha,
+} from "@/lib/meli-devolucoes.functions";
+import { listarBasesSimples } from "@/lib/bases.functions";
+import {
+  CLASSE_FAIXA,
+  LABEL_ESTADO,
+  faixaVisual,
+  validarRecebimento,
+  type EstadoDevolucao,
+} from "@/lib/meli-devolucoes-domain";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertTriangle,
+  Download,
+  Loader2,
+  PackageCheck,
+  RefreshCcw,
+  RotateCcw,
+} from "lucide-react";
+import { hojeOperacional } from "@/lib/dia-operacional";
+
+export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
+  head: () => ({
+    meta: [
+      { title: "Devoluções Meli — JMRoutes" },
+      {
+        name: "description",
+        content:
+          "Controle de devoluções Meli: prazo de retorno de 3 dias, recebimento físico na base e alertas de divergência.",
+      },
+      { property: "og:title", content: "Devoluções Meli — JMRoutes" },
+      {
+        property: "og:description",
+        content: "Acompanhe prazos, recebimento físico e divergências das devoluções Meli.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: MeliDevolucoesPage,
+});
+
+const ESTADOS: EstadoDevolucao[] = [
+  "aguardando_retorno",
+  "proximo_do_prazo",
+  "atrasado",
+  "recebido_na_base",
+  "em_investigacao",
+  "transferido",
+  "divergencia_delivered",
+  "revisao_necessaria",
+];
+
+function fmt(dt: string | null | undefined) {
+  if (!dt) return "—";
+  return new Date(dt).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function MeliDevolucoesPage() {
+  const buscarPainel = useServerFn(meliDevolucoesPainel);
+  const sincronizar = useServerFn(meliDevolucoesSincronizar);
+  const receber = useServerFn(meliDevolucaoReceber);
+  const historico = useServerFn(meliDevolucaoHistorico);
+  const buscarBases = useServerFn(listarBasesSimples);
+
+  const hoje = hojeOperacional();
+  const [dataDe, setDataDe] = useState(() => {
+    const d = new Date(`${hoje}T12:00:00`);
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [dataAte, setDataAte] = useState(hoje);
+  const [baseId, setBaseId] = useState("");
+  const [estado, setEstado] = useState("");
+  const [busca, setBusca] = useState("");
+
+  const [codigo, setCodigo] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
+  const [detalhe, setDetalhe] = useState<MeliDevolucaoLinha | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const basesQuery = useQuery({
+    queryKey: ["bases-simples"],
+    queryFn: () => buscarBases(),
+    staleTime: 300_000,
+  });
+
+  const painelQuery = useQuery({
+    queryKey: ["meli-devolucoes", dataDe, dataAte, baseId, estado],
+    queryFn: () =>
+      buscarPainel({
+        data: {
+          data_de: dataDe,
+          data_ate: dataAte,
+          base_id: baseId || null,
+          estado: estado || null,
+        },
+      }),
+    refetchInterval: 60_000,
+  });
+
+  const historicoQuery = useQuery({
+    queryKey: ["meli-devolucao-historico", detalhe?.id],
+    queryFn: () => historico({ data: { devolucao_id: detalhe!.id } }),
+    enabled: !!detalhe,
+  });
+
+  const linhas = useMemo(() => {
+    const todas = painelQuery.data?.linhas ?? [];
+    const q = busca.trim().toLowerCase();
+    if (!q) return todas;
+    return todas.filter((l) =>
+      [l.tracking_id, l.route_id, l.cluster, l.motorista, l.base_codigo, l.occurrence_code]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q)),
+    );
+  }, [painelQuery.data, busca]);
+
+  const cards = painelQuery.data?.cards;
+
+  async function onSincronizar() {
+    const res = await sincronizar({
+      data: { data_de: dataDe, data_ate: dataAte, base_id: baseId || null },
+    });
+    if (res.status === "erro") {
+      toast.error(res.erro ?? "Falha ao sincronizar devoluções.");
+      return;
+    }
+    toast.success(
+      `Sincronizado: ${res.criadas ?? 0} nova(s), ${res.atualizadas ?? 0} atualizada(s).`,
+    );
+    painelQuery.refetch();
+  }
+
+  async function onReceber(e: React.FormEvent) {
+    e.preventDefault();
+    const bloqueio = validarRecebimento({ codigo, baseSelecionadaId: baseId || null });
+    if (bloqueio === "sem_base") {
+      toast.error("Selecione a base de recebimento antes de bipar.");
+      return;
+    }
+    if (bloqueio === "sem_codigo") return;
+
+    setEnviando(true);
+    try {
+      const res = await receber({
+        data: {
+          tracking: codigo.trim(),
+          base_id: baseId,
+          metodo: "scanner",
+          observacao: observacao.trim() || null,
+        },
+      });
+      if (res.status === "erro") {
+        toast.error(res.mensagem ?? "Não foi possível registrar o retorno.");
+      } else if (res.status === "duplicado") {
+        toast.warning(res.mensagem ?? "Pacote já recebido nesta base.");
+      } else if (res.divergencia_delivered) {
+        setAlertaCritico(
+          res.mensagem ??
+            `Pacote ${res.codigo} retornou fisicamente, porém o Meli indica ENTREGUE. Registre a divergência.`,
+        );
+      } else {
+        toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
+      }
+      setCodigo("");
+      setObservacao("");
+      inputRef.current?.focus();
+      painelQuery.refetch();
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function exportarCsv() {
+    const head = [
+      "tracking",
+      "base",
+      "rota",
+      "motorista",
+      "ocorrencia",
+      "ocorrido_em",
+      "prazo_retorno",
+      "estado",
+      "dias",
+      "recebido_em",
+      "divergencia_meli_entregue",
+    ];
+    const body = linhas.map((l) => [
+      l.tracking_id,
+      l.base_codigo ?? "",
+      l.cluster ?? l.route_id ?? "",
+      l.motorista ?? "",
+      l.occurrence_code,
+      l.ocorrido_em,
+      l.prazo_retorno_em,
+      LABEL_ESTADO[l.estado as EstadoDevolucao] ?? l.estado,
+      l.dias_corridos,
+      l.recebido_em ?? "",
+      l.divergencia_delivered ? "SIM" : "",
+    ]);
+    const csv = [head, ...body]
+      .map((l) => l.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";"))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `devolucoes-meli-${dataDe}_${dataAte}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
+            <RotateCcw className="h-6 w-6 text-primary" />
+            Controle de Devoluções Meli
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Todo pacote com ocorrência de rua deve retornar à base de origem em até 3 dias corridos.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onSincronizar}>
+            <RefreshCcw className="h-4 w-4 mr-2" /> Sincronizar ocorrências
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportarCsv} disabled={linhas.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+        </div>
+      </header>
+
+      <Card>
+        <CardContent className="grid gap-3 md:grid-cols-5 pt-4">
+          <div className="space-y-1">
+            <Label htmlFor="dev-de">De</Label>
+            <Input id="dev-de" type="date" value={dataDe} onChange={(e) => setDataDe(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="dev-ate">Até</Label>
+            <Input id="dev-ate" type="date" value={dataAte} onChange={(e) => setDataAte(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="dev-base">Base</Label>
+            <select
+              id="dev-base"
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={baseId}
+              onChange={(e) => setBaseId(e.target.value)}
+            >
+              <option value="">Todas as bases</option>
+              {(basesQuery.data ?? []).map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.codigo} — {b.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="dev-estado">Estado</Label>
+            <select
+              id="dev-estado"
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {ESTADOS.map((e) => (
+                <option key={e} value={e}>
+                  {LABEL_ESTADO[e]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="dev-busca">Buscar</Label>
+            <Input
+              id="dev-busca"
+              placeholder="Tracking, rota, motorista..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+        {[
+          { l: "Total", v: cards?.total ?? 0, c: "" },
+          { l: "Aguardando", v: cards?.aguardando_retorno ?? 0, c: CLASSE_FAIXA.verde },
+          { l: "Próximo do prazo", v: cards?.proximo_do_prazo ?? 0, c: CLASSE_FAIXA.amarelo },
+          { l: "Atrasado", v: cards?.atrasado ?? 0, c: CLASSE_FAIXA.vermelho },
+          { l: "Recebidos", v: cards?.recebido_na_base ?? 0, c: CLASSE_FAIXA.verde },
+          {
+            l: "Divergência Meli",
+            v: cards?.divergencia_delivered ?? 0,
+            c: CLASSE_FAIXA.critico,
+          },
+        ].map((c) => (
+          <Card key={c.l} className={c.c ? `border ${c.c}` : undefined}>
+            <CardContent className="pt-4">
+              <div className="text-xs uppercase text-muted-foreground">{c.l}</div>
+              <div className="text-2xl font-semibold tabular-nums">{c.v}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <PackageCheck className="h-4 w-4" /> Recebimento físico na base
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+            <div className="space-y-1">
+              <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
+              <Input
+                id="dev-codigo"
+                ref={inputRef}
+                autoFocus
+                autoComplete="off"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                placeholder="Tracking / shipment"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="dev-obs">Observação (opcional)</Label>
+              <Input
+                id="dev-obs"
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                placeholder="Avaria, embalagem aberta..."
+              />
+            </div>
+            <Button type="submit" disabled={enviando || !codigo.trim()}>
+              {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
+            </Button>
+          </form>
+          <p className="text-xs text-muted-foreground mt-2">
+            O recebimento só é registrado por leitura física. Mudança de status no Meli nunca marca
+            um pacote como recebido.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">
+            Devoluções ({linhas.length}) — SLA {Number(cards?.perc_sla ?? 0).toFixed(1)}%
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {painelQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando devoluções...
+            </div>
+          ) : painelQuery.data?.status === "erro" ? (
+            <div className="text-sm text-destructive flex items-center gap-2 py-4">
+              <AlertTriangle className="h-4 w-4" /> {painelQuery.data.erro}
+            </div>
+          ) : linhas.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6">
+              Nenhuma devolução para os filtros selecionados.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="text-left border-b">
+                    <th className="py-2 pr-3">Tracking</th>
+                    <th className="py-2 pr-3">Base</th>
+                    <th className="py-2 pr-3">Rota / motorista</th>
+                    <th className="py-2 pr-3">Ocorrência</th>
+                    <th className="py-2 pr-3">Ocorrido</th>
+                    <th className="py-2 pr-3">Prazo</th>
+                    <th className="py-2 pr-3 text-right">Dias</th>
+                    <th className="py-2 pr-3">Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l) => {
+                    const faixa = faixaVisual({
+                      estado: l.estado as EstadoDevolucao,
+                      prazo_retorno_em: l.prazo_retorno_em,
+                      recebido_em: l.recebido_em,
+                      divergencia_delivered: l.divergencia_delivered,
+                    });
+                    return (
+                      <tr
+                        key={l.id}
+                        className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
+                        onClick={() => setDetalhe(l)}
+                      >
+                        <td className="py-2 pr-3 font-mono text-xs">{l.tracking_id}</td>
+                        <td className="py-2 pr-3">{l.base_codigo ?? "—"}</td>
+                        <td className="py-2 pr-3">
+                          {l.cluster ?? l.route_id ?? "—"}
+                          <div className="text-xs text-muted-foreground">{l.motorista ?? ""}</div>
+                        </td>
+                        <td className="py-2 pr-3 text-xs">{l.occurrence_code}</td>
+                        <td className="py-2 pr-3 text-xs">{fmt(l.ocorrido_em)}</td>
+                        <td className="py-2 pr-3 text-xs">{fmt(l.prazo_retorno_em)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{l.dias_corridos}</td>
+                        <td className="py-2 pr-3">
+                          <Badge className={CLASSE_FAIXA[faixa]}>
+                            {LABEL_ESTADO[l.estado as EstadoDevolucao] ?? l.estado}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!detalhe} onOpenChange={(o) => !o && setDetalhe(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-base">{detalhe?.tracking_id}</DialogTitle>
+          </DialogHeader>
+          {detalhe && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-muted-foreground">Base de origem:</span>{" "}
+                  {detalhe.base_codigo ?? "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Rota:</span>{" "}
+                  {detalhe.cluster ?? detalhe.route_id ?? "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Ocorrência Meli:</span>{" "}
+                  {detalhe.occurrence_code}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Status Meli:</span>{" "}
+                  {detalhe.situacao_meli ?? detalhe.meli_status ?? "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Prazo de retorno:</span>{" "}
+                  {fmt(detalhe.prazo_retorno_em)}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Recebido em:</span>{" "}
+                  {fmt(detalhe.recebido_em)}
+                </div>
+              </div>
+              {detalhe.divergencia_delivered && (
+                <div className="rounded-md border border-purple-600/40 bg-purple-600/10 p-3 text-purple-500 text-sm">
+                  Divergência crítica: pacote recebido fisicamente, mas o Meli indica entrega ao
+                  cliente.
+                </div>
+              )}
+              <div>
+                <div className="text-xs uppercase text-muted-foreground mb-1">Histórico</div>
+                <ScrollArea className="h-48 rounded-md border p-2">
+                  {historicoQuery.isLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Carregando...
+                    </div>
+                  ) : (historicoQuery.data ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Sem eventos registrados.</p>
+                  ) : (
+                    <ul className="space-y-1 text-xs">
+                      {(historicoQuery.data ?? []).map((ev) => (
+                        <li key={ev.id} className="flex gap-2">
+                          <span className="text-muted-foreground">{fmt(ev.created_at)}</span>
+                          <span>{ev.tipo}</span>
+                          {ev.estado_novo && (
+                            <span className="text-muted-foreground">→ {ev.estado_novo}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </ScrollArea>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!alertaCritico} onOpenChange={(o) => !o && setAlertaCritico(null)}>
+        <DialogContent className="max-w-lg border-purple-600/50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-500">
+              <AlertTriangle className="h-5 w-5" /> Divergência crítica
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">{alertaCritico}</p>
+          <Textarea
+            placeholder="Descreva a divergência para o histórico (opcional)"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+          />
+          <Button onClick={() => setAlertaCritico(null)}>Entendi, registrar e continuar</Button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
