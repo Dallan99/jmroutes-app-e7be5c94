@@ -504,42 +504,49 @@ function MeliDevolucoesPage() {
           </CardContent>
         </Card>
       ) : (
-
-        <Card className="border-primary/20 shadow-sm">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-border/50 bg-muted/5">
-            <div className="space-y-1">
-              <CardTitle className="text-base flex items-center gap-2">
-                <PackageCheck className="h-4 w-4 text-primary" /> Recebimento físico na base
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="font-mono text-primary bg-primary/5 border-primary/20 px-2 py-1 flex items-center gap-1.5">
-                  <span className="text-[10px] text-muted-foreground uppercase font-sans">Lote:</span>
-                  {recebimentoId}
-                </Badge>
+        <div className="space-y-4">
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary text-primary-foreground p-3 rounded-full">
+                  <PackageCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold font-mono">{recebimentoId}</h2>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
                 <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                  variant="outline"
+                  size="sm"
                   onClick={onGerarRecebimento}
-                  disabled={gerandoRec || !baseId}
-                  title="Finalizar este lote e iniciar um novo"
+                  disabled={gerandoRec}
                 >
-                  {gerandoRec ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                  {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
+                  Novo Recebimento
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    stopAlarm();
+                    setIniciandoRecebimento(false);
+                  }}
+                >
+                  Sair
                 </Button>
               </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                stopAlarm();
-                setIniciandoRecebimento(false);
-              }}
-            >
-              Voltar
-            </Button>
-          </CardHeader>
+            </CardContent>
+          </Card>
+
+
+          <Card className="border-primary/20 shadow-sm">
+            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
+              <CardTitle className="text-base flex items-center gap-2">
+                Bipagem de Pacotes
+              </CardTitle>
+            </CardHeader>
           <CardContent className="pt-6">
             <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
               <div className="space-y-1">
@@ -612,7 +619,8 @@ function MeliDevolucoesPage() {
             )}
           </CardContent>
         </Card>
-      )}
+      </div>
+    )}
 
 
       <Card>
