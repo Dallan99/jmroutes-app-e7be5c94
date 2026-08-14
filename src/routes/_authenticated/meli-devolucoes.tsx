@@ -374,11 +374,12 @@ function MeliDevolucoesPage() {
           { id: "recebido_na_base", l: "Recebidos", v: cards?.recebido_na_base ?? 0, c: CLASSE_FAIXA.verde },
           {
             id: "divergencia_delivered",
-            l: "Divergência Meli",
+            l: "Divergência Status",
             v: cards?.divergencia_delivered ?? 0,
             c: CLASSE_FAIXA.critico,
           },
         ].map((c) => (
+
           <Card
             key={c.l}
             role="button"
