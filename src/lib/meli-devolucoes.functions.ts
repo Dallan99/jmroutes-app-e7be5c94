@@ -184,6 +184,121 @@ export const gerarRecebimentoId = createServerFn({ method: "POST" })
   });
 
 
+
+const romaneioAbrirSchema = z.object({
+  base_id: z.string().uuid(),
+  tracking_id: z.string().trim().min(3),
+  observacao: z.string().trim().max(500).optional().nullable(),
+});
+
+export const meliRomaneioAbrirComPrimeiroPacote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => romaneioAbrirSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_abrir_com_primeiro_pacote",
+      {
+        p_base_id: data.base_id,
+        p_tracking_id: data.tracking_id,
+        p_observacao: data.observacao || null,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return res as {
+      status: "ok" | "erro" | "duplicado";
+      romaneio_id: string;
+      codigo_romaneio: string;
+      tracking_id: string;
+      divergencia_delivered: boolean;
+      mensagem?: string;
+    };
+  });
+
+
+const romaneioBiparSchema = z.object({
+  romaneio_id: z.string().uuid(),
+  base_id: z.string().uuid(),
+  tracking_id: z.string().trim().min(3),
+  observacao: z.string().trim().max(500).optional().nullable(),
+});
+
+export const meliRomaneioBipar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => romaneioBiparSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_bipar",
+      {
+        p_romaneio_id: data.romaneio_id,
+        p_base_id: data.base_id,
+        p_tracking_id: data.tracking_id,
+        p_observacao: data.observacao || null,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return res as {
+      status: "ok" | "erro" | "duplicado";
+      romaneio_id: string;
+      codigo_romaneio: string;
+      tracking_id: string;
+      divergencia_delivered: boolean;
+      mensagem?: string;
+    };
+  });
+
+
+const romaneioListarSchema = z.object({
+  base_id: z.string().uuid().optional().nullable(),
+  data_de: dia.optional().nullable(),
+  data_ate: dia.optional().nullable(),
+  status: z.enum(["em_andamento", "concluido", "cancelado"]).optional().nullable(),
+});
+
+export type MeliRomaneioLinha = {
+  id: string;
+  codigo: string;
+  base_id: string;
+  base_codigo: string;
+  data_operacional: string;
+  sequencial: number;
+  status: "em_andamento" | "concluido" | "cancelado";
+  route_id: string | null;
+  motorista: string | null;
+  aberto_em: string;
+  aberto_por_nome: string;
+  total_pacotes: number;
+  concluido_em: string | null;
+};
+
+export const meliRomaneioListar = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => romaneioListarSchema.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneios_listar",
+      {
+        p_base_id: data.base_id || null,
+        p_data_de: data.data_de || null,
+        p_data_ate: data.data_ate || null,
+        p_status: data.status || null,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return rows as MeliRomaneioLinha[];
+  });
+
+export const meliRomaneioFinalizar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ romaneio_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_finalizar",
+      { p_romaneio_id: data.romaneio_id },
+    );
+    if (error) throw new Error(error.message);
+    return res as { status: string; mensagem?: string };
+  });
+
 const historicoSchema = z.object({ devolucao_id: z.string().uuid() });
 
 export type MeliDevolucaoEvento = {
@@ -207,3 +322,34 @@ export const meliDevolucaoHistorico = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return (rows ?? []) as MeliDevolucaoEvento[];
   });
+
+export const meliRomaneioCancelar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ romaneio_id: z.string().uuid(), justificativa: z.string().min(5) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_cancelar",
+      {
+        p_romaneio_id: data.romaneio_id,
+        p_justificativa: data.justificativa,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return res as { status: string; mensagem?: string };
+  });
+
+export const meliRomaneioDetalhar = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ romaneio_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as unknown as RpcClient).rpc(
+      "meli_romaneio_detalhar",
+      { p_romaneio_id: data.romaneio_id },
+    );
+    if (error) throw new Error(error.message);
+    return res as any;
+  });
+
+

@@ -6,11 +6,18 @@ import { toast } from "sonner";
 import {
   meliDevolucoesPainel,
   meliDevolucoesSincronizar,
-  meliDevolucaoReceber,
+  meliRomaneioAbrirComPrimeiroPacote,
+  meliRomaneioBipar,
+  meliRomaneioListar,
+  meliRomaneioFinalizar,
+  meliRomaneioCancelar,
+  meliRomaneioDetalhar,
   meliDevolucaoHistorico,
-  gerarRecebimentoId,
   type MeliDevolucaoLinha,
+  type MeliRomaneioLinha,
 } from "@/lib/meli-devolucoes.functions";
+
+
 import { listarBasesSimples } from "@/lib/bases.functions";
 
 import {
@@ -87,14 +94,20 @@ function fmt(dt: string | null | undefined) {
     minute: "2-digit",
   });
 }
-
 function MeliDevolucoesPage() {
   const buscarPainel = useServerFn(meliDevolucoesPainel);
   const sincronizar = useServerFn(meliDevolucoesSincronizar);
-  const receber = useServerFn(meliDevolucaoReceber);
+  const abrirRomaneio = useServerFn(meliRomaneioAbrirComPrimeiroPacote);
+  const biparRomaneio = useServerFn(meliRomaneioBipar);
+  const finalizar = useServerFn(meliRomaneioFinalizar);
+  const listarRomaneios = useServerFn(meliRomaneioListar);
+  const cancelarRomaneio = useServerFn(meliRomaneioCancelar);
+  const detalharRomaneio = useServerFn(meliRomaneioDetalhar);
   const historico = useServerFn(meliDevolucaoHistorico);
   const buscarBases = useServerFn(listarBasesSimples);
-  const gerarRecebimento = useServerFn(gerarRecebimentoId);
+
+
+
 
   const hoje = hojeOperacional();
   const [dataDe, setDataDe] = useState(() => {
@@ -122,16 +135,19 @@ function MeliDevolucoesPage() {
     return false;
   });
 
-  const updateActiveRec = (id: string) => {
+  const updateActiveRec = (id: string, uuid?: string) => {
     setRecebimentoId(id);
     if (id) {
       localStorage.setItem("active_rec_id", id);
+      if (uuid) localStorage.setItem("active_romaneio_uuid", uuid);
       setIniciandoRecebimento(true);
     } else {
       localStorage.removeItem("active_rec_id");
+      localStorage.removeItem("active_romaneio_uuid");
       setIniciandoRecebimento(false);
     }
   };
+
   const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
 
 
@@ -159,6 +175,13 @@ function MeliDevolucoesPage() {
       }),
     refetchInterval: 60_000,
   });
+
+  const romaneiosQuery = useQuery({
+    queryKey: ["meli-romaneios", baseId, dataDe, dataAte],
+    queryFn: () => listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } }),
+    enabled: !!baseId || !!dataDe,
+  });
+
 
   const historicoQuery = useQuery({
     queryKey: ["meli-devolucao-historico", detalhe?.id],
@@ -209,16 +232,15 @@ function MeliDevolucoesPage() {
     }
     setGerandoRec(true);
     try {
-      const id = await gerarRecebimento({ data: { base_id: baseId, data: hoje } });
-      updateActiveRec(id);
-      setPacotesDesteLote([]); // Limpa a lista de pacotes para o novo lote
-      toast.success(`Novo recebimento gerado: ${id}`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar recebimento.");
+      // Abertura automática agora requer o primeiro pacote biapdo
+      toast.info("Para abrir um novo romaneio, bipe o primeiro pacote.");
+      updateActiveRec("NOVO"); // Sinalizador visual de que estamos abrindo
+      setPacotesDesteLote([]);
     } finally {
       setGerandoRec(false);
     }
   }
+
 
 
   async function onReceber(e: React.FormEvent) {
@@ -237,33 +259,55 @@ function MeliDevolucoesPage() {
 
     setEnviando(true);
     try {
-      const res = await receber({
-        data: {
-          tracking: codigo.trim(),
-          base_id: baseId,
-          metodo: "scanner",
-          observacao: observacao.trim() || null,
-          recebimento_id: recebimentoId,
-        },
-      });
+      let res;
+      if (recebimentoId === "NOVO") {
+        // Abre o romaneio com o primeiro pacote
+        res = await abrirRomaneio({
+          data: {
+            base_id: baseId,
+            tracking_id: codigo.trim(),
+            observacao: observacao.trim() || null,
+          }
+        });
+        if (res.romaneio_id) {
+          updateActiveRec(res.codigo_romaneio);
+          // O ID do romaneio agora é o UUID, mas a interface usa o código
+          localStorage.setItem("active_romaneio_uuid", res.romaneio_id);
+        }
+      } else {
+        // Bipa em romaneio existente
+        const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
+        if (!romaneioUuid) {
+           toast.error("ID Interno do romaneio não encontrado. Tente reabrir.");
+           return;
+        }
+        res = await biparRomaneio({
+          data: {
+            romaneio_id: romaneioUuid,
+            base_id: baseId,
+            tracking_id: codigo.trim(),
+            observacao: observacao.trim() || null,
+          },
+        });
+      }
+
       if (res.status === "erro") {
         beepError();
-        toast.error(res.mensagem ?? "Não foi possível registrar o retorno.");
+        toast.error((res as any).mensagem ?? "Não foi possível registrar o retorno.");
       } else if (res.status === "duplicado") {
         beepError();
-        toast.error(res.mensagem ?? "Divergência: pacote já lido/recebido nesta base.");
+        toast.error((res as any).mensagem ?? "Divergência: pacote já lido/recebido neste romaneio.");
       } else if (res.divergencia_delivered) {
         startAlarm();
         setAlertaCritico(
-          res.mensagem ??
-            `Pacote ${res.codigo} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
+          (res as any).mensagem ??
+            `Pacote ${res.tracking_id} retornou fisicamente, porém o sistema indica ENTREGUE. Registre a divergência.`,
         );
-
       } else {
         beepOk();
-        toast.success(res.mensagem ?? `Retorno de ${res.codigo} registrado.`);
+        toast.success((res as any).mensagem ?? `Retorno de ${res.tracking_id} registrado.`);
         // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
-        const p = linhas.find(l => l.tracking_id === res.codigo);
+        const p = linhas.find(l => l.tracking_id === res.tracking_id);
         if (p) {
           setPacotesDesteLote(prev => [p, ...prev]);
         }
@@ -272,9 +316,14 @@ function MeliDevolucoesPage() {
       setObservacao("");
       inputRef.current?.focus();
       painelQuery.refetch();
+    } catch (err: any) {
+      beepError();
+      toast.error(err.message || "Erro ao processar bipagem.");
     } finally {
       setEnviando(false);
     }
+
+
   }
 
 
@@ -322,7 +371,7 @@ function MeliDevolucoesPage() {
         <div>
           <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
             <RotateCcw className="h-6 w-6 text-primary" />
-            Controle de Devoluções
+            Romaneio Meli
           </h1>
           <p className="text-sm text-muted-foreground">
             Todo pacote com ocorrência de rua deve retornar à base de origem em até 3 dias corridos.
@@ -545,17 +594,51 @@ function MeliDevolucoesPage() {
                     variant="secondary"
                     size="sm"
                     className="h-8 px-3"
-                    onClick={() => {
+                    onClick={async () => {
                       if (!buscarRecId.trim()) return;
-                      updateActiveRec(buscarRecId.trim().toUpperCase());
-                      setPacotesDesteLote([]);
-                      toast.info(`Continuando recebimento: ${buscarRecId.trim().toUpperCase()}`);
+                      const q = buscarRecId.trim().toUpperCase();
+                      // Tenta localizar o UUID do romaneio pelo código
+                      try {
+                        const romaneios = await listarRomaneios({ data: { base_id: baseId || null } });
+                        const encontrado = romaneios.find(r => r.codigo === q);
+                        if (encontrado) {
+                          updateActiveRec(encontrado.codigo, encontrado.id);
+                          setPacotesDesteLote([]);
+                          toast.info(`Continuando romaneio: ${encontrado.codigo}`);
+                        } else {
+                          toast.error("Romaneio não encontrado para esta base.");
+                        }
+                      } catch (err) {
+                        toast.error("Erro ao buscar romaneio.");
+                      }
                     }}
                   >
                     Continuar
                   </Button>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={async () => {
+                      const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
+                      if (!romaneioUuid) {
+                        updateActiveRec("");
+                        return;
+                      }
+                      try {
+                        await finalizar({ data: { romaneio_id: romaneioUuid } });
+                        toast.success("Romaneio finalizado com sucesso.");
+                        updateActiveRec("");
+                        painelQuery.refetch();
+                      } catch (err: any) {
+                        toast.error(err.message || "Erro ao finalizar romaneio.");
+                      }
+                    }}
+                  >
+                    Finalizar
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -571,8 +654,8 @@ function MeliDevolucoesPage() {
                     size="sm"
                     className="h-8"
                     onClick={() => {
-                    updateActiveRec("");
-                    stopAlarm();
+                      updateActiveRec("");
+                      stopAlarm();
                     }}
                   >
                     Sair
@@ -583,6 +666,7 @@ function MeliDevolucoesPage() {
           </Card>
 
 
+
           <Card className="border-primary/20 shadow-sm">
             <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
               <CardTitle className="text-base flex items-center gap-2">
@@ -590,7 +674,14 @@ function MeliDevolucoesPage() {
               </CardTitle>
             </CardHeader>
           <CardContent className="pt-6">
-            <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={onReceber}>
+            <form
+              className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onReceber(e);
+              }}
+            >
+
               <div className="space-y-1">
                 <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
                 <Input
@@ -658,11 +749,66 @@ function MeliDevolucoesPage() {
                   </table>
                 </ScrollArea>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    )}
+
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Romaneios Recentes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {romaneiosQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando romaneios...
+            </div>
+          ) : (romaneiosQuery.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6">Nenhum romaneio recente.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="text-left border-b">
+                    <th className="py-2 pr-3">Código</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2 pr-3">Data</th>
+                    <th className="py-2 pr-3">Rota</th>
+                    <th className="py-2 pr-3">Motorista</th>
+                    <th className="py-2 pr-3 text-right">Pacotes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(romaneiosQuery.data ?? []).map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        updateActiveRec(r.codigo, r.id);
+                        setPacotesDesteLote([]);
+                      }}
+                    >
+                      <td className="py-2 pr-3 font-mono text-xs">{r.codigo}</td>
+                      <td className="py-2 pr-3">
+                        <Badge variant="outline" className="text-[10px] uppercase">
+                          {r.status.replace("_", " ")}
+                        </Badge>
+                      </td>
+                      <td className="py-2 pr-3 text-xs">{fmt(r.aberto_em)}</td>
+                      <td className="py-2 pr-3 text-xs">{r.route_id ?? "—"}</td>
+                      <td className="py-2 pr-3 text-xs">{r.motorista ?? "—"}</td>
+                      <td className="py-2 pr-3 text-right text-xs">{r.total_pacotes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
 
       <Card>
