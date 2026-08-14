@@ -109,12 +109,29 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [recebimentoId, setRecebimentoId] = useState("");
+  const [recebimentoId, setRecebimentoId] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") || "";
+    return "";
+  });
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
-  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") ? true : false;
+    return false;
+  });
+
+  const updateActiveRec = (id: string) => {
+    setRecebimentoId(id);
+    if (id) {
+      localStorage.setItem("active_rec_id", id);
+      setIniciandoRecebimento(true);
+    } else {
+      localStorage.removeItem("active_rec_id");
+      setIniciandoRecebimento(false);
+    }
+  };
   const [pacotesDesteLote, setPacotesDesteLote] = useState<MeliDevolucaoLinha[]>([]);
 
 
