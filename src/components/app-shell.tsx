@@ -31,6 +31,7 @@ import {
   Truck,
   ListChecks,
   PackageOpen,
+  ShieldAlert,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ const NAV_OPERACIONAL: NavItem[] = [
   { title: "Triagem", to: "/triagem", icon: PackageSearch },
   { title: "Contagem", to: "/contagem", icon: ClipboardList },
   { title: "Devoluções", to: "/devolucoes", icon: RotateCcw },
+  { title: "Devoluções Meli", to: "/meli-devolucoes", icon: PackageOpen },
   { title: "Transferências", to: "/transferencias", icon: Truck },
   { title: "Transferências em lote", to: "/transferencias-lote", icon: ListChecks },
   { title: "Inventário", to: "/inventario-central", icon: ClipboardList },
@@ -97,6 +99,7 @@ const NAV_GESTAO: NavItem[] = [
   { title: "Histórico", to: "/historico", icon: History, roles: ["admin", "supervisor", "gerente"] },
   { title: "Gerencial", to: "/gerencial", icon: TrendingUp, roles: ["admin", "supervisor", "gerente"] },
   { title: "Integração Meli", to: "/integracao-meli", icon: PackageOpen, roles: ["admin", "supervisor", "gerente"] },
+  { title: "Área de Risco", to: "/meli-risco", icon: ShieldAlert, roles: ["admin", "supervisor", "gerente"] },
 ];
 const NAV_ADMIN: NavItem[] = [
   { title: "Usuários", to: "/usuarios", icon: Users, roles: ["admin"] },

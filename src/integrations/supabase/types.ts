@@ -723,6 +723,163 @@ export type Database = {
           },
         ]
       }
+      meli_devolucoes: {
+        Row: {
+          base_id: string
+          cluster: string | null
+          created_at: string
+          divergencia_delivered: boolean
+          estado: string
+          id: string
+          last_synced_at: string | null
+          meli_status: string | null
+          meli_substatus: string | null
+          metodo_confirmacao: string | null
+          motorista: string | null
+          observacao_recebimento: string | null
+          occurrence_code: string
+          ocorrido_em: string
+          prazo_retorno_em: string
+          recebido_base_id: string | null
+          recebido_em: string | null
+          recebido_por: string | null
+          rota_id: string | null
+          route_id: string | null
+          situacao_meli: string | null
+          tracking_id: string
+          transportadora: string | null
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          cluster?: string | null
+          created_at?: string
+          divergencia_delivered?: boolean
+          estado?: string
+          id?: string
+          last_synced_at?: string | null
+          meli_status?: string | null
+          meli_substatus?: string | null
+          metodo_confirmacao?: string | null
+          motorista?: string | null
+          observacao_recebimento?: string | null
+          occurrence_code: string
+          ocorrido_em: string
+          prazo_retorno_em: string
+          recebido_base_id?: string | null
+          recebido_em?: string | null
+          recebido_por?: string | null
+          rota_id?: string | null
+          route_id?: string | null
+          situacao_meli?: string | null
+          tracking_id: string
+          transportadora?: string | null
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          cluster?: string | null
+          created_at?: string
+          divergencia_delivered?: boolean
+          estado?: string
+          id?: string
+          last_synced_at?: string | null
+          meli_status?: string | null
+          meli_substatus?: string | null
+          metodo_confirmacao?: string | null
+          motorista?: string | null
+          observacao_recebimento?: string | null
+          occurrence_code?: string
+          ocorrido_em?: string
+          prazo_retorno_em?: string
+          recebido_base_id?: string | null
+          recebido_em?: string | null
+          recebido_por?: string | null
+          rota_id?: string | null
+          route_id?: string | null
+          situacao_meli?: string | null
+          tracking_id?: string
+          transportadora?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_devolucoes_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_devolucoes_recebido_base_id_fkey"
+            columns: ["recebido_base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_devolucoes_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meli_devolucoes_eventos: {
+        Row: {
+          base_id: string | null
+          created_at: string
+          detalhes: Json | null
+          devolucao_id: string | null
+          estado_anterior: string | null
+          estado_novo: string | null
+          id: string
+          registrado_por: string | null
+          tipo: string
+          tracking_id: string
+        }
+        Insert: {
+          base_id?: string | null
+          created_at?: string
+          detalhes?: Json | null
+          devolucao_id?: string | null
+          estado_anterior?: string | null
+          estado_novo?: string | null
+          id?: string
+          registrado_por?: string | null
+          tipo: string
+          tracking_id: string
+        }
+        Update: {
+          base_id?: string | null
+          created_at?: string
+          detalhes?: Json | null
+          devolucao_id?: string | null
+          estado_anterior?: string | null
+          estado_novo?: string | null
+          id?: string
+          registrado_por?: string | null
+          tipo?: string
+          tracking_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_devolucoes_eventos_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_devolucoes_eventos_devolucao_id_fkey"
+            columns: ["devolucao_id"]
+            isOneToOne: false
+            referencedRelation: "meli_devolucoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meli_importacoes: {
         Row: {
           arquivo_nome: string | null
@@ -1976,6 +2133,30 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number; p_rota_id: string }
         Returns: Json
       }
+      meli_devolucao_receber: {
+        Args: {
+          p_base_id: string
+          p_metodo?: string
+          p_observacao?: string
+          p_tracking: string
+        }
+        Returns: Json
+      }
+      meli_devolucoes_painel: {
+        Args: {
+          p_base_id?: string
+          p_busca?: string
+          p_data_ate?: string
+          p_data_de?: string
+          p_estado?: string
+          p_occurrence?: string
+        }
+        Returns: Json
+      }
+      meli_devolucoes_sincronizar: {
+        Args: { p_base_id?: string; p_data_ate?: string; p_data_de?: string }
+        Returns: Json
+      }
       meli_importar_rota: {
         Args: { p_arquivo_nome?: string; p_payload: Json }
         Returns: Json
@@ -1994,6 +2175,18 @@ export type Database = {
       meli_pode_operar: { Args: never; Returns: boolean }
       meli_publicar_rota_operacional: {
         Args: { p_data_operacional?: string; p_rota_id: string }
+        Returns: Json
+      }
+      meli_rotas_area_risco: {
+        Args: {
+          p_base_id?: string
+          p_data?: string
+          p_motorista?: string
+          p_risco?: string
+          p_rota?: string
+          p_status?: string
+          p_transportadora?: string
+        }
         Returns: Json
       }
       meli_status_normalizado: {
