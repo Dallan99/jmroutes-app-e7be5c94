@@ -141,7 +141,7 @@ export function SyncBaseIndicador({
 }
 
 /**
- * Situação da integração Meli — calculada apenas com o último sucesso
+ * Situação da operação Meli — calculada apenas com o último sucesso
  * registrado pelo backend por base (nunca pelo temporizador da tela).
  */
 export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync> }) {
@@ -160,7 +160,7 @@ export function MeliSyncMonitor({ sync }: { sync: ReturnType<typeof useMeliSync>
           role="status"
         >
           <SyncDot situacao={geral} />
-          Situação da integração Meli: {LABEL_SITUACAO_SYNC[geral]}
+          Situação da operação Meli: {LABEL_SITUACAO_SYNC[geral]}
         </span>
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setAberto((v) => !v)}>
           Detalhes da sincronização
