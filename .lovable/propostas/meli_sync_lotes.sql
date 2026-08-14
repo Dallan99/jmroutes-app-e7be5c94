@@ -365,6 +365,35 @@ BEGIN
     v_rota_id := nullif(v_imp->>'rota_id','')::uuid;
     IF v_rota_id IS NOT NULL THEN
       UPDATE public.meli_rotas SET sync_batch_id = p_sync_batch_id WHERE id = v_rota_id;
+
+      -- Reconciliação dos pacotes REMOVIDOS pelo Meli (presentes no lote
+      -- anterior e ausentes no snapshot atual). Executa dentro da mesma
+      -- transação de promoção. Nunca apaga pacote com vínculo operacional
+      -- (recebido/triado na escala): esse fica marcado como fora do snapshot.
+      UPDATE public.escalas e
+         SET meli_pacote_id = NULL
+       WHERE e.meli_pacote_id IN (
+               SELECT p.id FROM public.meli_pacotes p
+                WHERE p.rota_id = v_rota_id
+                  AND NOT EXISTS (
+                    SELECT 1 FROM public.meli_sync_pacotes_staging s
+                     WHERE s.sync_batch_id = p_sync_batch_id
+                       AND s.route_id = r.route_id
+                       AND s.tracking_id = p.tracking_id)
+             )
+         AND e.recebido = false
+         AND e.triado = false;
+
+      DELETE FROM public.meli_pacotes p
+       WHERE p.rota_id = v_rota_id
+         AND NOT EXISTS (
+           SELECT 1 FROM public.meli_sync_pacotes_staging s
+            WHERE s.sync_batch_id = p_sync_batch_id
+              AND s.route_id = r.route_id
+              AND s.tracking_id = p.tracking_id)
+         AND NOT EXISTS (
+           SELECT 1 FROM public.escalas e WHERE e.meli_pacote_id = p.id);
+
       PERFORM public.meli_publicar_rota_operacional(v_rota_id, r.data_rota);
     END IF;
     v_promovidas := v_promovidas + 1;

@@ -34,6 +34,12 @@ export type WorkerConfig = {
   syncIntervalSeconds: number;
   /** DRY_RUN=true: consulta o AdminML, mas NÃO envia ao JMRoutes e NÃO grava telemetria. */
   dryRun: boolean;
+  /**
+   * Feature flag do protocolo de lotes (staging + promoção atômica).
+   * DESLIGADA por padrão: com ela off o worker mantém exatamente o fluxo atual,
+   * compatível com o banco antes da migration.
+   */
+  protocoloLotes: boolean;
 };
 
 export class ConfigError extends Error {}
@@ -74,6 +80,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
 
   const dryRun = (env["DRY_RUN"] ?? "").trim().toLowerCase() === "true";
+  const protocoloLotes = (env["SYNC_PROTOCOL_LOTES"] ?? "").trim().toLowerCase() === "true";
 
   const intervalRaw = Number(env["SYNC_INTERVAL_SECONDS"] ?? 60);
   const syncIntervalSeconds =
@@ -94,5 +101,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sessionFilePath: (env["SESSION_FILE_PATH"] ?? "/data/adminml-session.enc").trim(),
     syncIntervalSeconds,
     dryRun,
+    protocoloLotes,
   };
 }

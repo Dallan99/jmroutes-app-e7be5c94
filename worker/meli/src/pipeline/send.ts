@@ -8,6 +8,7 @@ export const ENDPOINT_PATH = "/api/public/meli/importar-rota-bruta";
 
 export type EnvioResultado =
   | { status: "ok"; pacotes: number; routeId: string | null }
+  | { status: "protocolo_indisponivel" }
   | { status: "sem_sessao" }
   | { status: "rate_limit" }
   | { status: "erro"; mensagem: string };
@@ -16,6 +17,8 @@ export type EnvioOpts = {
   accessToken: string;
   confirmarDivergencia?: boolean;
   fetchImpl?: typeof fetch;
+  /** Protocolo de lotes: quando definido, a rota vai apenas para o staging. */
+  syncBatchId?: string | null;
 };
 
 export function urlEndpoint(cfg: Pick<WorkerConfig, "jmrBaseUrl">): string {
@@ -40,6 +43,7 @@ export async function enviarRotaBruta(
         payload,
         origem: "worker",
         confirmar_divergencia: opts.confirmarDivergencia === true,
+        ...(opts.syncBatchId ? { sync_batch_id: opts.syncBatchId } : {}),
       }),
     });
   } catch (err) {
@@ -47,6 +51,7 @@ export async function enviarRotaBruta(
   }
 
   if (res.status === 401) return { status: "sem_sessao" };
+  if (res.status === 503) return { status: "protocolo_indisponivel" };
   if (res.status === 429) return { status: "rate_limit" };
 
   let body: Record<string, unknown> = {};
@@ -56,7 +61,17 @@ export async function enviarRotaBruta(
     return { status: "erro", mensagem: `resposta_invalida_http_${res.status}` };
   }
 
+  if (body["codigo"] === "protocolo_indisponivel") return { status: "protocolo_indisponivel" };
+
   if (body["ok"] === true) {
+    // Staging do ciclo: a resposta traz contagens do lote, não upserts ativos.
+    if (body["staging"] === true) {
+      return {
+        status: "ok",
+        pacotes: Number(body["pacotes_no_lote"] ?? 0),
+        routeId: typeof body["route_id"] === "string" ? body["route_id"] : null,
+      };
+    }
     const inseridos = Number(body["inseridos"] ?? 0);
     const atualizados = Number(body["atualizados"] ?? 0);
     return {

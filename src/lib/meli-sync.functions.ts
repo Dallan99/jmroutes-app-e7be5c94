@@ -15,6 +15,15 @@ export type MeliSyncBase = {
   pacotes_encontrados: number;
   erros: number;
   data_rota: string | null;
+  /**
+   * Existe lote em construção (staging) para a base/dia — origem: coluna
+   * calculada por `meli_sync_status_bases()` após a migration de lotes.
+   * Enquanto a migration não estiver aplicada o campo vem ausente e o selo
+   * "Sincronizando nova atualização" simplesmente não aparece.
+   */
+  sincronizando?: boolean | null;
+  /** Lote concluído e ativo atualmente publicado para a base/dia. */
+  lote_ativo?: string | null;
 };
 
 export type MeliSyncStatusResult = {
