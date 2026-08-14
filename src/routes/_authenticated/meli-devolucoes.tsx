@@ -600,7 +600,15 @@ function MeliDevolucoesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!alertaCritico} onOpenChange={(o) => !o && setAlertaCritico(null)}>
+      <Dialog
+        open={!!alertaCritico}
+        onOpenChange={(o) => {
+          if (!o) {
+            stopAlarm();
+            setAlertaCritico(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-lg border-purple-600/50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-purple-500">
@@ -613,7 +621,14 @@ function MeliDevolucoesPage() {
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
           />
-          <Button onClick={() => setAlertaCritico(null)}>Entendi, registrar e continuar</Button>
+          <Button
+            onClick={() => {
+              stopAlarm();
+              setAlertaCritico(null);
+            }}
+          >
+            Entendi, registrar e continuar
+          </Button>
         </DialogContent>
       </Dialog>
     </div>
