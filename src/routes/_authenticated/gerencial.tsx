@@ -317,7 +317,6 @@ function RotasPorBaseSection() {
               <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="py-2 pr-3">Base</th>
                 <th className="py-2 pr-3">Rota</th>
-                <th className="py-2 pr-3">Motorista</th>
                 <th className="py-2 pr-3 text-right">Previsto</th>
                 <th className="py-2 pr-3 text-right">Recebido</th>
                 <th className="py-2 pr-3 text-right">Devolvido</th>
