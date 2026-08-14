@@ -76,3 +76,70 @@ export async function importarRotaBrutaComClient(
 
   return { ...importado, resumo, publicacao, alerta_divergencia: temDivergencia };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Protocolo de lotes (staging isolado). Enquanto a migration não estiver
+// aplicada, este caminho NUNCA é acionado: só é usado quando o chamador envia
+// explicitamente um sync_batch_id.
+// ─────────────────────────────────────────────────────────────────────────────
+export type StagingResultado =
+  | {
+      status: "ok";
+      route_id: string;
+      rotas_no_lote: number;
+      pacotes_no_lote: number;
+      resumo: ReturnType<typeof normalizarPayloadMeli>["resumo"];
+    }
+  | { status: "erro"; erro: string; resumo?: ReturnType<typeof normalizarPayloadMeli>["resumo"] };
+
+/**
+ * Normaliza o payload bruto e grava SOMENTE no staging do ciclo
+ * (`meli_sync_rota_staging`). Nenhuma escrita nas tabelas ativas.
+ */
+export async function enviarRotaParaStagingComClient(
+  supabase: SupabaseClient<never>,
+  sync_batch_id: string,
+  bruto: Record<string, unknown>,
+): Promise<StagingResultado> {
+  if (bruto.id === undefined || bruto.id === null || bruto.id === "") {
+    return { status: "erro", erro: "payload sem 'id' de rota do Meli." };
+  }
+  if (!Array.isArray(bruto.stops)) {
+    return { status: "erro", erro: "payload sem 'stops' (esperado array)." };
+  }
+
+  const { payload: normalizado, resumo } = normalizarPayloadMeli(bruto);
+  if (!normalizado.route_id) {
+    return { status: "erro", erro: "route_id vazio após normalização.", resumo };
+  }
+  if (normalizado.pacotes.length === 0) {
+    return { status: "erro", erro: "nenhum pacote válido extraído do payload.", resumo };
+  }
+
+  const rpc = (supabase as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  }).rpc;
+  const { data, error } = await rpc.call(supabase, "meli_sync_rota_staging", {
+    p_sync_batch_id: sync_batch_id,
+    p_payload: normalizado,
+  });
+  if (error) return { status: "erro", erro: error.message, resumo };
+
+  const res = (data ?? {}) as {
+    status?: string;
+    erro?: string;
+    route_id?: string;
+    rotas_no_lote?: number;
+    pacotes_no_lote?: number;
+  };
+  if (res.status !== "ok") {
+    return { status: "erro", erro: res.erro ?? "falha_no_staging", resumo };
+  }
+  return {
+    status: "ok",
+    route_id: res.route_id ?? normalizado.route_id,
+    rotas_no_lote: res.rotas_no_lote ?? 0,
+    pacotes_no_lote: res.pacotes_no_lote ?? 0,
+    resumo,
+  };
+}
