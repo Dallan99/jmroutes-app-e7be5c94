@@ -509,11 +509,11 @@ export const rotasPorBase = createServerFn({ method: "POST" })
     const importIds = (imports ?? []).map((i) => i.id);
     const importBaseMap = new Map((imports ?? []).map((i) => [i.id, i.base_id] as const));
 
-    let escalas: { nro_rota: string | null; motorista: string | null; placa: string | null; recebido: boolean | null; devolvido: boolean | null; importacao_id: string | null; base_operacional_id: string | null }[] = [];
+    let escalas: { nro_rota: string | null; driver: string | null; placa: string | null; recebido: boolean | null; devolvido: boolean | null; importacao_id: string | null; base_operacional_id: string | null }[] = [];
     if (importIds.length > 0) {
       const { data: es, error: ee } = await supabase
         .from("escalas")
-        .select("nro_rota, motorista, placa, recebido, devolvido, importacao_id, base_operacional_id")
+        .select("nro_rota, driver, placa, recebido, devolvido, importacao_id, base_operacional_id")
         .in("importacao_id", importIds)
         .limit(50000);
       if (ee) throw new Error(ee.message);
@@ -534,7 +534,7 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         base_codigo: b.codigo,
         base_nome: b.nome,
         nro_rota: rota,
-        motorista: e.motorista,
+        motorista: e.driver,
         placa: e.placa,
         total: 0,
         recebido: 0,
