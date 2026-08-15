@@ -637,7 +637,7 @@ function MeliDevolucoesPage() {
                       const q = buscarRecId.trim().toUpperCase();
                       // Tenta localizar o UUID do romaneio pelo código
                       try {
-                        const romaneios = (await listarRomaneios({ data: { base_id: baseId || null } })) as any[];
+                        const romaneios = (await listarDevolucoes({ data: { base_id: baseId || null } })) as any[];
                         const encontrado = romaneios?.find((r: any) => r.codigo === q);
                         if (encontrado) {
                           updateActiveRec(encontrado.codigo, encontrado.id);
