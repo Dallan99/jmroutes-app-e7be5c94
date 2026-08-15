@@ -23,7 +23,6 @@ describe('Devoluções v3 - Stress de Concorrência (Fake)', () => {
 
   it('quatro usuários abrindo devoluções simultaneamente gera 4 sequenciais únicos', async () => {
     const mockAbrir = async (userId: string, trackingId: string) => {
-      // Simula a lógica da RPC com lock (no fake é síncrono então é seguro, mas Promise.all testa a interface do handler)
       const dataHoje = '2026-08-15';
       const baseCodigo = 'ESP17';
       
@@ -31,10 +30,10 @@ describe('Devoluções v3 - Stress de Concorrência (Fake)', () => {
         r => r.base_id === BASE_ID && r.data_operacional === dataHoje
       );
       const seq = romaneios.length + 1;
-      const codigo = \`EXP-REC-20260815-ESP17-\${seq.toString().padStart(3, '0')}\`;
+      const codigo = `EXP-REC-20260815-ESP17-${seq.toString().padStart(3, '0')}`;
       
       const newRomaneio = {
-        id: \`uuid-\${userId}\`,
+        id: `uuid-${userId}`,
         codigo,
         base_id: BASE_ID,
         data_operacional: dataHoje,
