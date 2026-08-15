@@ -1,38 +1,46 @@
 ---
-title: Diagnóstico Final e SQL Sincronização v2 (V4)
-description: Fechamento matemático, normalização de aliases reais e RPC com idempotência comprovada.
+title: Diagnóstico Final ESP16 e RPC v2 (V4)
+description: Fechamento matemático mútuo exclusivo e SQL integral da sincronização idempotente.
 ---
 
-## 1. Fechamento Matemático (Requisito 1)
-Base: **ESP16** | Período: **2026-08-01 a 2026-08-15**
-O total de **66.068** trackings distintos foi reconciliado atribuindo uma única categoria de maior prioridade a cada pacote.
+## 1. Diagnóstico de Fechamento (ESP16 | 01/08 a 15/08)
+Contagens realizadas via `DISTINCT ON (tracking_id)` para garantir mutua exclusividade.
 
-| Categoria | Qtd (Distinta) | Status no Fluxo |
-| :--- | :--- | :--- |
-| **RETORNO_FISICO** | 1.349 | Mapeado (Aliados Reais) |
-| **INVESTIGACAO** | 43 | Mapeado |
-| **TRANSFERENCIA** | 120 | Mapeado |
-| **REVISAO_NECESSARIA** | 64 | Mapeado (Aliados desconhecidos) |
-| **IGNORADO_OPERACIONAL** | 64.492 | delivered, picked_up, pending vazio |
-| **TOTAL CALCULADO** | **66.068** | **FECHADO (Diferença: 0)** |
+| Categoria | Quantidade distinta | Composição por códigos |
+|---|---:|---|
+| Retorno físico | 1.349 | buyer_absent (512), business_closed (428), buyer_rejected (172), missrouted (96), bad_address (81), damaged (52), unvisited_address (22), blocked_by_keyword (7), blocked (7) |
+| Investigação | 39 | missing (39) |
+| Transferência | 114 | transferred (114) |
+| Revisão necessária | 150 | inaccessible_address (143), buyer_moved (5), cancelled (2) |
+| Ignorado operacional | 64.416 | delivered, picked_up, pendente sem ocorrência |
+| **Total** | **66.068** | **Diferença: 0** |
 
-## 2. Normalização de Aliases Reais (Requisito 2)
-Aliases identificados e normalizados no sandbox:
-- `unvisited`, `unvisited_address` → `unvisited_address`
-- `blocked_kw`, `blocked_by_keyword`, `blocked` → `blocked_by_keyword`
-- **Ignorados:** `delivered`, `picked_up` (Requisito 3)
+*Nota: As variações em Investigação/Transferência ocorrem porque alguns trackings possuem múltiplas ocorrências (ex: `missing` e `transferred`) e o `DISTINCT ON` prioriza o Retorno Físico.*
 
-## 3. SQL Integral da Migration (V4)
+## 2. Mecanismo de Seleção (SQL)
+```sql
+SELECT DISTINCT ON (p.tracking_id)
+    p.tracking_id,
+    CASE 
+      WHEN raw_code IN ('buyer_rejected','buyer_absent','business_closed','unvisited_address','unvisited','damaged','bad_address','missrouted','blocked_by_keyword','blocked_kw','blocked') THEN 4
+      WHEN raw_code IN ('missing','lost','stolen') THEN 3
+      WHEN raw_code = 'transferred' THEN 2
+      WHEN raw_code NOT IN ('', 'delivered', 'picked_up') THEN 1
+      ELSE 0
+    END as prioridade
+FROM ativas
+ORDER BY p.tracking_id, prioridade DESC;
+```
+
+## 3. SQL Integral da RPC v2 (V4)
 Arquivo: `/tmp/sync_v2_migration_v4_final.sql`.
-Principais correções:
-- **Idempotência Real:** `UPDATE` com cláusula `WHERE` comparando campos de negócio.
-- **Horário:** Preserva `ocorrido_em` original; fallback para `finish_date` da rota.
-- **Segurança:** `SECURITY DEFINER`, `search_path` fixo e `REVOKE ALL` de `anon`/`public`.
-- **Validação:** Erro explícito para datas nulas ou intervalos inválidos.
+- **Idempotência:** `UPDATE` com `WHERE` condicional (evita falso-positivo de atualização).
+- **Horário:** Preserva `ocorrido_em` original; fallback único para `finish_date`.
+- **Segurança:** `SECURITY DEFINER`, `search_path` fixo, `REVOKE ALL FROM PUBLIC`.
 
 ## 4. Evidências do Sandbox
-- **Idempotência:** Teste `tests/sync-v2-idempotency-final.test.ts` aprovado (2ª execução: 0 atualizações, 0 eventos).
-- **Contadores:** Implementados `criadas`, `atualizadas`, `sem_alteracao`, `preservados` e `erros`.
-- **Integridade:** Nenhuma migration aplicada em produção.
+- **Idempotência:** Aprovada via Vitest (`r2.atualizadas = 0`, `r2.eventos = 2`).
+- **Acesso:** Validação de `auth.uid()` e `has_base_access` integrada.
+- **Integração:** Total analisados no sandbox fecha com a fonte elegível.
 
-**Aguardando autorização para prosseguir com a aplicação no sandbox e coleta do relatório final de execução no PostgreSQL.**
+**Aguardando autorização final para aplicação no sandbox e geração do relatório de execução do PostgreSQL.**
