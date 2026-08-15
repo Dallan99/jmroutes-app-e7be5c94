@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Meli Devoluções - Server Functions
+ * Devoluções - Server Functions
  * Todas as operações visíveis na interface usam estes wrappers.
  * A nomenclatura interna (RPCs/Tabelas) mantém "romaneio" por restrição técnica,
  * mas as funções exportadas usam "Devolucao".
@@ -10,6 +10,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * IMPORTANTE: as RPCs só concedem EXECUTE para `authenticated`, portanto todas
  * as chamadas usam o cliente autenticado do middleware (context.supabase).
  */
+
 
 export const meliDevolucoesCriarDevolucao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -90,12 +90,21 @@ function fmt(dt: string | null | undefined) {
   });
 }
 function MeliDevolucoesPage() {
-  const abrirRomaneio = useServerFn(meliDevolucoesCriarDevolucao);
-  const biparRomaneio = useServerFn(meliDevolucoesBipar);
+  const fetchPerfil = useServerFn(meuPerfil);
+  const perfilQuery = useQuery({
+    queryKey: ["meu-perfil"],
+    queryFn: () => fetchPerfil(),
+    staleTime: 60_000,
+  });
+  const userId = perfilQuery.data?.profile?.id;
+
+  const abrirDevolucao = useServerFn(meliDevolucoesCriarDevolucao);
+  const biparDevolucao = useServerFn(meliDevolucoesBipar);
   const finalizar = useServerFn(meliDevolucoesFinalizar);
-  const listarRomaneios = useServerFn(meliDevolucoesListar);
-  const cancelarRomaneio = useServerFn(meliDevolucoesCancelar);
-  const detalharRomaneio = useServerFn(meliDevolucoesDetalhar);
+  const listarDevolucoes = useServerFn(meliDevolucoesListar);
+  const cancelarDevolucao = useServerFn(meliDevolucoesCancelar);
+  const detalharDevolucao = useServerFn(meliDevolucoesDetalhar);
+
   const buscarBases = useServerFn(listarBasesSimples);
 
 
@@ -116,32 +125,12 @@ function MeliDevolucoesPage() {
   const [observacao, setObservacao] = useState("");
   
   // v3: Identificadores de estado ativo
-  // active_romaneio_uuid: UUID interno do banco (segurança/RPC)
-  // active_rec_id: Código operacional (ex: EXP-REC-...) - meramente visual/legado
-  const [romaneioUuid, setRomaneioUuid] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const val = localStorage.getItem("active_romaneio_uuid") || "";
-    // Validação básica de formato UUID (simplificada)
-    if (val && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
-      return "";
-    }
-    return val;
-  });
-  const [recebimentoId, setRecebimentoId] = useState(() => {
-    if (typeof window === "undefined") return "";
-    // Preserva apenas se houver um UUID válido acompanhando
-    const uuid = localStorage.getItem("active_romaneio_uuid");
-    if (!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
-      return "";
-    }
-    return localStorage.getItem("active_rec_id") || "";
-  });
+  // active_devolucao_uuid:{user_id}:{base_id} -> UUID interno do banco
+  const [romaneioUuid, setRomaneioUuid] = useState("");
+  const [recebimentoId, setRecebimentoId] = useState("");
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+  const [isCapturingFirst, setIsCapturingFirst] = useState(false);
 
-  const [buscarRecId, setBuscarRecId] = useState("");
-  const [gerandoRec, setGerandoRec] = useState(false);
-  const [enviando, setEnviando] = useState(false);
-  const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
-  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false); // Será definido no useEffect após validação
 
   const updateActiveRec = (id: string, uuid?: string) => {
     // Limpeza
