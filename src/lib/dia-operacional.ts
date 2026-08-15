@@ -5,13 +5,18 @@ const TZ = "America/Sao_Paulo";
 
 /** Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo — sem depender do fuso do host. */
 export function hojeOperacional(agora: Date = new Date()): string {
+  // Ajusta a data do sistema para o fuso de São Paulo antes de formatar
+  // O construtor de Date() no sandbox/worker pode estar em UTC ou outro fuso.
   const f = new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
-  return f.format(agora); // en-CA => YYYY-MM-DD
+  
+  // Para garantir consistência entre o que o DB entende como (now() AT TIME ZONE 'TZ')::date
+  // e o que o JS gera, usamos Intl.DateTimeFormat com o fuso fixo.
+  return f.format(agora); 
 }
 
 type Escolha = { dia: string; salvoEm: string };
