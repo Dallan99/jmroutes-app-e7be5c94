@@ -172,7 +172,7 @@ export function DashboardGeral({
 
       <BaseDetalheDialog
         base={baseAberta}
-        data={data}
+        data={dataRef}
         rotas={rotasDaBase}
         pmProgramadas={pmDaBase}
         onClose={() => setBaseAberta(null)}
