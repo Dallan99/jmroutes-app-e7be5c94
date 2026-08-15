@@ -199,10 +199,11 @@ function MeliDevolucoesPage() {
 
 
     setRecebimentoId(id);
-    setRomaneioUuid(uuid);
-    localStorage.setItem("active_rec_id", id);
-    localStorage.setItem("active_romaneio_uuid", uuid);
+    setRomaneioUuid(uuid || "");
+    localStorage.setItem(storageKeyRec, id);
+    if (uuid) localStorage.setItem(storageKeyUuid, uuid);
     setIniciandoRecebimento(true);
+
   };
 
   const [pacotesDesteLote, setPacotesDesteLote] = useState<any[]>([]);
