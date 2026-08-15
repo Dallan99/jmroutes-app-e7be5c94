@@ -6,6 +6,7 @@ import {
   diasCorridos,
   faixaEnvelhecimento,
   faixaVisual,
+  normalizarOcorrencia,
   validarRecebimento,
 } from "../../src/lib/meli-devolucoes-domain";
 
@@ -26,10 +27,20 @@ describe("classificarOcorrencia", () => {
   });
 
   it("separa extravio, transferência e desconhecidos", () => {
+    expect(classificarOcorrencia("missing")).toBe("investigacao");
     expect(classificarOcorrencia("lost")).toBe("investigacao");
+    expect(classificarOcorrencia("stolen")).toBe("investigacao");
     expect(classificarOcorrencia("transferred")).toBe("transferencia");
     expect(classificarOcorrencia("codigo_novo_meli")).toBe("revisao_necessaria");
     expect(classificarOcorrencia(null)).toBe("revisao_necessaria");
+  });
+
+  it("normaliza aliases reais antes de classificar", () => {
+    expect(normalizarOcorrencia(" unvisited ")).toBe("unvisited_address");
+    expect(normalizarOcorrencia("blocked")).toBe("blocked_by_keyword");
+    expect(normalizarOcorrencia("BLOCKED_KW")).toBe("blocked_by_keyword");
+    expect(classificarOcorrencia("unvisited")).toBe("retorno_obrigatorio");
+    expect(classificarOcorrencia("blocked_kw")).toBe("retorno_obrigatorio");
   });
 });
 

@@ -862,7 +862,7 @@ export type Database = {
           observacao_recebimento: string | null
           occurrence_code: string
           ocorrido_em: string
-          prazo_retorno_em: string
+          prazo_retorno_em: string | null
           recebido_base_id: string | null
           recebido_em: string | null
           recebido_por: string | null
@@ -889,7 +889,7 @@ export type Database = {
           observacao_recebimento?: string | null
           occurrence_code: string
           ocorrido_em: string
-          prazo_retorno_em: string
+          prazo_retorno_em?: string | null
           recebido_base_id?: string | null
           recebido_em?: string | null
           recebido_por?: string | null
@@ -916,7 +916,7 @@ export type Database = {
           observacao_recebimento?: string | null
           occurrence_code?: string
           ocorrido_em?: string
-          prazo_retorno_em?: string
+          prazo_retorno_em?: string | null
           recebido_base_id?: string | null
           recebido_em?: string | null
           recebido_por?: string | null

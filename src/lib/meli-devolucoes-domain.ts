@@ -26,6 +26,17 @@ export const OCORRENCIAS_INVESTIGACAO = ["missing", "lost", "stolen"] as const;
 /** Transferência: acompanha destino; não é devolução para a base de origem. */
 export const OCORRENCIAS_TRANSFERENCIA = ["transferred"] as const;
 
+export const ALIASES_OCORRENCIA: Readonly<Record<string, string>> = {
+  unvisited: "unvisited_address",
+  blocked: "blocked_by_keyword",
+  blocked_kw: "blocked_by_keyword",
+};
+
+export function normalizarOcorrencia(codigo?: string | null): string {
+  const normalizado = (codigo ?? "").trim().toLowerCase();
+  return ALIASES_OCORRENCIA[normalizado] ?? normalizado;
+}
+
 export type TratamentoOcorrencia =
   | "retorno_obrigatorio"
   | "investigacao"
@@ -33,7 +44,7 @@ export type TratamentoOcorrencia =
   | "revisao_necessaria";
 
 export function classificarOcorrencia(codigo?: string | null): TratamentoOcorrencia {
-  const c = (codigo ?? "").trim().toLowerCase();
+  const c = normalizarOcorrencia(codigo);
   if ((OCORRENCIAS_RETORNO_OBRIGATORIO as readonly string[]).includes(c)) {
     return "retorno_obrigatorio";
   }
@@ -85,13 +96,15 @@ export type FaixaVisual = "verde" | "amarelo" | "vermelho" | "critico" | "neutro
  */
 export function faixaVisual(input: {
   estado: EstadoDevolucao | string;
-  prazo_retorno_em: string | Date;
+  prazo_retorno_em: string | Date | null;
   recebido_em?: string | Date | null;
   divergencia_delivered?: boolean;
   agora?: Date;
 }): FaixaVisual {
   const agora = input.agora ?? new Date();
-  const prazo =
+  const prazo = input.prazo_retorno_em == null
+    ? null
+    :
     typeof input.prazo_retorno_em === "string"
       ? new Date(input.prazo_retorno_em)
       : input.prazo_retorno_em;
@@ -99,6 +112,7 @@ export function faixaVisual(input: {
   if (input.divergencia_delivered || input.estado === "divergencia_delivered") return "critico";
 
   if (input.recebido_em) {
+    if (!prazo) return "neutro";
     const rec = typeof input.recebido_em === "string" ? new Date(input.recebido_em) : input.recebido_em;
     return rec.getTime() <= prazo.getTime() ? "verde" : "vermelho";
   }
@@ -106,6 +120,8 @@ export function faixaVisual(input: {
   if (input.estado === "em_investigacao" || input.estado === "transferido") return "neutro";
   if (input.estado === "revisao_necessaria") return "amarelo";
   if (input.estado === "encerrado") return "neutro";
+
+  if (!prazo) return "neutro";
 
   if (prazo.getTime() < agora.getTime()) return "vermelho";
   if (prazo.getTime() - agora.getTime() <= 24 * 3600 * 1000) return "amarelo";

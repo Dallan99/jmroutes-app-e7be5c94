@@ -37,7 +37,7 @@ export type MeliDevolucaoLinha = {
   meli_substatus: string | null;
   situacao_meli: string | null;
   ocorrido_em: string;
-  prazo_retorno_em: string;
+  prazo_retorno_em: string | null;
   last_synced_at: string | null;
   estado: string;
   estado_visual: string;
