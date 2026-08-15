@@ -81,11 +81,17 @@ export function DashboardGeral({
 
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {bases.length === 0 && (
+          {q.isLoading && (
+             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
+              Carregando dados da operação...
+            </div>
+          )}
+          {!q.isLoading && bases.length === 0 && (
             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
               Nenhuma base com dados sincronizados para este dia.
             </div>
           )}
+
           {bases.map((b, i) => {
             const cor = CORES[i % CORES.length];
             const perc = Math.max(0, Math.min(100, Number(b.perc_entrega ?? 0)));

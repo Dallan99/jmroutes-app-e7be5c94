@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { rotasPorBase } from "@/lib/gerencial.functions";
 import { BipagemBasesPanel } from "@/components/bipagem-bases";
@@ -25,6 +25,10 @@ export const Route = createFileRoute("/_authenticated/painel-operacional")({
 function PainelOperacionalPage() {
   const [dia, setDia] = useState<string>(() => hojeOperacional());
   const [baseSel, setBaseSel] = useState<string | null>(null);
+
+  // Forçar atualização manual para teste rápido (opcional, mas ajuda na depuração visual)
+  const queryClient = useQueryClient();
+
 
   const fetchRotas = useServerFn(rotasPorBase);
   const q = useQuery({
