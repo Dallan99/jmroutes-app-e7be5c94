@@ -74,9 +74,9 @@ export function DashboardGeral({
   return (
     <section className="space-y-4">
       <Card className="p-4 md:p-5">
-        <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Dashboard Geral</h2>
+        <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
         <p className="text-xs text-muted-foreground">
-          Progresso automático da operação — entregues sobre o total da base
+          Progresso automático da operação — também preciso que seja clicável os cards e abra os detalhes
         </p>
 
 

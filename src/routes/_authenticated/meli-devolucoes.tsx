@@ -611,7 +611,12 @@ function MeliDevolucoesPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center justify-between">
-              <span>{cardDetalhe?.label} — {linhasCard.length} pacote(s)</span>
+              <span className="cursor-pointer hover:underline" onClick={() => {
+                if (linhasCard.length > 0) {
+                  setCardDetalhe(null);
+                  setDetalhe(linhasCard[0]);
+                }
+              }}>{cardDetalhe?.label} — {linhasCard.length} pacote(s)</span>
               {linhasCard.length > 0 && (
                 <Button
                   variant="outline"
