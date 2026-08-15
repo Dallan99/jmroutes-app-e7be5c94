@@ -126,13 +126,18 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
-  
+  const [buscarRecId, setBuscarRecId] = useState("");
+  const [gerandoRec, setGerandoRec] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
+
   // v3: Identificadores de estado ativo
-  // active_devolucao_uuid:{user_id}:{base_id} -> UUID interno do banco
+  // Chave de persistência local: active_romaneio_uuid:{user_id}:{base_id}
   const [romaneioUuid, setRomaneioUuid] = useState("");
   const [recebimentoId, setRecebimentoId] = useState("");
   const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
   const [isCapturingFirst, setIsCapturingFirst] = useState(false);
+
 
 
   const updateActiveRec = (id: string, uuid?: string) => {
