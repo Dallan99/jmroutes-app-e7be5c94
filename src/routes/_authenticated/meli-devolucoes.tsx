@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   meliDevolucoesCriarDevolucao,
@@ -11,6 +11,8 @@ import {
   meliDevolucoesCancelar,
   meliDevolucoesDetalhar,
 } from "@/lib/meli-devolucoes.functions";
+import { meuPerfil } from "@/lib/recebimento.functions";
+
 
 
 import { listarBasesSimples } from "@/lib/bases.functions";
@@ -90,12 +92,22 @@ function fmt(dt: string | null | undefined) {
   });
 }
 function MeliDevolucoesPage() {
-  const abrirRomaneio = useServerFn(meliDevolucoesCriarDevolucao);
-  const biparRomaneio = useServerFn(meliDevolucoesBipar);
+  const fetchPerfil = useServerFn(meuPerfil);
+  const perfilQuery = useQuery({
+    queryKey: ["meu-perfil"],
+    queryFn: () => fetchPerfil(),
+    staleTime: 60_000,
+  });
+  const userId = perfilQuery.data?.profile?.id;
+
+  const abrirDevolucao = useServerFn(meliDevolucoesCriarDevolucao);
+  const biparDevolucao = useServerFn(meliDevolucoesBipar);
   const finalizar = useServerFn(meliDevolucoesFinalizar);
-  const listarRomaneios = useServerFn(meliDevolucoesListar);
-  const cancelarRomaneio = useServerFn(meliDevolucoesCancelar);
-  const detalharRomaneio = useServerFn(meliDevolucoesDetalhar);
+  const listarDevolucoes = useServerFn(meliDevolucoesListar);
+  const cancelarDevolucao = useServerFn(meliDevolucoesCancelar);
+  const detalharDevolucao = useServerFn(meliDevolucoesDetalhar);
+
+
   const buscarBases = useServerFn(listarBasesSimples);
 
 
@@ -114,57 +126,84 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
-  
-  // v3: Identificadores de estado ativo
-  // active_romaneio_uuid: UUID interno do banco (segurança/RPC)
-  // active_rec_id: Código operacional (ex: EXP-REC-...) - meramente visual/legado
-  const [romaneioUuid, setRomaneioUuid] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const val = localStorage.getItem("active_romaneio_uuid") || "";
-    // Validação básica de formato UUID (simplificada)
-    if (val && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
-      return "";
-    }
-    return val;
-  });
-  const [recebimentoId, setRecebimentoId] = useState(() => {
-    if (typeof window === "undefined") return "";
-    // Preserva apenas se houver um UUID válido acompanhando
-    const uuid = localStorage.getItem("active_romaneio_uuid");
-    if (!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
-      return "";
-    }
-    return localStorage.getItem("active_rec_id") || "";
-  });
-
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
-  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false); // Será definido no useEffect após validação
 
-  const updateActiveRec = (id: string, uuid?: string) => {
-    // Limpeza
-    if (!id || !uuid) {
-      setRecebimentoId("");
+  // v3: Identificadores de estado ativo
+  // Chave de persistência local: active_romaneio_uuid:{user_id}:{base_id}
+  const [romaneioUuid, setRomaneioUuid] = useState("");
+  const [recebimentoId, setRecebimentoId] = useState("");
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
+  const [isCapturingFirst, setIsCapturingFirst] = useState(false);
+
+  // v3: Identificadores de estado ativo chaveados por base
+  const storageKeyUuid = useMemo(() => `active_romaneio_uuid:${userId}:${baseId}`, [userId, baseId]);
+  const storageKeyRec = useMemo(() => `active_rec_id:${userId}:${baseId}`, [userId, baseId]);
+
+  // Carrega estado inicial quando baseId ou userId mudar
+  useEffect(() => {
+    if (!userId || !baseId) {
       setRomaneioUuid("");
-      localStorage.removeItem("active_rec_id");
-      localStorage.removeItem("active_romaneio_uuid");
+      setRecebimentoId("");
       setIniciandoRecebimento(false);
       return;
     }
 
+    const savedUuid = localStorage.getItem(storageKeyUuid);
+    const savedRec = localStorage.getItem(storageKeyRec);
+
+    if (savedUuid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(savedUuid)) {
+      setRomaneioUuid(savedUuid);
+      setRecebimentoId(savedRec || "");
+      setIniciandoRecebimento(true);
+    } else if (savedRec === "NOVO") {
+      setRecebimentoId("NOVO");
+      setRomaneioUuid("");
+      setIniciandoRecebimento(true);
+    } else {
+      setRomaneioUuid("");
+      setRecebimentoId("");
+      setIniciandoRecebimento(false);
+    }
+  }, [userId, baseId, storageKeyUuid, storageKeyRec]);
+
+  const updateActiveRec = (id: string, uuid?: string) => {
+    if (!userId || !baseId) return;
+
+    // Limpeza
+    if (!id || (id !== "NOVO" && !uuid)) {
+      setRecebimentoId("");
+      setRomaneioUuid("");
+      localStorage.removeItem(storageKeyUuid);
+      localStorage.removeItem(storageKeyRec);
+      setIniciandoRecebimento(false);
+      return;
+    }
+
+    if (id === "NOVO") {
+      setRecebimentoId("NOVO");
+      setRomaneioUuid("");
+      localStorage.setItem(storageKeyRec, "NOVO");
+      localStorage.removeItem(storageKeyUuid);
+      setIniciandoRecebimento(true);
+      return;
+    }
+
     // Validação de UUID antes de persistir
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+    if (uuid && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
       console.warn("Tentativa de ativar romaneio com UUID inválido:", uuid);
       return;
     }
 
+
     setRecebimentoId(id);
-    setRomaneioUuid(uuid);
-    localStorage.setItem("active_rec_id", id);
-    localStorage.setItem("active_romaneio_uuid", uuid);
+    setRomaneioUuid(uuid || "");
+    localStorage.setItem(storageKeyRec, id);
+    if (uuid) localStorage.setItem(storageKeyUuid, uuid);
     setIniciandoRecebimento(true);
+
   };
 
   const [pacotesDesteLote, setPacotesDesteLote] = useState<any[]>([]);
@@ -191,7 +230,7 @@ function MeliDevolucoesPage() {
     queryKey: ["meli-romaneios", baseId, dataDe, dataAte],
     queryFn: async () => {
       try {
-        return await listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } });
+        return await listarDevolucoes({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } });
       } catch (err) {
         console.error("Erro ao listar romaneios:", err);
         throw err;
@@ -209,7 +248,8 @@ function MeliDevolucoesPage() {
         return null;
       }
       try {
-        const res = (await detalharRomaneio({ data: { romaneio_id: romaneioUuid } })) as any;
+        const res = (await detalharDevolucao({ data: { romaneio_id: romaneioUuid } })) as any;
+
         // Se não existir, estiver concluído/cancelado ou base diferente (se baseId selecionada), descarta
         if (!res || res.status !== "em_andamento" || (baseId && res.base_id !== baseId)) {
           updateActiveRec("");
@@ -238,7 +278,6 @@ function MeliDevolucoesPage() {
     queryFn: () => ({} as any), // TODO: Implementar busca de histórico se necessário
     enabled: !!detalhe,
   });
-
   const linhas = useMemo(() => {
     const todas = painelQuery.data?.linhas ?? [];
     const q = busca.trim().toLowerCase();
@@ -260,26 +299,26 @@ function MeliDevolucoesPage() {
     return linhas.filter((l: any) => l.estado === cardDetalhe.id);
   }, [linhas, cardDetalhe]);
 
-  async function onSincronizar() {
-    toast.info("Funcionalidade em migração.");
-  }
 
-  async function onGerarRecebimento() {
+  const onSincronizar = async () => {
+    toast.info("Sincronização manual desativada. O sistema usa atualização automática.");
+  };
+
+  const onGerarRecebimento = async () => {
     if (!baseId) {
       toast.error("Selecione a base ANTES de gerar o recebimento.");
-      setIniciandoRecebimento(false);
       return;
     }
     setGerandoRec(true);
     try {
-      // Abertura automática agora requer o primeiro pacote biapdo
-      toast.info("Para criar uma nova devolução, bipe o primeiro pacote.");
-      updateActiveRec("NOVO"); // Sinalizador visual de que estamos abrindo
-      setPacotesDesteLote([]);
+      updateActiveRec("NOVO");
+      toast.info("Inicie a bipagem do primeiro pacote para abrir a devolução.");
+      setTimeout(() => inputRef.current?.focus(), 100);
     } finally {
       setGerandoRec(false);
     }
-  }
+  };
+
 
 
 
@@ -302,7 +341,7 @@ function MeliDevolucoesPage() {
       let res;
       if (recebimentoId === "NOVO") {
         // Abre o romaneio com o primeiro pacote
-        res = await abrirRomaneio({
+        res = await abrirDevolucao({
           data: {
             base_id: baseId,
             tracking_id: codigo.trim(),
@@ -320,7 +359,8 @@ function MeliDevolucoesPage() {
            updateActiveRec("");
            return;
         }
-        res = await biparRomaneio({
+        res = await biparDevolucao({
+
           data: {
             romaneio_id: romaneioUuid,
             base_id: baseId,
@@ -638,7 +678,7 @@ function MeliDevolucoesPage() {
                       const q = buscarRecId.trim().toUpperCase();
                       // Tenta localizar o UUID do romaneio pelo código
                       try {
-                        const romaneios = (await listarRomaneios({ data: { base_id: baseId || null } })) as any[];
+                        const romaneios = (await listarDevolucoes({ data: { base_id: baseId || null } })) as any[];
                         const encontrado = romaneios?.find((r: any) => r.codigo === q);
                         if (encontrado) {
                           updateActiveRec(encontrado.codigo, encontrado.id);
