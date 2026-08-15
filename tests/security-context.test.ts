@@ -1,20 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mocks manuais antes de importar qualquer coisa do projeto
-vi.mock('@tanstack/react-start', () => ({
-  createServerFn: () => ({
-    validator: () => ({
-      handler: (h: any) => {
-        // Retorna uma função que chama o handler com os argumentos mockados
-        return async (args: any) => await h(args);
-      }
-    })
-  })
+const { mockSupabase } = vi.hoisted(() => ({
+  mockSupabase: { rpc: vi.fn() },
 }));
 
-const mockSupabase = {
-  rpc: vi.fn(),
-};
+// Mocks manuais antes de importar qualquer coisa do projeto
+vi.mock('@tanstack/react-start', () => ({
+  createMiddleware: () => ({ server: (handler: any) => handler }),
+  createServerFn: () => {
+    const chain: any = {
+      middleware: () => chain,
+      validator: () => chain,
+      inputValidator: () => chain,
+      handler: (handler: any) => async (args: any) =>
+        handler({ ...args, context: { supabase: mockSupabase } }),
+    };
+    return chain;
+  },
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase

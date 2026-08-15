@@ -51,6 +51,33 @@ export type VersaoImportacao = {
   total_rotas: number;
 };
 
+type MeliSyncBaseResumo = {
+  base_id: string | null;
+  data_rota: string | null;
+  rotas_encontradas: number;
+  pacotes_encontrados: number;
+  ultimo_sucesso_em: string | null;
+};
+
+type MeliSyncResumoResponse = {
+  status: "ok" | "erro";
+  erro?: string;
+  bases?: MeliSyncBaseResumo[];
+};
+
+export function dataOperacionalHoje(agora: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(agora);
+}
+
+export function dataOperacionalDeInstante(instante: string | Date): string {
+  return dataOperacionalHoje(typeof instante === "string" ? new Date(instante) : instante);
+}
+
 // ============================================================
 // listarBasesComResumo
 // ============================================================
@@ -58,7 +85,7 @@ export const listarBasesComResumo = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<BaseResumo[]> => {
     const { supabase, userId } = context;
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = dataOperacionalHoje();
 
     // Restringe a lista de bases: somente admin vê todas.
     // Demais perfis (gerente, supervisor, operador) só enxergam as bases
@@ -87,9 +114,19 @@ export const listarBasesComResumo = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
 
-    const { data: imps } = await supabase
-      .from("importacoes_escala")
-      .select("base_id, data_operacional, ativa, importado_por, importado_em, total_linhas, total_pacotes");
+    const [{ data: imps, error: impsError }, syncResult] = await Promise.all([
+      supabase
+        .from("importacoes_escala")
+        .select("base_id, data_operacional, ativa, importado_por, importado_em, total_linhas, total_pacotes, total_rotas"),
+      supabase.rpc("meli_sync_status_bases"),
+    ]);
+    if (impsError) throw new Error(`Falha ao carregar importacoes das bases: ${impsError.message}`);
+    if (syncResult.error) throw new Error(`Falha ao carregar sincronizacao das bases: ${syncResult.error.message}`);
+
+    const sync = syncResult.data as MeliSyncResumoResponse | null;
+    if (sync?.status === "erro") {
+      throw new Error(`Falha ao carregar sincronizacao das bases: ${sync.erro ?? "erro desconhecido"}`);
+    }
 
     type Agg = {
       total_linhas: number;
@@ -114,7 +151,7 @@ export const listarBasesComResumo = createServerFn({ method: "GET" })
         cur.total_pacotes += i.total_pacotes ?? 0;
         cur.dias.add(i.data_operacional);
         if (i.data_operacional === hoje) {
-          cur.escalasHoje += i.total_linhas ?? 0;
+          cur.escalasHoje += i.total_rotas ?? 0;
           cur.pacotesHoje += i.total_pacotes ?? 0;
         }
       }
@@ -123,6 +160,27 @@ export const listarBasesComResumo = createServerFn({ method: "GET" })
         cur.ultimoUser = i.importado_por ?? cur.ultimoUser;
       }
       map.set(i.base_id, cur);
+    }
+
+    // A sincronizacao automatica publica um lote Meli por base/dia. Quando a
+    // materializacao operacional ainda nao existe, o lote ativo continua sendo
+    // a fonte autoritativa para os contadores exibidos no card.
+    for (const s of sync?.bases ?? []) {
+      if (!s.base_id || s.data_rota !== hoje) continue;
+      const cur = map.get(s.base_id) ?? {
+        total_linhas: 0, total_pacotes: 0, ultima: null, ultimoUser: null,
+        escalasHoje: 0, pacotesHoje: 0, dias: new Set<string>(),
+      };
+      cur.escalasHoje = Math.max(cur.escalasHoje, s.rotas_encontradas ?? 0);
+      cur.pacotesHoje = Math.max(cur.pacotesHoje, s.pacotes_encontrados ?? 0);
+      cur.total_linhas = Math.max(cur.total_linhas, s.rotas_encontradas ?? 0);
+      cur.total_pacotes = Math.max(cur.total_pacotes, s.pacotes_encontrados ?? 0);
+      cur.dias.add(hoje);
+      if (s.ultimo_sucesso_em && (!cur.ultima || s.ultimo_sucesso_em > cur.ultima)) {
+        cur.ultima = s.ultimo_sucesso_em;
+        cur.ultimoUser = null;
+      }
+      map.set(s.base_id, cur);
     }
 
     const uids = Array.from(

@@ -3,14 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 
 // Este teste deve ser rodado contra o banco sandbox real
 // Requer SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no ambiente
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const hasSandboxCredentials = Boolean(supabaseUrl && supabaseKey);
 
-describe('Sincronização v2 - Ciclos e Isolamento no Sandbox', () => {
-  const supabase = createClient(supabaseUrl, supabaseKey);
+describe.runIf(hasSandboxCredentials)('Sincronização v2 - Ciclos e Isolamento no Sandbox', () => {
   const BASE_TESTE = '00000000-0000-0000-0000-000000000000'; // Substituir por ID real em execução manual
 
   it('deve executar dois ciclos consecutivos e garantir idempotência', async () => {
+    const supabase = createClient(supabaseUrl!, supabaseKey);
     // Nota: O teste assume que a RPC meli_devolucoes_sincronizar já existe no banco.
     // Como estamos em fase de diagnóstico, vamos apenas verificar a resposta da RPC se ela existir.
     

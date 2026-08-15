@@ -6,6 +6,8 @@ import * as XLSX from "xlsx";
 import {
   listarBasesComResumo,
   importarEscala,
+  dataOperacionalHoje,
+  dataOperacionalDeInstante,
   existeEscalaDoDia,
   listarDiasOperacionais,
   listarVersoesDoDia,
@@ -119,7 +121,7 @@ function BasesPage() {
   const [viewBase, setViewBase] = useState<{ base: BaseResumo; dia?: string | null } | null>(null);
 
   const bases = q.data ?? [];
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataOperacionalHoje();
 
   const resumo = useMemo(() => {
     const atualizadas = bases.filter((b) => b.status === "atualizada").length;
@@ -276,9 +278,9 @@ function BaseCard({
   onView: () => void;
   onCancelHoje: () => void;
 }) {
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataOperacionalHoje();
   const ultimaHoje =
-    b.ultima_importacao && b.ultima_importacao.slice(0, 10) === hoje
+    b.ultima_importacao && dataOperacionalDeInstante(b.ultima_importacao) === hoje
       ? b.ultima_importacao
       : null;
   const [renameOpen, setRenameOpen] = useState(false);
