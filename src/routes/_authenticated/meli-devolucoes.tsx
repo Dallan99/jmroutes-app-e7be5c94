@@ -278,6 +278,27 @@ function MeliDevolucoesPage() {
     queryFn: () => ({} as any), // TODO: Implementar busca de histórico se necessário
     enabled: !!detalhe,
   });
+  const linhas = useMemo(() => {
+    const todas = painelQuery.data?.linhas ?? [];
+    const q = busca.trim().toLowerCase();
+    if (!q) return todas;
+    return todas.filter((l: any) =>
+      [l.tracking_id, l.route_id, l.cluster, l.motorista, l.base_codigo, l.occurrence_code]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q)),
+    );
+  }, [painelQuery.data, busca]);
+
+  const cards = painelQuery.data?.cards;
+
+  const linhasCard = useMemo(() => {
+    if (!cardDetalhe) return [] as any[];
+    if (!cardDetalhe.id) return linhas;
+    if (cardDetalhe.id === "divergencia_delivered")
+      return linhas.filter((l: any) => l.divergencia_delivered);
+    return linhas.filter((l: any) => l.estado === cardDetalhe.id);
+  }, [linhas, cardDetalhe]);
+
 
   const onSincronizar = async () => {
     toast.info("Sincronização manual desativada. O sistema usa atualização automática.");
