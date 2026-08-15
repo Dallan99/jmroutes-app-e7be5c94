@@ -310,15 +310,14 @@ function MeliDevolucoesPage() {
           }
         });
         if (res && typeof res === 'object' && 'romaneio_id' in res) {
-          updateActiveRec(res.codigo_romaneio as string);
-          // O ID do romaneio agora é o UUID, mas a interface usa o código
-          localStorage.setItem("active_romaneio_uuid", res.romaneio_id as string);
+          // UUID é obrigatório para fluxo v3
+          updateActiveRec(res.codigo_romaneio as string, res.romaneio_id as string);
         }
       } else {
-        // Bipa em romaneio existente
-        const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
-        if (!romaneioUuid) {
-           toast.error("ID Interno da devolução não encontrado. Tente reabrir.");
+        // Bipa em romaneio existente usando UUID
+        if (!romaneioUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(romaneioUuid)) {
+           toast.error("Sessão expirada ou identificador inválido. Reabra a devolução.");
+           updateActiveRec("");
            return;
         }
         res = await biparRomaneio({
@@ -330,7 +329,8 @@ function MeliDevolucoesPage() {
           },
         });
       }
-
+      
+      // ... processamento de resposta ...
       if (res && typeof res === 'object' && 'status' in res && res.status === "erro") {
         beepError();
         toast.error((res as any).mensagem ?? "Não foi possível registrar o retorno.");
@@ -363,8 +363,6 @@ function MeliDevolucoesPage() {
     } finally {
       setEnviando(false);
     }
-
-
   }
 
 
