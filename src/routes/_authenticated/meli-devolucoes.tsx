@@ -138,24 +138,65 @@ function MeliDevolucoesPage() {
   const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false);
   const [isCapturingFirst, setIsCapturingFirst] = useState(false);
 
+  // v3: Identificadores de estado ativo chaveados por base
+  const storageKeyUuid = useMemo(() => `active_romaneio_uuid:${userId}:${baseId}`, [userId, baseId]);
+  const storageKeyRec = useMemo(() => `active_rec_id:${userId}:${baseId}`, [userId, baseId]);
 
-
-  const updateActiveRec = (id: string, uuid?: string) => {
-    // Limpeza
-    if (!id || !uuid) {
-      setRecebimentoId("");
+  // Carrega estado inicial quando baseId ou userId mudar
+  useEffect(() => {
+    if (!userId || !baseId) {
       setRomaneioUuid("");
-      localStorage.removeItem("active_rec_id");
-      localStorage.removeItem("active_romaneio_uuid");
+      setRecebimentoId("");
       setIniciandoRecebimento(false);
       return;
     }
 
+    const savedUuid = localStorage.getItem(storageKeyUuid);
+    const savedRec = localStorage.getItem(storageKeyRec);
+
+    if (savedUuid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(savedUuid)) {
+      setRomaneioUuid(savedUuid);
+      setRecebimentoId(savedRec || "");
+      setIniciandoRecebimento(true);
+    } else if (savedRec === "NOVO") {
+      setRecebimentoId("NOVO");
+      setRomaneioUuid("");
+      setIniciandoRecebimento(true);
+    } else {
+      setRomaneioUuid("");
+      setRecebimentoId("");
+      setIniciandoRecebimento(false);
+    }
+  }, [userId, baseId, storageKeyUuid, storageKeyRec]);
+
+  const updateActiveRec = (id: string, uuid?: string) => {
+    if (!userId || !baseId) return;
+
+    // Limpeza
+    if (!id || (id !== "NOVO" && !uuid)) {
+      setRecebimentoId("");
+      setRomaneioUuid("");
+      localStorage.removeItem(storageKeyUuid);
+      localStorage.removeItem(storageKeyRec);
+      setIniciandoRecebimento(false);
+      return;
+    }
+
+    if (id === "NOVO") {
+      setRecebimentoId("NOVO");
+      setRomaneioUuid("");
+      localStorage.setItem(storageKeyRec, "NOVO");
+      localStorage.removeItem(storageKeyUuid);
+      setIniciandoRecebimento(true);
+      return;
+    }
+
     // Validação de UUID antes de persistir
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+    if (uuid && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
       console.warn("Tentativa de ativar romaneio com UUID inválido:", uuid);
       return;
     }
+
 
     setRecebimentoId(id);
     setRomaneioUuid(uuid);
