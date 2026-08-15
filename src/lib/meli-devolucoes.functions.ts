@@ -159,3 +159,22 @@ export const meliDevolucoesPainel = createServerFn({ method: "GET" })
     if (error) throw error;
     return res as any;
   });
+
+export const meliDevolucoesHistorico = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) => d as { devolucao_id: string })
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any)
+      .from('meli_devolucoes_eventos')
+      .select('id, tipo, estado_anterior, estado_novo, created_at')
+      .eq('devolucao_id', data.devolucao_id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (Array.isArray(res) ? res : []) as Array<{
+      id: string;
+      tipo: string;
+      estado_anterior: string | null;
+      estado_novo: string | null;
+      created_at: string;
+    }>;
+  });
