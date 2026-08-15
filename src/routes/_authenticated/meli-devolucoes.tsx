@@ -661,13 +661,13 @@ function MeliDevolucoesPage() {
                     size="sm"
                     className="h-8"
                     onClick={async () => {
-                      const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
-                      if (!romaneioUuid) {
+                      const activeUuid = localStorage.getItem("active_romaneio_uuid");
+                      if (!activeUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUuid)) {
                         updateActiveRec("");
                         return;
                       }
                       try {
-                        await finalizar({ data: { romaneio_id: romaneioUuid } });
+                        await finalizar({ data: { romaneio_id: activeUuid } });
                         toast.success("Devolução finalizada com sucesso.");
                         updateActiveRec("");
                         painelQuery.refetch();
@@ -682,7 +682,10 @@ function MeliDevolucoesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={onGerarRecebimento}
+                    onClick={() => {
+                      updateActiveRec("");
+                      onGerarRecebimento();
+                    }}
                     disabled={gerandoRec}
                   >
                     {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
