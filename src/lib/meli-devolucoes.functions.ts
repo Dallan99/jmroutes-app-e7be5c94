@@ -106,3 +106,22 @@ export const meliDevolucoesDetalhar = createServerFn({ method: "GET" })
     if (error) throw error;
     return res;
   });
+
+export const meliDevolucoesSincronizar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) => d as { data_de?: string; data_ate?: string })
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_devolucoes_sincronizar', {
+      p_data_de: data.data_de ?? null,
+      p_data_ate: data.data_ate ?? null,
+    });
+
+    if (error) throw error;
+    return res as {
+      criados: number;
+      atualizados: number;
+      ignorados: number;
+      erros: number;
+      sincronizado_em: string;
+    };
+  });
