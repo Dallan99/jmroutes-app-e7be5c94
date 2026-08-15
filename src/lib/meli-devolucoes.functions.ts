@@ -109,18 +109,29 @@ export const meliDevolucoesDetalhar = createServerFn({ method: "GET" })
 
 export const meliDevolucoesSincronizar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: unknown) => d as { data_de?: string; data_ate?: string })
+  .validator((d: unknown) => d as { 
+    data_de: string; 
+    data_ate: string; 
+    base_id: string; 
+  })
   .handler(async ({ data, context }) => {
     const { data: res, error } = await (context.supabase as any).rpc('meli_devolucoes_sincronizar', {
-      p_data_de: data.data_de ?? null,
-      p_data_ate: data.data_ate ?? null,
+      p_data_de: data.data_de,
+      p_data_ate: data.data_ate,
+      p_base_id: data.base_id,
     });
 
     if (error) throw error;
     return res as {
+      status: string;
+      analisados: number;
       criados: number;
       atualizados: number;
-      ignorados: number;
+      sem_alteracao: number;
+      aguardando?: number;
+      investigacao?: number;
+      transferidos?: number;
+      revisao_necessaria?: number;
       erros: number;
       sincronizado_em: string;
     };
