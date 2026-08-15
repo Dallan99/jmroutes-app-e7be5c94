@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FakeSupabase } from '../fakes/fake-supabase-client';
+import { FakeSupabase } from './fakes/fake-supabase-client';
 
 describe('Sincronização v2 - Segurança e Idempotência', () => {
   let s: FakeSupabase;
