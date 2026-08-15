@@ -114,30 +114,57 @@ function MeliDevolucoesPage() {
 
   const [codigo, setCodigo] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [recebimentoId, setRecebimentoId] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") || "";
-    return "";
+  
+  // v3: Identificadores de estado ativo
+  // active_romaneio_uuid: UUID interno do banco (segurança/RPC)
+  // active_rec_id: Código operacional (ex: EXP-REC-...) - meramente visual/legado
+  const [romaneioUuid, setRomaneioUuid] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const val = localStorage.getItem("active_romaneio_uuid") || "";
+    // Validação básica de formato UUID (simplificada)
+    if (val && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+      return "";
+    }
+    return val;
   });
+  const [recebimentoId, setRecebimentoId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    // Preserva apenas se houver um UUID válido acompanhando
+    const uuid = localStorage.getItem("active_romaneio_uuid");
+    if (!uuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+      return "";
+    }
+    return localStorage.getItem("active_rec_id") || "";
+  });
+
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
-  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("active_rec_id") ? true : false;
-    return false;
-  });
+  const [iniciandoRecebimento, setIniciandoRecebimento] = useState(false); // Será definido no useEffect após validação
 
   const updateActiveRec = (id: string, uuid?: string) => {
-    setRecebimentoId(id);
-    if (id) {
-      localStorage.setItem("active_rec_id", id);
-      if (uuid) localStorage.setItem("active_romaneio_uuid", uuid);
-      setIniciandoRecebimento(true);
-    } else {
+    // Limpeza
+    if (!id || !uuid) {
+      setRecebimentoId("");
+      setRomaneioUuid("");
       localStorage.removeItem("active_rec_id");
       localStorage.removeItem("active_romaneio_uuid");
       setIniciandoRecebimento(false);
+      return;
     }
+
+    // Validação de UUID antes de persistir
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+      console.warn("Tentativa de ativar romaneio com UUID inválido:", uuid);
+      return;
+    }
+
+    setRecebimentoId(id);
+    setRomaneioUuid(uuid);
+    localStorage.setItem("active_rec_id", id);
+    localStorage.setItem("active_romaneio_uuid", uuid);
+    setIniciandoRecebimento(true);
   };
 
   const [pacotesDesteLote, setPacotesDesteLote] = useState<any[]>([]);
@@ -162,8 +189,47 @@ function MeliDevolucoesPage() {
 
   const romaneiosQuery = useQuery({
     queryKey: ["meli-romaneios", baseId, dataDe, dataAte],
-    queryFn: () => listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } }),
+    queryFn: async () => {
+      try {
+        return await listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } });
+      } catch (err) {
+        console.error("Erro ao listar romaneios:", err);
+        throw err;
+      }
+    },
     enabled: !!baseId || !!dataDe,
+  });
+
+  // Validação de romaneio ativo ao carregar
+  useQuery({
+    queryKey: ["meli-romaneio-ativo-check", romaneioUuid],
+    queryFn: async () => {
+      if (!romaneioUuid) {
+        setIniciandoRecebimento(false);
+        return null;
+      }
+      try {
+        const res = (await detalharRomaneio({ data: { romaneio_id: romaneioUuid } })) as any;
+        // Se não existir, estiver concluído/cancelado ou base diferente (se baseId selecionada), descarta
+        if (!res || res.status !== "em_andamento" || (baseId && res.base_id !== baseId)) {
+          updateActiveRec("");
+          return null;
+        }
+        setIniciandoRecebimento(true);
+        // Atualiza o ID visual caso tenha mudado ou não estivesse sincronizado
+        if (res.codigo && res.codigo !== recebimentoId) {
+          setRecebimentoId(res.codigo);
+          localStorage.setItem("active_rec_id", res.codigo);
+        }
+        return res;
+      } catch (err) {
+        console.warn("UUID ativo inválido ou erro na consulta:", err);
+        updateActiveRec("");
+        return null;
+      }
+    },
+    enabled: !!romaneioUuid,
+    staleTime: 0, // Sempre verifica ao montar ou mudar UUID
   });
 
 
@@ -244,15 +310,14 @@ function MeliDevolucoesPage() {
           }
         });
         if (res && typeof res === 'object' && 'romaneio_id' in res) {
-          updateActiveRec(res.codigo_romaneio as string);
-          // O ID do romaneio agora é o UUID, mas a interface usa o código
-          localStorage.setItem("active_romaneio_uuid", res.romaneio_id as string);
+          // UUID é obrigatório para fluxo v3
+          updateActiveRec(res.codigo_romaneio as string, res.romaneio_id as string);
         }
       } else {
-        // Bipa em romaneio existente
-        const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
-        if (!romaneioUuid) {
-           toast.error("ID Interno da devolução não encontrado. Tente reabrir.");
+        // Bipa em romaneio existente usando UUID
+        if (!romaneioUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(romaneioUuid)) {
+           toast.error("Sessão expirada ou identificador inválido. Reabra a devolução.");
+           updateActiveRec("");
            return;
         }
         res = await biparRomaneio({
@@ -264,7 +329,8 @@ function MeliDevolucoesPage() {
           },
         });
       }
-
+      
+      // ... processamento de resposta ...
       if (res && typeof res === 'object' && 'status' in res && res.status === "erro") {
         beepError();
         toast.error((res as any).mensagem ?? "Não foi possível registrar o retorno.");
@@ -297,8 +363,6 @@ function MeliDevolucoesPage() {
     } finally {
       setEnviando(false);
     }
-
-
   }
 
 
@@ -597,13 +661,13 @@ function MeliDevolucoesPage() {
                     size="sm"
                     className="h-8"
                     onClick={async () => {
-                      const romaneioUuid = localStorage.getItem("active_romaneio_uuid");
-                      if (!romaneioUuid) {
+                      const activeUuid = localStorage.getItem("active_romaneio_uuid");
+                      if (!activeUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUuid)) {
                         updateActiveRec("");
                         return;
                       }
                       try {
-                        await finalizar({ data: { romaneio_id: romaneioUuid } });
+                        await finalizar({ data: { romaneio_id: activeUuid } });
                         toast.success("Devolução finalizada com sucesso.");
                         updateActiveRec("");
                         painelQuery.refetch();
@@ -618,7 +682,10 @@ function MeliDevolucoesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={onGerarRecebimento}
+                    onClick={() => {
+                      updateActiveRec("");
+                      onGerarRecebimento();
+                    }}
                     disabled={gerandoRec}
                   >
                     {gerandoRec ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
@@ -737,11 +804,20 @@ function MeliDevolucoesPage() {
         </CardHeader>
         <CardContent>
           {romaneiosQuery.isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-              <Loader2 className="h-4 w-4 animate-spin" /> Carregando devoluções...
+            <div className="flex flex-col items-center justify-center py-6 gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Carregando devoluções...</p>
+            </div>
+          ) : romaneiosQuery.isError ? (
+            <div className="flex flex-col items-center justify-center py-6 gap-3">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+              <p className="text-sm text-destructive font-medium">Erro ao carregar devoluções</p>
+              <Button size="sm" variant="outline" onClick={() => romaneiosQuery.refetch()}>
+                Tentar novamente
+              </Button>
             </div>
           ) : (romaneiosQuery.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6">Nenhuma devolução recente.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma devolução recente.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -767,7 +843,7 @@ function MeliDevolucoesPage() {
                     >
                       <td className="py-2 pr-3 font-mono text-xs">{r.codigo}</td>
                       <td className="py-2 pr-3">
-                        <Badge variant="outline" className="text-[10px] uppercase">
+                        <Badge variant="outline" className={`text-[10px] uppercase ${r.status === 'em_andamento' ? 'bg-green-500/10 text-green-600 border-green-200' : ''}`}>
                           {r.status.replace("_", " ")}
                         </Badge>
                       </td>
