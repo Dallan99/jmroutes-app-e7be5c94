@@ -136,3 +136,26 @@ export const meliDevolucoesSincronizar = createServerFn({ method: "POST" })
       sincronizado_em: string;
     };
   });
+
+export const meliDevolucoesPainel = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) => d as {
+    data_de: string;
+    data_ate: string;
+    base_id?: string | null;
+    estado?: string | null;
+    occurrence?: string | null;
+    busca?: string | null;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: res, error } = await (context.supabase as any).rpc('meli_devolucoes_painel', {
+      p_data_de: data.data_de,
+      p_data_ate: data.data_ate,
+      p_base_id: data.base_id ?? null,
+      p_estado: data.estado ?? null,
+      p_occurrence: data.occurrence ?? null,
+      p_busca: data.busca?.trim() || null,
+    });
+    if (error) throw error;
+    return res as any;
+  });

@@ -11,6 +11,7 @@ import {
   meliDevolucoesCancelar,
   meliDevolucoesDetalhar,
   meliDevolucoesSincronizar,
+  meliDevolucoesPainel,
 } from "@/lib/meli-devolucoes.functions";
 import { meuPerfil } from "@/lib/recebimento.functions";
 
@@ -108,6 +109,7 @@ function MeliDevolucoesPage() {
   const cancelarDevolucao = useServerFn(meliDevolucoesCancelar);
   const detalharDevolucao = useServerFn(meliDevolucoesDetalhar);
   const sincronizarDevolucoes = useServerFn(meliDevolucoesSincronizar);
+  const buscarPainel = useServerFn(meliDevolucoesPainel);
 
 
   const buscarBases = useServerFn(listarBasesSimples);
@@ -223,9 +225,16 @@ function MeliDevolucoesPage() {
   });
 
   const painelQuery = useQuery({
-    queryKey: ["meli-devolucoes", dataDe, dataAte, baseId, estado],
-    queryFn: () => ({} as any), // TODO: Implementar busca de painel se necessário
-    refetchInterval: 60_000,
+    queryKey: ["meli-devolucoes", dataDe, dataAte, baseId, estado, busca],
+    queryFn: () => buscarPainel({ data: {
+      data_de: dataDe,
+      data_ate: dataAte,
+      base_id: baseId || null,
+      estado: estado || null,
+      occurrence: null,
+      busca: busca || null,
+    } }),
+    refetchInterval: 10_000,
   });
 
   const romaneiosQuery = useQuery({

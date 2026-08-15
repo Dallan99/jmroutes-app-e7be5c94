@@ -8,6 +8,7 @@ import { novoEstadoIncremental } from "./meli/active-filter.js";
 import { CircuitBreaker } from "./state/breaker.js";
 import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pipeline/auth.js";
 import { executarCiclo } from "./pipeline/cycle.js";
+import { sincronizarDevolucoes } from "./pipeline/devolucoes.js";
 import { registrarExecucao, type Execucao } from "./telemetry/report.js";
 import {
   abandonarCicloRemoto,
@@ -200,6 +201,23 @@ async function main() {
       }
 
       await registrarExecucao(cfg, resultado.execucao, { accessToken: jmr.accessToken });
+      if (resultado.execucao.status === "sucesso") {
+        const devolucoes = await sincronizarDevolucoes(cfg, jmr.accessToken);
+        if (devolucoes.status === "ok") {
+          logger.info("Devoluções sincronizadas no ciclo da base.", {
+            base: cfg.baseCode,
+            criadas: Number(devolucoes.resultado["criadas"] ?? devolucoes.resultado["criados"] ?? 0),
+            atualizadas: Number(devolucoes.resultado["atualizadas"] ?? devolucoes.resultado["atualizados"] ?? 0),
+            revisao: Number(devolucoes.resultado["revisao_necessaria"] ?? 0),
+          });
+        } else {
+          if (devolucoes.status === "sem_sessao") jmr = null;
+          logger.warn("Sincronização automática de Devoluções será repetida no próximo ciclo.", {
+            base: cfg.baseCode,
+            motivo: devolucoes.status === "erro" ? devolucoes.motivo : "sem_sessao",
+          });
+        }
+      }
       if (resultado.jmroutesSemSessao) jmr = null;
     } finally {
       await sessao.fechar();
