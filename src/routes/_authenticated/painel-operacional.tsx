@@ -58,6 +58,16 @@ function PainelOperacionalPage() {
           <Button variant="outline" className="h-9" onClick={() => q.refetch()}>
             Atualizar
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const d = prompt("Informe a data (YYYY-MM-DD):", dia);
+              if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDia(d);
+            }}
+          >
+            Trocar data
+          </Button>
         </div>
       </header>
 
