@@ -279,47 +279,25 @@ function MeliDevolucoesPage() {
     enabled: !!detalhe,
   });
 
-  const linhas = useMemo(() => {
-    const todas = painelQuery.data?.linhas ?? [];
-    const q = busca.trim().toLowerCase();
-    if (!q) return todas;
-    return todas.filter((l: any) =>
-      [l.tracking_id, l.route_id, l.cluster, l.motorista, l.base_codigo, l.occurrence_code]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q)),
-    );
-  }, [painelQuery.data, busca]);
+  const onSincronizar = async () => {
+    toast.info("Sincronização manual desativada. O sistema usa atualização automática.");
+  };
 
-  const cards = painelQuery.data?.cards;
-
-  const linhasCard = useMemo(() => {
-    if (!cardDetalhe) return [] as any[];
-    if (!cardDetalhe.id) return linhas;
-    if (cardDetalhe.id === "divergencia_delivered")
-      return linhas.filter((l: any) => l.divergencia_delivered);
-    return linhas.filter((l: any) => l.estado === cardDetalhe.id);
-  }, [linhas, cardDetalhe]);
-
-  async function onSincronizar() {
-    toast.info("Funcionalidade em migração.");
-  }
-
-  async function onGerarRecebimento() {
+  const onGerarRecebimento = async () => {
     if (!baseId) {
       toast.error("Selecione a base ANTES de gerar o recebimento.");
-      setIniciandoRecebimento(false);
       return;
     }
     setGerandoRec(true);
     try {
-      // Abertura automática agora requer o primeiro pacote biapdo
-      toast.info("Para criar uma nova devolução, bipe o primeiro pacote.");
-      updateActiveRec("NOVO"); // Sinalizador visual de que estamos abrindo
-      setPacotesDesteLote([]);
+      updateActiveRec("NOVO");
+      toast.info("Inicie a bipagem do primeiro pacote para abrir a devolução.");
+      setTimeout(() => inputRef.current?.focus(), 100);
     } finally {
       setGerandoRec(false);
     }
-  }
+  };
+
 
 
 
