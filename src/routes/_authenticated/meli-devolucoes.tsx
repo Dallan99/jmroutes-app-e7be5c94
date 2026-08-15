@@ -10,6 +10,7 @@ import {
   meliDevolucoesFinalizar,
   meliDevolucoesCancelar,
   meliDevolucoesDetalhar,
+  meliDevolucoesSincronizar,
 } from "@/lib/meli-devolucoes.functions";
 import { meuPerfil } from "@/lib/recebimento.functions";
 
@@ -106,6 +107,7 @@ function MeliDevolucoesPage() {
   const listarDevolucoes = useServerFn(meliDevolucoesListar);
   const cancelarDevolucao = useServerFn(meliDevolucoesCancelar);
   const detalharDevolucao = useServerFn(meliDevolucoesDetalhar);
+  const sincronizarDevolucoes = useServerFn(meliDevolucoesSincronizar);
 
 
   const buscarBases = useServerFn(listarBasesSimples);
@@ -301,8 +303,32 @@ function MeliDevolucoesPage() {
 
 
   const onSincronizar = async () => {
-    toast.info("Sincronização manual desativada. O sistema usa atualização automática.");
+    const loadingToast = toast.loading("Sincronizando dados do Mercado Livre...");
+    try {
+      const res = await sincronizarDevolucoes({ data: { data_de: dataDe, data_ate: dataAte } });
+      toast.dismiss(loadingToast);
+      
+      DialogResumoSincronizacao(res);
+      
+      painelQuery.refetch();
+      romaneiosQuery.refetch();
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      toast.error("Erro na sincronização: " + (err.message || "Tente novamente mais tarde."));
+    }
   };
+
+  function DialogResumoSincronizacao(res: any) {
+    toast.success(
+      <div className="flex flex-col gap-1">
+        <span className="font-bold">Sincronização Concluída</span>
+        <span className="text-xs">Novos: {res.criados}</span>
+        <span className="text-xs">Atualizados: {res.atualizados}</span>
+        {res.erros > 0 && <span className="text-xs text-destructive">Falhas: {res.erros}</span>}
+      </div>,
+      { duration: 5000 }
+    );
+  }
 
   const onGerarRecebimento = async () => {
     if (!baseId) {
