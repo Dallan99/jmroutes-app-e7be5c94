@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { rotasPorBase } from "@/lib/gerencial.functions";
 import { BipagemBasesPanel } from "@/components/bipagem-bases";
@@ -26,12 +26,17 @@ function PainelOperacionalPage() {
   const [dia, setDia] = useState<string>(() => hojeOperacional());
   const [baseSel, setBaseSel] = useState<string | null>(null);
 
+  // Forçar atualização manual para teste rápido (opcional, mas ajuda na depuração visual)
+  const queryClient = useQueryClient();
+
+
   const fetchRotas = useServerFn(rotasPorBase);
   const q = useQuery({
     queryKey: ["painel-operacional-rotas", dia],
     queryFn: () => fetchRotas({ data: { data: dia } }),
     refetchInterval: 30_000,
   });
+
 
   const bases = q.data?.bases ?? [];
   const rotas = useMemo(
@@ -53,6 +58,16 @@ function PainelOperacionalPage() {
           </div>
           <Button variant="outline" className="h-9" onClick={() => q.refetch()}>
             Atualizar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const d = prompt("Informe a data (YYYY-MM-DD):", dia);
+              if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDia(d);
+            }}
+          >
+            Trocar data
           </Button>
         </div>
       </header>

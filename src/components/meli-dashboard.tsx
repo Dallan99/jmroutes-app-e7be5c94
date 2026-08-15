@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { hojeOperacional } from "@/lib/dia-operacional";
 import {
   meliDashboardOperacional,
   meliDashboardPacotesRota,
@@ -45,15 +46,17 @@ function hhmmss(iso?: string | null) {
 }
 
 export function MeliDashboardSection({
-  data,
+  data: dataProp,
   bases,
   baseId: baseIdFiltro,
 }: {
-  data: string;
+  data?: string;
   bases: { id: string; codigo: string; nome: string }[];
   /** Base selecionada nos filtros do Dashboard (fonte única de verdade). */
   baseId?: string | null;
 }) {
+  const data = dataProp || hojeOperacional();
+
   const fetchDados = useServerFn(meliDashboardOperacional);
   const fetchPacotes = useServerFn(meliDashboardPacotesRota);
 

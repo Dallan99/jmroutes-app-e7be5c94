@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useBaseOperacional } from "@/lib/base-operacional-context";
+import { hojeOperacional } from "@/lib/dia-operacional";
 import {
   meliDashboardOperacional,
   meliDashboardPacotesRota,
@@ -28,19 +30,25 @@ function nf(n: number | null | undefined) {
  * Visão direta e imediata da operação: progresso por base + indicadores de entrega.
  */
 export function DashboardGeral({
-  data,
+  data: dataProp,
   syncPorCodigo,
 }: {
-  data: string;
+  data?: string;
   /** Situação real de sincronização por código de base (backend/worker). */
   syncPorCodigo?: Map<
     string,
     { situacao: SituacaoSync; minutos: number | null; status?: string | null; sincronizando?: boolean }
   >;
 }) {
+  const { diaOperacional } = useBaseOperacional();
+  const dataRef = dataProp || diaOperacional || hojeOperacional();
+
   const fetchDados = useServerFn(meliDashboardOperacional);
 
-  const filtros = useMemo(() => ({ data }), [data]);
+  const filtros = useMemo(() => ({ data: dataRef }), [dataRef]);
+
+  // Se o dataRef for vazio ou null, o componente renderizará vazio até o carregamento.
+  // Mas como dataRef tem fallback para hojeOperacional(), ele sempre terá um valor.
 
   const q = useQuery({
     queryKey: ["dashboard-geral", filtros],
@@ -81,11 +89,17 @@ export function DashboardGeral({
 
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {bases.length === 0 && (
+          {q.isLoading && (
+             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
+              Carregando dados da operação...
+            </div>
+          )}
+          {!q.isLoading && bases.length === 0 && (
             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
               Nenhuma base com dados sincronizados para este dia.
             </div>
           )}
+
           {bases.map((b, i) => {
             const cor = CORES[i % CORES.length];
             const perc = Math.max(0, Math.min(100, Number(b.perc_entrega ?? 0)));
@@ -161,7 +175,7 @@ export function DashboardGeral({
 
       <BaseDetalheDialog
         base={baseAberta}
-        data={data}
+        data={dataRef}
         rotas={rotasDaBase}
         pmProgramadas={pmDaBase}
         onClose={() => setBaseAberta(null)}

@@ -448,10 +448,13 @@ const rotasInputSchema = z.object({
 });
 
 function hojeYMD(): string {
-  const d = new Date();
-  const off = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - off * 60000);
-  return local.toISOString().slice(0, 10);
+  const f = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return f.format(new Date()); // YYYY-MM-DD
 }
 
 export const rotasPorBase = createServerFn({ method: "POST" })
