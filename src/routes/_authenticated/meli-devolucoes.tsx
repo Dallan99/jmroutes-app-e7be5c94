@@ -804,11 +804,20 @@ function MeliDevolucoesPage() {
         </CardHeader>
         <CardContent>
           {romaneiosQuery.isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-              <Loader2 className="h-4 w-4 animate-spin" /> Carregando devoluções...
+            <div className="flex flex-col items-center justify-center py-6 gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Carregando devoluções...</p>
+            </div>
+          ) : romaneiosQuery.isError ? (
+            <div className="flex flex-col items-center justify-center py-6 gap-3">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+              <p className="text-sm text-destructive font-medium">Erro ao carregar devoluções</p>
+              <Button size="sm" variant="outline" onClick={() => romaneiosQuery.refetch()}>
+                Tentar novamente
+              </Button>
             </div>
           ) : (romaneiosQuery.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6">Nenhuma devolução recente.</p>
+            <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma devolução recente.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -834,7 +843,7 @@ function MeliDevolucoesPage() {
                     >
                       <td className="py-2 pr-3 font-mono text-xs">{r.codigo}</td>
                       <td className="py-2 pr-3">
-                        <Badge variant="outline" className="text-[10px] uppercase">
+                        <Badge variant="outline" className={`text-[10px] uppercase ${r.status === 'em_andamento' ? 'bg-green-500/10 text-green-600 border-green-200' : ''}`}>
                           {r.status.replace("_", " ")}
                         </Badge>
                       </td>
