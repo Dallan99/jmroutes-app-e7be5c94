@@ -37,6 +37,7 @@ function PainelOperacionalPage() {
     refetchInterval: 30_000,
   });
 
+
   const bases = q.data?.bases ?? [];
   const rotas = useMemo(
     () => (q.data?.rotas ?? []).filter((r) => !baseSel || r.base_id === baseSel),

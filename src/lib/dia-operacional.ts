@@ -3,7 +3,11 @@
 
 const TZ = "America/Sao_Paulo";
 
-/** Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo — sem depender do fuso do host. */
+/** 
+ * Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo — sem depender do fuso do host.
+ * Exportada para ser usada globalmente.
+ */
+
 export function hojeOperacional(agora: Date = new Date()): string {
   // Ajusta a data do sistema para o fuso de São Paulo antes de formatar
   // O construtor de Date() no sandbox/worker pode estar em UTC ou outro fuso.
