@@ -12,6 +12,7 @@ import {
   meliDevolucoesDetalhar,
   meliDevolucoesSincronizar,
   meliDevolucoesPainel,
+  meliDevolucoesHistorico,
 } from "@/lib/meli-devolucoes.functions";
 import { meuPerfil } from "@/lib/recebimento.functions";
 
@@ -110,6 +111,7 @@ function MeliDevolucoesPage() {
   const detalharDevolucao = useServerFn(meliDevolucoesDetalhar);
   const sincronizarDevolucoes = useServerFn(meliDevolucoesSincronizar);
   const buscarPainel = useServerFn(meliDevolucoesPainel);
+  const buscarHistorico = useServerFn(meliDevolucoesHistorico);
 
 
   const buscarBases = useServerFn(listarBasesSimples);
@@ -286,9 +288,10 @@ function MeliDevolucoesPage() {
 
   const historicoQuery = useQuery({
     queryKey: ["meli-devolucao-historico", detalhe?.id],
-    queryFn: () => ({} as any), // TODO: Implementar busca de histórico se necessário
+    queryFn: () => buscarHistorico({ data: { devolucao_id: detalhe!.id } }),
     enabled: !!detalhe,
   });
+  const eventosHistorico = Array.isArray(historicoQuery.data) ? historicoQuery.data : [];
   const linhas = useMemo(() => {
     const todas = painelQuery.data?.linhas ?? [];
     const q = busca.trim().toLowerCase();
@@ -1091,11 +1094,11 @@ function MeliDevolucoesPage() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" /> Carregando...
                     </div>
-                  ) : (historicoQuery.data ?? []).length === 0 ? (
+                  ) : eventosHistorico.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Sem eventos registrados.</p>
                   ) : (
                     <ul className="space-y-1 text-xs">
-                      {(historicoQuery.data ?? []).map((ev: any) => (
+                      {eventosHistorico.map((ev: any) => (
                         <li key={ev.id} className="flex gap-2">
                           <span className="text-muted-foreground">{fmt(ev.created_at)}</span>
                           <span>{ev.tipo}</span>
