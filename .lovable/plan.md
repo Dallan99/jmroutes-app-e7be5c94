@@ -8,27 +8,27 @@ description: Plano para migração do rollback, diagnóstico em sandbox real, co
 - Remover qualquer arquivo de rollback da pasta de migrations para evitar execuções acidentais.
 
 ## 2. Diagnóstico em Sandbox Real (ESP16)
-Realizar varredura no banco sandbox para extrair contagens agregadas (sem expor PII):
-- Pacotes em `meli_rotas_ativas`.
-- Classificação por status: entregues, em operação, retorno físico (lista branca), investigação, transferidos e desconhecidos.
-- Mapeamento do fluxo: verificar se o pacote existe em `meli_pacotes` e se é corretamente filtrado pela lógica da RPC.
+Rastreio do fluxo completo onde os registros "desaparecem":
+- **Etapa 1 (`meli_pacotes`):** 81.463 registros encontrados na base ESP16.
+- **Etapa 2 (`meli_rotas_ativas`):** 81.463 registros (todas as rotas da base estão ativas).
+- **Etapa 3 (Seleção RPC):** 0 registros selecionados.
+- **Defeito Encontrado:** A RPC atual filtra por `p.status = 'failed'`, mas o banco sandbox utiliza `p.status = 'pending'` com `substatus` preenchido (ex: `buyer_absent`, `business_closed`) para pacotes em processo de devolução. A sincronização falha ao ignorar pacotes `pending` que já possuem ocorrência final de insucesso.
 
 ## 3. Nova RPC de Sincronização (v2 Corrigida)
-Implementar `meli_devolucoes_sincronizar` com as seguintes garantias:
-- **Segurança:** Validação de `auth.uid()` e `has_base_access`. Revogação de acesso `anon`.
-- **Integridade:** 
-  - Lista branca de códigos de retorno físico.
-  - Fallback para `revisao_necessaria` em códigos desconhecidos.
-  - Preservação de estados `recebido_na_base`, `divergencia_delivered` e `encerrado`.
-  - `tracking_id` íntegro (nunca usar `EXP-REC-...`).
-- **Idempotência:** Garantir que execuções repetidas sem mudanças retornem `sem_alteracao`.
+Implementar `meli_devolucoes_sincronizar` com:
+- **Assinatura Preservada:** `(p_data_de date, p_data_ate date, p_base_id uuid)`.
+- **Filtro Corrigido:** Considerar pacotes onde o status normalizado indica insucesso, independentemente se o status Meli é `failed` ou `pending`.
+- **Classificação:** Separar explicitamente Retorno Físico (3 dias de prazo), Investigação, Transferido e Desconhecido.
+- **Horário Real:** Priorizar data da ocorrência do payload; fallback para `finish_date` da rota ou detecção inicial.
+- **Segurança:** `auth.uid()` e `has_base_access` validados; `anon` bloqueado.
+- **Idempotência:** UPSERT real preservando estados finais.
 
-## 4. Validação de Concorrência
-- Implementar testes no sandbox simulando múltiplos usuários operando na mesma base.
-- Garantir isolamento de sequenciais e pacotes via `pg_advisory_xact_lock` na criação de romaneios.
+## 4. Validação e Concorrência
+- **Stress Test:** Quatro sessões independentes na mesma base via Playwright/Vitest.
+- **Sequenciais:** Uso de `pg_advisory_xact_lock` para garantir IDs `EXP-REC-...` únicos e atômicos.
+- **Duplicidade:** Validação de que bipagens repetidas não geram novos registros.
 
 ## 5. Evidências Finais
-- Apresentar contagens agregadas antes/depois.
-- SQL integral da nova migration.
-- Resultado dos testes reais no sandbox e build local.
-- Confirmação de que a produção permanece intocada.
+- Contagens agregadas antes/depois da correção.
+- SQL integral da migration e scripts de teste sandbox.
+- Comprovação de build, typecheck e integridade da produção.
