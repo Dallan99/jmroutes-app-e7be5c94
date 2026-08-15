@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { FakeSupabase } from "./fakes/fake-supabase-client";
 
