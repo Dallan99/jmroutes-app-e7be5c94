@@ -74,6 +74,8 @@ export type RotaBaseRow = {
   base_codigo: string;
   base_nome: string;
   nro_rota: string;
+  motorista: string | null;
+  placa: string | null;
   total: number;
   recebido: number;
   devolvido: number;
@@ -446,10 +448,13 @@ const rotasInputSchema = z.object({
 });
 
 function hojeYMD(): string {
-  const d = new Date();
-  const off = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - off * 60000);
-  return local.toISOString().slice(0, 10);
+  const f = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return f.format(new Date()); // YYYY-MM-DD
 }
 
 export const rotasPorBase = createServerFn({ method: "POST" })
@@ -507,15 +512,15 @@ export const rotasPorBase = createServerFn({ method: "POST" })
     const importIds = (imports ?? []).map((i) => i.id);
     const importBaseMap = new Map((imports ?? []).map((i) => [i.id, i.base_id] as const));
 
-    let escalas: { nro_rota: string | null; recebido: boolean | null; devolvido: boolean | null; importacao_id: string | null; base_operacional_id: string | null }[] = [];
+    let escalas: { nro_rota: string | null; driver: string | null; placa: string | null; recebido: boolean | null; devolvido: boolean | null; importacao_id: string | null; base_operacional_id: string | null }[] = [];
     if (importIds.length > 0) {
       const { data: es, error: ee } = await supabase
         .from("escalas")
-        .select("nro_rota, recebido, devolvido, importacao_id, base_operacional_id")
+        .select("nro_rota, driver, placa, recebido, devolvido, importacao_id, base_operacional_id")
         .in("importacao_id", importIds)
         .limit(50000);
       if (ee) throw new Error(ee.message);
-      escalas = es ?? [];
+      escalas = (es ?? []) as any[];
     }
 
     // Agrupamento por base+rota
@@ -532,6 +537,8 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         base_codigo: b.codigo,
         base_nome: b.nome,
         nro_rota: rota,
+        motorista: e.driver,
+        placa: e.placa,
         total: 0,
         recebido: 0,
         devolvido: 0,

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useBaseOperacional } from "@/lib/base-operacional-context";
+import { hojeOperacional } from "@/lib/dia-operacional";
 import {
   meliDashboardOperacional,
   meliDashboardPacotesRota,
@@ -28,19 +30,25 @@ function nf(n: number | null | undefined) {
  * Visão direta e imediata da operação: progresso por base + indicadores de entrega.
  */
 export function DashboardGeral({
-  data,
+  data: dataProp,
   syncPorCodigo,
 }: {
-  data: string;
+  data?: string;
   /** Situação real de sincronização por código de base (backend/worker). */
   syncPorCodigo?: Map<
     string,
     { situacao: SituacaoSync; minutos: number | null; status?: string | null; sincronizando?: boolean }
   >;
 }) {
+  const { diaOperacional } = useBaseOperacional();
+  const dataRef = dataProp || diaOperacional || hojeOperacional();
+
   const fetchDados = useServerFn(meliDashboardOperacional);
 
-  const filtros = useMemo(() => ({ data }), [data]);
+  const filtros = useMemo(() => ({ data: dataRef }), [dataRef]);
+
+  // Se o dataRef for vazio ou null, o componente renderizará vazio até o carregamento.
+  // Mas como dataRef tem fallback para hojeOperacional(), ele sempre terá um valor.
 
   const q = useQuery({
     queryKey: ["dashboard-geral", filtros],
@@ -74,18 +82,24 @@ export function DashboardGeral({
   return (
     <section className="space-y-4">
       <Card className="p-4 md:p-5">
-        <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Dashboard Geral</h2>
+        <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
         <p className="text-xs text-muted-foreground">
-          Progresso automático da operação — entregues sobre o total da base
+          Progresso automático da operação — também preciso que seja clicável os cards e abra os detalhes
         </p>
 
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {bases.length === 0 && (
+          {q.isLoading && (
+             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
+              Carregando dados da operação...
+            </div>
+          )}
+          {!q.isLoading && bases.length === 0 && (
             <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
               Nenhuma base com dados sincronizados para este dia.
             </div>
           )}
+
           {bases.map((b, i) => {
             const cor = CORES[i % CORES.length];
             const perc = Math.max(0, Math.min(100, Number(b.perc_entrega ?? 0)));
@@ -161,7 +175,7 @@ export function DashboardGeral({
 
       <BaseDetalheDialog
         base={baseAberta}
-        data={data}
+        data={dataRef}
         rotas={rotasDaBase}
         pmProgramadas={pmDaBase}
         onClose={() => setBaseAberta(null)}
@@ -315,9 +329,9 @@ function BaseDetalheDialog({
             </div>
 
             {situacaoBase === "insucesso" && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+              <div className="rounded-md border p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-destructive">
+                  <h3 className="text-sm font-semibold">
                     Status dos insucessos — {base?.codigo}
                   </h3>
                   <span className="text-xs text-muted-foreground tabular-nums">
@@ -429,7 +443,7 @@ function BaseDetalheDialog({
                           </Badge>
                         )}
                       </td>
-                      <td className="py-2 pr-2 text-muted-foreground">{r.driver_name ?? "—"}</td>
+                      <td className="py-2 pr-2 text-muted-foreground">{r.driver_name || "—"}</td>
                       <td className="py-2 pr-2 text-muted-foreground">{r.vehicle_license ?? "—"}</td>
                       <td className="py-2 pr-2 text-right tabular-nums">{nf(r.total)}</td>
                       <td className="py-2 pr-2 text-right tabular-nums text-success">{nf(r.entregue)}</td>

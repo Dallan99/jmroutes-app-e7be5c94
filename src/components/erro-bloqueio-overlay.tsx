@@ -62,7 +62,7 @@ export function ErroBloqueioOverlay({ mensagem, onOk }: Props) {
           OK — Entendi
         </Button>
         <p className="mt-4 text-xs text-muted-foreground">
-          Confirme para liberar a tela e continuar a operação.
+          Sim, corrija antes de publicar.
         </p>
       </div>
     </div>

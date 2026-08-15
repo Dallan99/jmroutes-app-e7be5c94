@@ -150,16 +150,16 @@ function DashboardPage() {
       </header>
 
       {/* ── Cartões da operação (primeiro de tudo) ── */}
-      <DashboardGeral data={filters.date ?? hojeOperacional()} syncPorCodigo={sync.porCodigo} />
+      <DashboardGeral data={filters.date || undefined} syncPorCodigo={sync.porCodigo} />
 
       {/* ── Bipagem por base ── */}
-      <BipagemBasesPanel data={filters.date ?? hojeOperacional()} />
+      <BipagemBasesPanel data={filters.date || undefined} />
 
 
 
       {/* ── Detalhamento da operação (mesmo dashboard) ── */}
       <MeliDashboardSection
-        data={filters.date ?? hojeOperacional()}
+        data={filters.date || undefined}
         bases={op?.bases ?? []}
         baseId={filters.base_id ?? null}
       />

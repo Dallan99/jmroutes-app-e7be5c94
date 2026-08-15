@@ -846,6 +846,77 @@ export type Database = {
           },
         ]
       }
+      meli_devolucao_romaneios: {
+        Row: {
+          aberto_em: string
+          aberto_por: string
+          base_id: string
+          cancelado_em: string | null
+          cancelado_por: string | null
+          codigo: string
+          concluido_em: string | null
+          concluido_por: string | null
+          created_at: string
+          data_operacional: string
+          id: string
+          justificativa_cancelamento: string | null
+          motorista: string | null
+          observacao_inicial: string | null
+          route_id: string | null
+          sequencial: number
+          status: Database["public"]["Enums"]["meli_romaneio_status"]
+          updated_at: string
+        }
+        Insert: {
+          aberto_em?: string
+          aberto_por: string
+          base_id: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          codigo: string
+          concluido_em?: string | null
+          concluido_por?: string | null
+          created_at?: string
+          data_operacional: string
+          id?: string
+          justificativa_cancelamento?: string | null
+          motorista?: string | null
+          observacao_inicial?: string | null
+          route_id?: string | null
+          sequencial: number
+          status?: Database["public"]["Enums"]["meli_romaneio_status"]
+          updated_at?: string
+        }
+        Update: {
+          aberto_em?: string
+          aberto_por?: string
+          base_id?: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          codigo?: string
+          concluido_em?: string | null
+          concluido_por?: string | null
+          created_at?: string
+          data_operacional?: string
+          id?: string
+          justificativa_cancelamento?: string | null
+          motorista?: string | null
+          observacao_inicial?: string | null
+          route_id?: string | null
+          sequencial?: number
+          status?: Database["public"]["Enums"]["meli_romaneio_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_devolucao_romaneios_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meli_devolucoes: {
         Row: {
           base_id: string
@@ -867,6 +938,7 @@ export type Database = {
           recebido_em: string | null
           recebido_por: string | null
           recebimento_id: string | null
+          romaneio_id: string | null
           rota_id: string | null
           route_id: string | null
           situacao_meli: string | null
@@ -894,6 +966,7 @@ export type Database = {
           recebido_em?: string | null
           recebido_por?: string | null
           recebimento_id?: string | null
+          romaneio_id?: string | null
           rota_id?: string | null
           route_id?: string | null
           situacao_meli?: string | null
@@ -921,6 +994,7 @@ export type Database = {
           recebido_em?: string | null
           recebido_por?: string | null
           recebimento_id?: string | null
+          romaneio_id?: string | null
           rota_id?: string | null
           route_id?: string | null
           situacao_meli?: string | null
@@ -941,6 +1015,13 @@ export type Database = {
             columns: ["recebido_base_id"]
             isOneToOne: false
             referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_devolucoes_romaneio_id_fkey"
+            columns: ["romaneio_id"]
+            isOneToOne: false
+            referencedRelation: "meli_devolucao_romaneios"
             referencedColumns: ["id"]
           },
           {
@@ -2489,6 +2570,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      internal_meli_devolucao_processar_bip: {
+        Args: {
+          p_base_id: string
+          p_observacao: string
+          p_romaneio_id: string
+          p_tracking_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       inventario_base_access: {
         Args: { _base_id: string; _user_id: string }
         Returns: boolean
@@ -2568,6 +2659,63 @@ export type Database = {
       meli_publicar_rota_operacional: {
         Args: { p_data_operacional?: string; p_rota_id: string }
         Returns: Json
+      }
+      meli_romaneio_abrir_com_primeiro_pacote: {
+        Args: {
+          p_base_id: string
+          p_observacao?: string
+          p_tracking_id: string
+        }
+        Returns: Json
+      }
+      meli_romaneio_bipar: {
+        Args: {
+          p_base_id: string
+          p_observacao?: string
+          p_romaneio_id: string
+          p_tracking_id: string
+        }
+        Returns: Json
+      }
+      meli_romaneio_cancelar: {
+        Args: { p_justificativa: string; p_romaneio_id: string }
+        Returns: Json
+      }
+      meli_romaneio_detalhar: { Args: { p_romaneio_id: string }; Returns: Json }
+      meli_romaneio_finalizar: {
+        Args: { p_romaneio_id: string }
+        Returns: Json
+      }
+      meli_romaneio_impressao: {
+        Args: { p_romaneio_id: string }
+        Returns: Json
+      }
+      meli_romaneio_reabrir: {
+        Args: { p_justificativa: string; p_romaneio_id: string }
+        Returns: Json
+      }
+      meli_romaneios_listar: {
+        Args: {
+          p_base_id?: string
+          p_data_ate?: string
+          p_data_de?: string
+          p_status?: Database["public"]["Enums"]["meli_romaneio_status"]
+        }
+        Returns: {
+          aberto_em: string
+          aberto_por_nome: string
+          base_codigo: string
+          base_id: string
+          codigo: string
+          concluido_em: string
+          data_operacional: string
+          id: string
+          motorista: string
+          route_id: string
+          sequencial: number
+          status: Database["public"]["Enums"]["meli_romaneio_status"]
+          total_pacotes: number
+        }[]
       }
       meli_rota_estado_operacional: {
         Args: { p_rota_id: string }
@@ -2698,6 +2846,7 @@ export type Database = {
       app_role: "admin" | "supervisor" | "operador" | "gerente"
       base_status: "aguardando" | "ativa" | "arquivada" | "erro"
       bip_stage: "recebimento" | "triagem"
+      meli_romaneio_status: "em_andamento" | "concluido" | "cancelado"
       motivo_devolucao:
         | "cliente_ausente"
         | "endereco_nao_localizado"
@@ -2853,6 +3002,7 @@ export const Constants = {
       app_role: ["admin", "supervisor", "operador", "gerente"],
       base_status: ["aguardando", "ativa", "arquivada", "erro"],
       bip_stage: ["recebimento", "triagem"],
+      meli_romaneio_status: ["em_andamento", "concluido", "cancelado"],
       motivo_devolucao: [
         "cliente_ausente",
         "endereco_nao_localizado",

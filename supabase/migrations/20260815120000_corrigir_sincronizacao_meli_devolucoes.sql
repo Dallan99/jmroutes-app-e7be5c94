@@ -30,6 +30,11 @@ DECLARE
   v_revisao integer := 0;
   v_conflitos_base integer := 0;
   v_eventos integer := 0;
+  v_analisados integer := 0;
+  v_sem_alteracao integer := 0;
+  v_aguardando integer := 0;
+  v_investigacao integer := 0;
+  v_transferidos integer := 0;
   v_base record;
   v_item record;
   v_atual public.meli_devolucoes%ROWTYPE;
@@ -60,6 +65,7 @@ BEGIN
        AND (p_base_id IS NULL OR ro.base_id = p_base_id)
      ORDER BY ro.base_id
   LOOP
+    v_analisados := v_analisados + 1;
     PERFORM pg_catalog.pg_advisory_xact_lock(
       pg_catalog.hashtextextended('meli_devolucoes_sincronizar:' || v_base.base_id::text, 0)
     );
@@ -104,6 +110,7 @@ BEGIN
     -- A constraint historica e global; colisao de outra base e somente relatada.
     IF v_atual.id IS NOT NULL AND v_atual.base_id <> v_item.base_id THEN
       v_conflitos_base := v_conflitos_base + 1;
+      v_sem_alteracao := v_sem_alteracao + 1;
       CONTINUE;
     END IF;
 
@@ -134,7 +141,11 @@ BEGIN
                   jsonb_build_object('meli_status', v_item.status_normalizado,
                                      'recebimento_fisico', false), v_uid);
           v_eventos := v_eventos + 1;
+        ELSE
+          v_sem_alteracao := v_sem_alteracao + 1;
         END IF;
+      ELSE
+        v_sem_alteracao := v_sem_alteracao + 1;
       END IF;
       CONTINUE;
     END IF;
@@ -148,6 +159,14 @@ BEGIN
       v_estado_novo := 'transferido';
     ELSE
       v_estado_novo := 'revisao_necessaria';
+    END IF;
+
+    IF v_estado_novo = 'aguardando_retorno' THEN
+      v_aguardando := v_aguardando + 1;
+    ELSIF v_estado_novo = 'em_investigacao' THEN
+      v_investigacao := v_investigacao + 1;
+    ELSIF v_estado_novo = 'transferido' THEN
+      v_transferidos := v_transferidos + 1;
     END IF;
 
     v_situacao_nova := CASE v_estado_novo
@@ -234,14 +253,21 @@ BEGIN
               jsonb_build_object('occurrence_code', v_codigo, 'meli_status', v_item.status,
                                  'meli_substatus', v_item.substatus), v_uid);
       v_eventos := v_eventos + 1;
+    ELSE
+      v_sem_alteracao := v_sem_alteracao + 1;
     END IF;
   END LOOP;
 
   RETURN jsonb_build_object(
-    'status', 'ok', 'criadas', v_criadas, 'atualizadas', v_atualizadas,
+    'status', 'ok', 'analisados', v_analisados,
+    'criadas', v_criadas, 'criados', v_criadas,
+    'atualizadas', v_atualizadas, 'sem_alteracao', v_sem_alteracao,
+    'aguardando', v_aguardando, 'investigacao', v_investigacao,
+    'transferidos', v_transferidos, 'erros', 0,
     'reconciliadas', v_reconciliadas, 'revisao_necessaria', v_revisao,
     'conflitos_base', v_conflitos_base, 'eventos', v_eventos,
-    'data_de', v_de, 'data_ate', v_ate, 'server_time', clock_timestamp()
+    'data_de', v_de, 'data_ate', v_ate,
+    'server_time', clock_timestamp(), 'sincronizado_em', clock_timestamp()
   );
 END;
 $function$;
