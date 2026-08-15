@@ -188,7 +188,7 @@ function MeliDevolucoesPage() {
     queryKey: ["meli-romaneios", baseId, dataDe, dataAte],
     queryFn: async () => {
       try {
-        return await listarRomaneios({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } });
+        return await listarDevolucoes({ data: { base_id: baseId || null, data_de: dataDe, data_ate: dataAte } });
       } catch (err) {
         console.error("Erro ao listar romaneios:", err);
         throw err;
@@ -206,7 +206,8 @@ function MeliDevolucoesPage() {
         return null;
       }
       try {
-        const res = (await detalharRomaneio({ data: { romaneio_id: romaneioUuid } })) as any;
+        const res = (await detalharDevolucao({ data: { romaneio_id: romaneioUuid } })) as any;
+
         // Se não existir, estiver concluído/cancelado ou base diferente (se baseId selecionada), descarta
         if (!res || res.status !== "em_andamento" || (baseId && res.base_id !== baseId)) {
           updateActiveRec("");
