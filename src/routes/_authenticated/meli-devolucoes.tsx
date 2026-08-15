@@ -300,7 +300,7 @@ function MeliDevolucoesPage() {
       let res;
       if (recebimentoId === "NOVO") {
         // Abre o romaneio com o primeiro pacote
-        res = await abrirRomaneio({
+        res = await abrirDevolucao({
           data: {
             base_id: baseId,
             tracking_id: codigo.trim(),
@@ -318,7 +318,8 @@ function MeliDevolucoesPage() {
            updateActiveRec("");
            return;
         }
-        res = await biparRomaneio({
+        res = await biparDevolucao({
+
           data: {
             romaneio_id: romaneioUuid,
             base_id: baseId,
