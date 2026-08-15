@@ -47,6 +47,9 @@ export function DashboardGeral({
 
   const filtros = useMemo(() => ({ data: dataRef }), [dataRef]);
 
+  // Se o dataRef for vazio ou null, o componente renderizará vazio até o carregamento.
+  // Mas como dataRef tem fallback para hojeOperacional(), ele sempre terá um valor.
+
   const q = useQuery({
     queryKey: ["dashboard-geral", filtros],
     queryFn: () => fetchDados({ data: filtros }),
