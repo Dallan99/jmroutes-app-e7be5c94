@@ -303,12 +303,26 @@ function MeliDevolucoesPage() {
 
 
   const onSincronizar = async () => {
+    if (!baseId) {
+      toast.error("Selecione a base para sincronizar.");
+      return;
+    }
     const loadingToast = toast.loading("Sincronizando dados do Mercado Livre...");
     try {
-      const res = await sincronizarDevolucoes({ data: { data_de: dataDe, data_ate: dataAte } });
+      const res = await sincronizarDevolucoes({ 
+        data: { 
+          data_de: dataDe, 
+          data_ate: dataAte, 
+          base_id: baseId 
+        } 
+      });
       toast.dismiss(loadingToast);
       
-      DialogResumoSincronizacao(res);
+      if (res.status === 'erro') {
+        toast.error(res.erros || "Erro na sincronização.");
+      } else {
+        DialogResumoSincronizacao(res);
+      }
       
       painelQuery.refetch();
       romaneiosQuery.refetch();
@@ -322,11 +336,18 @@ function MeliDevolucoesPage() {
     toast.success(
       <div className="flex flex-col gap-1">
         <span className="font-bold">Sincronização Concluída</span>
-        <span className="text-xs">Novos: {res.criados}</span>
-        <span className="text-xs">Atualizados: {res.atualizados}</span>
-        {res.erros > 0 && <span className="text-xs text-destructive">Falhas: {res.erros}</span>}
+        <div className="grid grid-cols-2 gap-x-4 text-[10px] opacity-90">
+          <span>Analisados: {res.analisados}</span>
+          <span>Criados: {res.criados}</span>
+          <span>Atualizados: {res.atualizados}</span>
+          <span>Sem alteração: {res.sem_alteracao}</span>
+          {res.investigacao > 0 && <span>Extravio: {res.investigacao}</span>}
+          {res.transferidos > 0 && <span>Transferidos: {res.transferidos}</span>}
+          {res.revisao_necessaria > 0 && <span className="text-amber-500 font-medium">Revisão: {res.revisao_necessaria}</span>}
+          {res.erros > 0 && <span className="text-destructive font-bold">Falhas: {res.erros}</span>}
+        </div>
       </div>,
-      { duration: 5000 }
+      { duration: 8000 }
     );
   }
 
