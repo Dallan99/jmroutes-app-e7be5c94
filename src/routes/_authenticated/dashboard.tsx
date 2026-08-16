@@ -7,7 +7,6 @@ import { MeliDashboardSection } from "@/components/meli-dashboard";
 import { fmtDataHora, useMeliSync } from "@/components/meli-sync-monitor";
 
 import { DashboardGeral } from "@/components/dashboard-geral";
-import { BipagemBasesPanel } from "@/components/bipagem-bases";
 import { diaOperacionalInicial, hojeOperacional, salvarDiaEscolhido } from "@/lib/dia-operacional";
 
 const CHAVE_DIA_DASHBOARD = "jm.dia.dashboard";
@@ -151,11 +150,6 @@ function DashboardPage() {
 
       {/* ── Cartões da operação (primeiro de tudo) ── */}
       <DashboardGeral data={filters.date || undefined} syncPorCodigo={sync.porCodigo} />
-
-      {/* ── Bipagem por base ── */}
-      <BipagemBasesPanel data={filters.date || undefined} />
-
-
 
       {/* ── Detalhamento da operação (mesmo dashboard) ── */}
       <MeliDashboardSection
