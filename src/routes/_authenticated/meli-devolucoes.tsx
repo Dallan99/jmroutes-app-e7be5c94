@@ -307,11 +307,20 @@ function MeliDevolucoesPage() {
 
   const linhasCard = useMemo(() => {
     if (!cardDetalhe) return [] as any[];
-    if (!cardDetalhe.id) return linhas;
-    if (cardDetalhe.id === "divergencia_delivered")
-      return linhas.filter((l: any) => l.divergencia_delivered);
-    return linhas.filter((l: any) => l.estado === cardDetalhe.id);
-  }, [linhas, cardDetalhe]);
+    // A filtragem local deve usar EXATAMENTE a mesma lógica do banco/cards
+    const todas = painelQuery.data?.linhas ?? [];
+    
+    // Se for o card "Total" (id vazio)
+    if (!cardDetalhe.id) return todas;
+
+    // Filtro por estado
+    return todas.filter((l: any) => {
+      if (cardDetalhe.id === "divergencia_delivered") {
+        return !!l.divergencia_delivered;
+      }
+      return l.estado === cardDetalhe.id;
+    });
+  }, [painelQuery.data?.linhas, cardDetalhe]);
 
 
   const onSincronizar = async () => {
