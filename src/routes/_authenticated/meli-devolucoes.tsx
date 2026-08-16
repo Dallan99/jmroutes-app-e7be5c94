@@ -652,9 +652,17 @@ function MeliDevolucoesPage() {
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             {linhasCard.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6">
-                Nenhum pacote nesta situação para os filtros atuais.
-              </p>
+              <div className="py-12 flex flex-col items-center justify-center gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Nenhum pacote nesta situação para os filtros atuais.
+                </p>
+                {painelQuery.isFetching && (
+                  <div className="flex items-center gap-2 text-xs text-primary animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Atualizando dados...
+                  </div>
+                )}
+              </div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="text-xs uppercase text-muted-foreground">
