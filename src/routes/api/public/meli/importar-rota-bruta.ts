@@ -14,6 +14,7 @@ import {
   json,
 } from "@/lib/meli-api-http";
 import {
+  codigoSeguroErroImportacao,
   enviarRotaParaStagingComClient,
   importarRotaBrutaComClient,
 } from "@/lib/meli-import-bruto";
@@ -226,7 +227,11 @@ export const Route = createFileRoute("/api/public/meli/importar-rota-bruta")({
               );
             }
             return json(
-              { ok: false, codigo: "erro_importacao", mensagem: result.erro ?? "Falha ao importar." },
+              {
+                ok: false,
+                codigo: codigoSeguroErroImportacao(result.erro),
+                mensagem: "A rota não pôde ser importada.",
+              },
               400,
               origin,
             );

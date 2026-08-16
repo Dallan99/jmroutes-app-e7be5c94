@@ -53,4 +53,9 @@ describe("migration corretiva de meli_devolucoes_sincronizar", () => {
     const detalhes = [...sql.matchAll(/jsonb_build_object\(([^;]+)\)/g)].map((m) => m[1]);
     expect(detalhes.every((trecho) => !/tracking/i.test(trecho))).toBe(true);
   });
+
+  it("mantem compatibilidade de retorno na propria migration unica", () => {
+    expect(sql).toMatch(/'atualizadas', v_atualizadas, 'atualizados', v_atualizadas/i);
+    expect(sql).not.toMatch(/pg_get_functiondef|execute\s+v_definicao/i);
+  });
 });
