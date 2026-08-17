@@ -84,7 +84,7 @@ export function DashboardGeral({
       <Card className="p-4 md:p-5">
         <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
         <p className="text-xs text-muted-foreground">
-          voltar a mostrar os valores
+          ainda tudo zerado
         </p>
 
 
