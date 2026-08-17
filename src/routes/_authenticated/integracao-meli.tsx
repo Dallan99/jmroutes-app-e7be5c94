@@ -160,6 +160,7 @@ function IntegracaoMeliPage() {
   const limite = 20;
 
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
+  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
 
   const rotasQuery = useQuery({
     queryKey: ["meli-rotas", { busca, cluster, dataDe, dataAte, pagina }],
