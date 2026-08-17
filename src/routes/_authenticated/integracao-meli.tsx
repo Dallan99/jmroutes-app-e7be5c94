@@ -53,87 +53,6 @@ export const Route = createFileRoute("/_authenticated/integracao-meli")({
   component: IntegracaoMeliPage,
 });
 
-function WorkerSetupDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-              <Cpu className="w-5 h-5 text-primary" />
-            </div>
-            <DialogTitle>Configuração do Worker Permanente</DialogTitle>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          <section className="space-y-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" /> Requisitos Mandatórios
-            </h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="p-3 rounded-lg border bg-muted/30 text-xs">
-                <span className="font-bold block mb-1">Acesso AdminML</span>
-                Máquina com login ativo e persistente no Mercado Livre.
-              </div>
-              <div className="p-3 rounded-lg border bg-muted/30 text-xs">
-                <span className="font-bold block mb-1">Disponibilidade</span>
-                Computador deve ficar ligado durante todo o horário da operação.
-              </div>
-              <div className="p-3 rounded-lg border bg-muted/30 text-xs">
-                <span className="font-bold block mb-1">Auto-Start</span>
-                Configurado para iniciar com o Windows após reinicializações.
-              </div>
-              <div className="p-3 rounded-lg border bg-muted/30 text-xs">
-                <span className="font-bold block mb-1">Sessão ML</span>
-                Alertas visíveis caso a sessão do Mercado Livre expire.
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-warning" /> Como Instalar
-            </h3>
-            <div className="space-y-4 text-sm leading-relaxed">
-              <div className="space-y-2">
-                <p className="font-medium">1. Script de Inicialização</p>
-                <p className="text-muted-foreground text-xs">
-                  Crie um arquivo chamado <code className="bg-muted px-1 rounded">iniciar-worker.bat</code> na pasta de inicialização do Windows (Shell:Startup) com os comandos do worker.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="font-medium">2. Extensão de Contingência</p>
-                <p className="text-muted-foreground text-xs">
-                  Mantenha a extensão manual instalada no navegador principal como plano B.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="font-medium">3. Monitoramento</p>
-                <p className="text-muted-foreground text-xs">
-                  O sistema detecta automaticamente se o worker está ativo através do Painel Operacional.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
-            <p className="text-sm italic text-primary/90">
-              "Pode fazer na minha máquina por enquanto e testamos. Se ficar bom, mais pra frente compramos uma máquina dedicada. Mas deixe automático: a máquina ligou, ele já conecta."
-            </p>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-          <Button onClick={() => window.open('https://www.jmroutes.app', '_blank')}>
-            Ver Dashboard de Sincronização
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function IntegracaoMeliPage() {
   const router = useRouter();
@@ -160,7 +79,7 @@ function IntegracaoMeliPage() {
   const limite = 20;
 
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
-  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
+  
 
   const rotasQuery = useQuery({
     queryKey: ["meli-rotas", { busca, cluster, dataDe, dataAte, pagina }],
@@ -376,29 +295,6 @@ function IntegracaoMeliPage() {
         </Card>
       )}
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Cpu className="h-5 w-5 text-primary" /> Worker Permanente
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Sincronização diária automática</p>
-              <p className="text-xs text-muted-foreground max-w-lg">
-                Para evitar que a sincronização pare, instale o worker em um computador que fique ligado 
-                diretamente na operação com acesso ao AdminML.
-              </p>
-            </div>
-            <Button variant="outline" className="shrink-0" onClick={() => setWorkerDialogOpen(true)}>
-              Configurar Worker Permanente
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <WorkerSetupDialog open={workerDialogOpen} onOpenChange={setWorkerDialogOpen} />
 
       <Card>
         <CardHeader>

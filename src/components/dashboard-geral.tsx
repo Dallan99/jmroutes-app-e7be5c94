@@ -84,7 +84,7 @@ export function DashboardGeral({
       <Card className="p-4 md:p-5">
         <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
         <p className="text-xs text-muted-foreground">
-          deveria ter rotas ativas
+          Progresso automático da operação — também preciso que seja clicável os cards e abra os detalhes
         </p>
 
 
@@ -97,23 +97,7 @@ export function DashboardGeral({
           {!q.isLoading && bases.length === 0 && (
             <div className="col-span-full py-12 text-center border-2 border-dashed rounded-lg bg-muted/30">
               <div className="text-lg font-semibold text-foreground mb-1">Sem dados para {dataRef}</div>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Não foram encontradas rotas Meli ativas para esta data. Verifique se o Worker de sincronização está ativo ou selecione o dia anterior.
-              </p>
-              <div className="mt-4 flex justify-center gap-2">
-                 <Button 
-                   variant="outline" 
-                   size="sm"
-                   onClick={() => {
-                     const ontem = new Date(new Date(dataRef + 'T12:00:00').getTime() - 86400000).toISOString().split('T')[0];
-                     // Aqui precisaríamos de uma forma de mudar o filtro globalmente ou no componente pai
-                     // Como paliativo, apenas orientamos o usuário.
-                     window.location.search = `?data=${ontem}`;
-                   }}
-                 >
-                   Ver dia anterior (2026-08-16)
-                 </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">Não foram encontradas rotas Meli ativas para esta data.</p>
             </div>
           )}
 
