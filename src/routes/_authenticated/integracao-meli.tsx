@@ -376,6 +376,30 @@ function IntegracaoMeliPage() {
         </Card>
       )}
 
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Cpu className="h-5 w-5 text-primary" /> Worker Permanente
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Sincronização diária automática</p>
+              <p className="text-xs text-muted-foreground max-w-lg">
+                Para evitar que a sincronização pare, instale o worker em um computador que fique ligado 
+                diretamente na operação com acesso ao AdminML.
+              </p>
+            </div>
+            <Button variant="outline" className="shrink-0" onClick={() => setWorkerDialogOpen(true)}>
+              Configurar Worker Permanente
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <WorkerSetupDialog open={workerDialogOpen} onOpenChange={setWorkerDialogOpen} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
