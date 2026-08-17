@@ -328,7 +328,7 @@ function MeliDevolucoesPage() {
       toast.error("Selecione a base para sincronizar.");
       return;
     }
-    const loadingToast = toast.loading("Sincronizando dados do Mercado Livre...");
+    const loadingToast = toast.loading("Execute a sincronização manual do AdminML agora e confirme quantas devoluções aparecem na tela.");
     try {
       const res = await sincronizarDevolucoes({ 
         data: { 
