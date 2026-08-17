@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, PackageSearch, RefreshCcw } from "lucide-react";
+import { Loader2, Upload, PackageSearch, RefreshCcw, Cpu, CheckCircle2, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/integracao-meli")({
   head: () => ({
