@@ -328,9 +328,8 @@ function MeliDevolucoesPage() {
       toast.error("Selecione a base para sincronizar.");
       return;
     }
-    const loadingToast = toast.loading("Execute a sincronização manual do AdminML agora e confirme quantas devoluções aparecem na tela.", {
+    const loadingToast = toast.loading("Sincronizando...", {
       id: "sync-meli",
-      duration: 10000
     });
     try {
       const res = await sincronizarDevolucoes({ 
