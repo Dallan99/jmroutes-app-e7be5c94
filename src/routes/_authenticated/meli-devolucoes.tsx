@@ -328,7 +328,7 @@ function MeliDevolucoesPage() {
       toast.error("Selecione a base para sincronizar.");
       return;
     }
-    const loadingToast = toast.loading("Sincronizando dados com Mercado Livre...", {
+    const loadingToast = toast.loading("Sincronizando...", {
       id: "sync-meli",
     });
     try {
