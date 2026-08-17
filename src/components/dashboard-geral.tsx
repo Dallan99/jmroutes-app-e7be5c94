@@ -95,8 +95,25 @@ export function DashboardGeral({
             </div>
           )}
           {!q.isLoading && bases.length === 0 && (
-            <div className="col-span-full text-sm text-muted-foreground py-6 text-center">
-              Nenhuma base com dados sincronizados para este dia.
+            <div className="col-span-full py-12 text-center border-2 border-dashed rounded-lg bg-muted/30">
+              <div className="text-lg font-semibold text-foreground mb-1">Sem dados para {dataRef}</div>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Não foram encontradas rotas Meli ativas para esta data. Verifique se o Worker de sincronização está ativo ou selecione o dia anterior.
+              </p>
+              <div className="mt-4 flex justify-center gap-2">
+                 <Button 
+                   variant="outline" 
+                   size="sm"
+                   onClick={() => {
+                     const ontem = new Date(new Date(dataRef + 'T12:00:00').getTime() - 86400000).toISOString().split('T')[0];
+                     // Aqui precisaríamos de uma forma de mudar o filtro globalmente ou no componente pai
+                     // Como paliativo, apenas orientamos o usuário.
+                     window.location.search = `?data=${ontem}`;
+                   }}
+                 >
+                   Ver dia anterior (2026-08-16)
+                 </Button>
+              </div>
             </div>
           )}
 
