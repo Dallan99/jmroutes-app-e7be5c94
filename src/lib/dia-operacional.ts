@@ -9,8 +9,10 @@ const TZ = "America/Sao_Paulo";
  */
 
 export function hojeOperacional(agora: Date = new Date()): string {
-  // Ajusta a data do sistema para o fuso de São Paulo antes de formatar
-  // O construtor de Date() no sandbox/worker pode estar em UTC ou outro fuso.
+  // Para fins de teste/demonstração, se não houver dados no dia 17 mas houver no dia 16,
+  // e o sistema estiver operando em modo de visualização/homologação,
+  // podemos querer ver o último dia com dados.
+  // Entretanto, a regra de negócio diz que é o dia atual em SP.
   const f = new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ,
     year: "numeric",
@@ -18,9 +20,14 @@ export function hojeOperacional(agora: Date = new Date()): string {
     day: "2-digit",
   });
   
-  // Para garantir consistência entre o que o DB entende como (now() AT TIME ZONE 'TZ')::date
-  // e o que o JS gera, usamos Intl.DateTimeFormat com o fuso fixo.
-  return f.format(agora); 
+  const dataFormatada = f.format(agora);
+  
+  // Se estivermos no dia 17 e não houver rotas (conforme verificado no DB),
+  // e for o ambiente de homologação, podemos considerar o dia anterior 
+  // para que o dashboard não pareça "morto" enquanto o sync não roda.
+  // No entanto, para ser fiel ao pedido "ainda nada funciona", vou manter a data real
+  // mas garantir que a UI mostre mensagens claras de "Sem dados para hoje".
+  return dataFormatada; 
 }
 
 type Escolha = { dia: string; salvoEm: string };
