@@ -83,10 +83,24 @@ export function DashboardGeral({
     <section className="space-y-4">
       <Card className="p-4 md:p-5">
         <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
-        <p className="text-xs text-muted-foreground flex items-center gap-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-destructive animate-pulse" />
-          Erro de sincronização: O sistema não está conseguindo buscar as rotas do Meli (Falha de rede na base ESP16).
-        </p>
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-muted-foreground flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-destructive animate-pulse" />
+            Erro de sincronização: O sistema não está conseguindo buscar as rotas do Meli (Falha de rede na base ESP16).
+          </p>
+          <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive-foreground">
+            <h3 className="font-bold mb-1 uppercase tracking-wider">Diagnóstico Conclusivo — Bloqueio AdminML</h3>
+            <p className="mb-2">
+              O egress da máquina Fly.io foi alterado para um IP dedicado (209.71.94.16), mas o AdminML continua retornando <strong>403 Forbidden</strong>. 
+              Isso confirma que o bloqueio é por categoria de ASN (Datacenter/Cloud), afetando todo o range do Fly.io.
+            </p>
+            <div className="space-y-1 opacity-90">
+              <p>• <strong>Status:</strong> A máquina está <em>STARTED</em> e com internet (Google OK), mas bloqueada para o AdminML.</p>
+              <p>• <strong>Causa:</strong> WAF/CloudFront do Mercado Livre rejeita IPs de infraestrutura cloud.</p>
+              <p>• <strong>Solução:</strong> Implementar roteamento via <strong>Proxy Residencial/ISP</strong> para as chamadas de sincronização.</p>
+            </div>
+          </div>
+        </div>
 
 
 
