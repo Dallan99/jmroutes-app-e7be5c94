@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
 import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
+import { abrirRelatorio } from "@/lib/relatorio";
 
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
@@ -135,6 +136,8 @@ function MeliDevolucoesPage() {
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
+  const [imprimindoRomaneio, setImprimindoRomaneio] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
 
   // v3: Identificadores de estado ativo
@@ -169,9 +172,13 @@ function MeliDevolucoesPage() {
       setRomaneioUuid("");
       setIniciandoRecebimento(true);
     } else {
+      // Base selecionada sem devolução ativa: já deixa a bipagem pronta
       setRomaneioUuid("");
-      setRecebimentoId("");
-      setIniciandoRecebimento(false);
+      setRecebimentoId("NOVO");
+      localStorage.setItem(storageKeyRec, "NOVO");
+      localStorage.removeItem(storageKeyUuid);
+      setIniciandoRecebimento(true);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [userId, baseId, storageKeyUuid, storageKeyRec]);
 
@@ -386,6 +393,85 @@ function MeliDevolucoesPage() {
       setTimeout(() => inputRef.current?.focus(), 100);
     } finally {
       setGerandoRec(false);
+    }
+  };
+
+  const onFinalizarAtiva = async () => {
+    if (!romaneioUuid) {
+      toast.error("Nenhuma devolução ativa para finalizar. Bipe o primeiro pacote.");
+      return;
+    }
+    setFinalizando(true);
+    try {
+      await finalizar({ data: { romaneio_id: romaneioUuid } });
+      toast.success("Devolução finalizada com sucesso.");
+      updateActiveRec("");
+      setPacotesDesteLote([]);
+      painelQuery.refetch();
+      romaneiosQuery.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao finalizar devolução.");
+    } finally {
+      setFinalizando(false);
+    }
+  };
+
+  const onImprimirRomaneioDoDia = async () => {
+    if (!baseId) {
+      toast.error("Selecione a base para imprimir o romaneio do dia.");
+      return;
+    }
+    setImprimindoRomaneio(true);
+    try {
+      const romaneios = (await listarDevolucoes({
+        data: { base_id: baseId, data_de: hoje, data_ate: hoje, status: "concluido" },
+      })) as any[];
+      const concluidos = (romaneios ?? []).filter((r: any) => r.status === "concluido");
+      if (concluidos.length === 0) {
+        toast.error("Nenhuma devolução finalizada hoje para esta base.");
+        return;
+      }
+      const detalhes = await Promise.all(
+        concluidos.map((r: any) => detalharDevolucao({ data: { romaneio_id: r.id } }) as Promise<any>),
+      );
+      type LinhaRomaneio = { romaneio: string; tracking_id: string; occurrence_code: string; recebido_em: string };
+      const linhasImpressao: LinhaRomaneio[] = detalhes.flatMap((d: any) =>
+        (d?.pacotes ?? []).map((p: any) => ({
+          romaneio: d?.codigo ?? "—",
+          tracking_id: p.tracking_id,
+          occurrence_code: p.occurrence_code ?? "",
+          recebido_em: p.recebido_em ? fmt(p.recebido_em) : "—",
+        })),
+      );
+      const baseCodigo =
+        (basesQuery.data ?? []).find((b) => b.id === baseId)?.codigo ?? "";
+      abrirRelatorio<LinhaRomaneio>({
+        titulo: "Romaneio de Devoluções",
+        subtitulo: `Base ${baseCodigo} — devoluções finalizadas em ${new Date(`${hoje}T12:00:00`).toLocaleDateString("pt-BR")}`,
+        kpis: [
+          { label: "Devoluções", value: concluidos.length },
+          { label: "Pacotes", value: linhasImpressao.length },
+        ],
+        colunas: [
+          { header: "Devolução", value: (r) => r.romaneio },
+          { header: "ID do pacote", value: (r) => r.tracking_id },
+          { header: "Ocorrência", value: (r) => r.occurrence_code },
+          { header: "Recebido em", value: (r) => r.recebido_em },
+        ],
+        linhas: linhasImpressao,
+        agruparPor: (r) => r.romaneio,
+        nomeArquivo: `romaneio-devolucoes-${baseCodigo}-${hoje}`,
+        assinaturas: [
+          { label: "Motorista" },
+          { label: "Responsável Meli" },
+          { label: "Responsável da Base" },
+        ],
+        autoPrint: true,
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar o romaneio do dia.");
+    } finally {
+      setImprimindoRomaneio(false);
     }
   };
 
@@ -733,6 +819,91 @@ function MeliDevolucoesPage() {
         </Card>
       ) : (
         <div className="space-y-4">
+          <Card className="border-primary/20 shadow-sm">
+            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
+              <CardTitle className="text-base flex items-center gap-2">
+                Bipagem de Pacotes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <form
+                className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  onReceber(e);
+                }}
+              >
+                <div className="space-y-1">
+                  <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
+                  <Input
+                    id="dev-codigo"
+                    ref={inputRef}
+                    autoFocus
+                    autoComplete="off"
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value)}
+                    disabled={!recebimentoId}
+                    placeholder="Tracking / shipment"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="dev-obs">Observação (opcional)</Label>
+                  <Input
+                    id="dev-obs"
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    disabled={!recebimentoId}
+                    placeholder="Avaria, embalagem aberta..."
+                  />
+                </div>
+                <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
+                  {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
+                </Button>
+              </form>
+
+              <p className="text-xs text-muted-foreground mt-2">
+                O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
+                um pacote como recebido.
+              </p>
+
+              {pacotesDesteLote.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] uppercase tracking-wider"
+                      onClick={() => window.print()}
+                    >
+                      <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-48 border rounded-md">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                        <tr className="text-left border-b">
+                          <th className="py-2 px-3">Tracking</th>
+                          <th className="py-2 px-3">Rota</th>
+                          <th className="py-2 px-3">Ocorrência</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pacotesDesteLote.map((p) => (
+                          <tr key={p.id} className="border-b last:border-0">
+                            <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
+                            <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
+                            <td className="py-2 px-3">{p.occurrence_code}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="py-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -740,8 +911,14 @@ function MeliDevolucoesPage() {
                   <PackageCheck className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold font-mono">{recebimentoId}</h2>
-                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
+                  <h2 className="text-xl font-bold font-mono">
+                    {recebimentoId === "NOVO" ? "Nova devolução" : recebimentoId}
+                  </h2>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">
+                    {recebimentoId === "NOVO"
+                      ? "Bipe o primeiro pacote para abrir"
+                      : "Recebimento em andamento"}
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
@@ -759,7 +936,6 @@ function MeliDevolucoesPage() {
                     onClick={async () => {
                       if (!buscarRecId.trim()) return;
                       const q = buscarRecId.trim().toUpperCase();
-                      // Tenta localizar o UUID do romaneio pelo código
                       try {
                         const romaneios = (await listarDevolucoes({ data: { base_id: baseId || null } })) as any[];
                         const encontrado = romaneios?.find((r: any) => r.codigo === q);
@@ -783,23 +959,10 @@ function MeliDevolucoesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={async () => {
-                      const activeUuid = localStorage.getItem("active_romaneio_uuid");
-                      if (!activeUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUuid)) {
-                        updateActiveRec("");
-                        return;
-                      }
-                      try {
-                        await finalizar({ data: { romaneio_id: activeUuid } });
-                        toast.success("Devolução finalizada com sucesso.");
-                        updateActiveRec("");
-                        painelQuery.refetch();
-                      } catch (err: any) {
-                        toast.error(err.message || "Erro ao finalizar devolução.");
-                      }
-                    }}
+                    disabled={finalizando || !romaneioUuid}
+                    onClick={onFinalizarAtiva}
                   >
-                    Finalizar
+                    {finalizando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
                   </Button>
                   <Button
                     variant="outline"
@@ -815,6 +978,20 @@ function MeliDevolucoesPage() {
                     Novo
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onImprimirRomaneioDoDia}
+                    disabled={imprimindoRomaneio || !baseId}
+                  >
+                    {imprimindoRomaneio ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="h-4 w-4 mr-2" />
+                    )}
+                    Imprimir romaneio do dia
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="h-8"
@@ -827,95 +1004,6 @@ function MeliDevolucoesPage() {
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-
-
-          <Card className="border-primary/20 shadow-sm">
-            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
-              <CardTitle className="text-base flex items-center gap-2">
-                Bipagem de Pacotes
-              </CardTitle>
-            </CardHeader>
-          <CardContent className="pt-6">
-            <form
-              className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
-              onSubmit={(e) => {
-                e.preventDefault();
-                onReceber(e);
-              }}
-            >
-
-              <div className="space-y-1">
-                <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
-                <Input
-                  id="dev-codigo"
-                  ref={inputRef}
-                  autoFocus
-                  autoComplete="off"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  disabled={!recebimentoId}
-                  placeholder="Tracking / shipment"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="dev-obs">Observação (opcional)</Label>
-                <Input
-                  id="dev-obs"
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  disabled={!recebimentoId}
-                  placeholder="Avaria, embalagem aberta..."
-                />
-              </div>
-              <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
-                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
-              </Button>
-            </form>
-
-            <p className="text-xs text-muted-foreground mt-2">
-              O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
-              um pacote como recebido.
-            </p>
-
-            {pacotesDesteLote.length > 0 && (
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-[10px] uppercase tracking-wider"
-                    onClick={() => window.print()}
-                  >
-                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
-                  </Button>
-                </div>
-                <ScrollArea className="h-48 border rounded-md">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/50 text-muted-foreground sticky top-0">
-                      <tr className="text-left border-b">
-                        <th className="py-2 px-3">Tracking</th>
-                        <th className="py-2 px-3">Rota</th>
-                        <th className="py-2 px-3">Ocorrência</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pacotesDesteLote.map((p) => (
-                        <tr key={p.id} className="border-b last:border-0">
-                          <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
-                          <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
-                          <td className="py-2 px-3">{p.occurrence_code}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ScrollArea>
-              </div>
-
-              )}
             </CardContent>
           </Card>
         </div>
