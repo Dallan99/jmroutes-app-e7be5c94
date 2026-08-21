@@ -107,6 +107,43 @@ export const meliDevolucoesDetalhar = createServerFn({ method: "GET" })
     return res;
   });
 
+export const meliDevolucoesRelatorioDia = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) => d as { base_id: string; data: string })
+  .handler(async ({ data, context }) => {
+    const { data: romaneios, error } = await (context.supabase as any).rpc('meli_romaneios_listar', {
+      p_base_id: data.base_id,
+      p_status: null,
+      p_data_de: data.data,
+      p_data_ate: data.data,
+    });
+    if (error) throw error;
+
+    const detalhes = await Promise.all(
+      (Array.isArray(romaneios) ? romaneios : []).map(async (romaneio: any) => {
+        const { data: detalhe, error: detalheError } = await (context.supabase as any).rpc(
+          'meli_romaneio_detalhar',
+          { p_romaneio_id: romaneio.id },
+        );
+        if (detalheError) throw detalheError;
+        return detalhe;
+      }),
+    );
+
+    return {
+      data: data.data,
+      base_codigo: detalhes[0]?.base_codigo ?? null,
+      romaneios: detalhes,
+      pacotes: detalhes.flatMap((romaneio: any) =>
+        (romaneio?.pacotes ?? []).map((pacote: any) => ({
+          ...pacote,
+          romaneio_codigo: romaneio.codigo,
+          romaneio_status: romaneio.status,
+        })),
+      ),
+    };
+  });
+
 export const meliDevolucoesSincronizar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => d as { 
