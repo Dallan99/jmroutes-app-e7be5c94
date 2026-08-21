@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
 import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
+import { abrirRelatorio } from "@/lib/relatorio";
 
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
@@ -135,6 +136,8 @@ function MeliDevolucoesPage() {
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
+  const [imprimindoRomaneio, setImprimindoRomaneio] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
 
   // v3: Identificadores de estado ativo
@@ -431,7 +434,8 @@ function MeliDevolucoesPage() {
       const detalhes = await Promise.all(
         concluidos.map((r: any) => detalharDevolucao({ data: { romaneio_id: r.id } }) as Promise<any>),
       );
-      const linhasImpressao = detalhes.flatMap((d: any) =>
+      type LinhaRomaneio = { romaneio: string; tracking_id: string; occurrence_code: string; recebido_em: string };
+      const linhasImpressao: LinhaRomaneio[] = detalhes.flatMap((d: any) =>
         (d?.pacotes ?? []).map((p: any) => ({
           romaneio: d?.codigo ?? "—",
           tracking_id: p.tracking_id,
@@ -441,7 +445,7 @@ function MeliDevolucoesPage() {
       );
       const baseCodigo =
         (basesQuery.data ?? []).find((b) => b.id === baseId)?.codigo ?? "";
-      abrirRelatorio({
+      abrirRelatorio<LinhaRomaneio>({
         titulo: "Romaneio de Devoluções",
         subtitulo: `Base ${baseCodigo} — devoluções finalizadas em ${new Date(`${hoje}T12:00:00`).toLocaleDateString("pt-BR")}`,
         kpis: [
