@@ -737,6 +737,91 @@ function MeliDevolucoesPage() {
         </Card>
       ) : (
         <div className="space-y-4">
+          <Card className="border-primary/20 shadow-sm">
+            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
+              <CardTitle className="text-base flex items-center gap-2">
+                Bipagem de Pacotes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <form
+                className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  onReceber(e);
+                }}
+              >
+                <div className="space-y-1">
+                  <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
+                  <Input
+                    id="dev-codigo"
+                    ref={inputRef}
+                    autoFocus
+                    autoComplete="off"
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value)}
+                    disabled={!recebimentoId}
+                    placeholder="Tracking / shipment"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="dev-obs">Observação (opcional)</Label>
+                  <Input
+                    id="dev-obs"
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    disabled={!recebimentoId}
+                    placeholder="Avaria, embalagem aberta..."
+                  />
+                </div>
+                <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
+                  {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
+                </Button>
+              </form>
+
+              <p className="text-xs text-muted-foreground mt-2">
+                O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
+                um pacote como recebido.
+              </p>
+
+              {pacotesDesteLote.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] uppercase tracking-wider"
+                      onClick={() => window.print()}
+                    >
+                      <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-48 border rounded-md">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                        <tr className="text-left border-b">
+                          <th className="py-2 px-3">Tracking</th>
+                          <th className="py-2 px-3">Rota</th>
+                          <th className="py-2 px-3">Ocorrência</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pacotesDesteLote.map((p) => (
+                          <tr key={p.id} className="border-b last:border-0">
+                            <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
+                            <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
+                            <td className="py-2 px-3">{p.occurrence_code}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="py-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -744,8 +829,14 @@ function MeliDevolucoesPage() {
                   <PackageCheck className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold font-mono">{recebimentoId}</h2>
-                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
+                  <h2 className="text-xl font-bold font-mono">
+                    {recebimentoId === "NOVO" ? "Nova devolução" : recebimentoId}
+                  </h2>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">
+                    {recebimentoId === "NOVO"
+                      ? "Bipe o primeiro pacote para abrir"
+                      : "Recebimento em andamento"}
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
@@ -763,7 +854,6 @@ function MeliDevolucoesPage() {
                     onClick={async () => {
                       if (!buscarRecId.trim()) return;
                       const q = buscarRecId.trim().toUpperCase();
-                      // Tenta localizar o UUID do romaneio pelo código
                       try {
                         const romaneios = (await listarDevolucoes({ data: { base_id: baseId || null } })) as any[];
                         const encontrado = romaneios?.find((r: any) => r.codigo === q);
@@ -787,23 +877,10 @@ function MeliDevolucoesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={async () => {
-                      const activeUuid = localStorage.getItem("active_romaneio_uuid");
-                      if (!activeUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUuid)) {
-                        updateActiveRec("");
-                        return;
-                      }
-                      try {
-                        await finalizar({ data: { romaneio_id: activeUuid } });
-                        toast.success("Devolução finalizada com sucesso.");
-                        updateActiveRec("");
-                        painelQuery.refetch();
-                      } catch (err: any) {
-                        toast.error(err.message || "Erro ao finalizar devolução.");
-                      }
-                    }}
+                    disabled={finalizando || !romaneioUuid}
+                    onClick={onFinalizarAtiva}
                   >
-                    Finalizar
+                    {finalizando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
                   </Button>
                   <Button
                     variant="outline"
@@ -819,6 +896,20 @@ function MeliDevolucoesPage() {
                     Novo
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onImprimirRomaneioDoDia}
+                    disabled={imprimindoRomaneio || !baseId}
+                  >
+                    {imprimindoRomaneio ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="h-4 w-4 mr-2" />
+                    )}
+                    Imprimir romaneio do dia
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="h-8"
@@ -831,95 +922,6 @@ function MeliDevolucoesPage() {
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-
-
-          <Card className="border-primary/20 shadow-sm">
-            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
-              <CardTitle className="text-base flex items-center gap-2">
-                Bipagem de Pacotes
-              </CardTitle>
-            </CardHeader>
-          <CardContent className="pt-6">
-            <form
-              className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
-              onSubmit={(e) => {
-                e.preventDefault();
-                onReceber(e);
-              }}
-            >
-
-              <div className="space-y-1">
-                <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
-                <Input
-                  id="dev-codigo"
-                  ref={inputRef}
-                  autoFocus
-                  autoComplete="off"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  disabled={!recebimentoId}
-                  placeholder="Tracking / shipment"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="dev-obs">Observação (opcional)</Label>
-                <Input
-                  id="dev-obs"
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  disabled={!recebimentoId}
-                  placeholder="Avaria, embalagem aberta..."
-                />
-              </div>
-              <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
-                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
-              </Button>
-            </form>
-
-            <p className="text-xs text-muted-foreground mt-2">
-              O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
-              um pacote como recebido.
-            </p>
-
-            {pacotesDesteLote.length > 0 && (
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-[10px] uppercase tracking-wider"
-                    onClick={() => window.print()}
-                  >
-                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
-                  </Button>
-                </div>
-                <ScrollArea className="h-48 border rounded-md">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/50 text-muted-foreground sticky top-0">
-                      <tr className="text-left border-b">
-                        <th className="py-2 px-3">Tracking</th>
-                        <th className="py-2 px-3">Rota</th>
-                        <th className="py-2 px-3">Ocorrência</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pacotesDesteLote.map((p) => (
-                        <tr key={p.id} className="border-b last:border-0">
-                          <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
-                          <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
-                          <td className="py-2 px-3">{p.occurrence_code}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ScrollArea>
-              </div>
-
-              )}
             </CardContent>
           </Card>
         </div>
