@@ -13,6 +13,7 @@ import {
   meliDevolucoesSincronizar,
   meliDevolucoesPainel,
   meliDevolucoesHistorico,
+  meliDevolucoesRelatorioDia,
 } from "@/lib/meli-devolucoes.functions";
 import { meuPerfil } from "@/lib/recebimento.functions";
 
@@ -94,6 +95,15 @@ function fmt(dt: string | null | undefined) {
     minute: "2-digit",
   });
 }
+
+function escaparHtml(valor: unknown) {
+  return String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 function MeliDevolucoesPage() {
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
@@ -112,6 +122,7 @@ function MeliDevolucoesPage() {
   const sincronizarDevolucoes = useServerFn(meliDevolucoesSincronizar);
   const buscarPainel = useServerFn(meliDevolucoesPainel);
   const buscarHistorico = useServerFn(meliDevolucoesHistorico);
+  const buscarRelatorioDia = useServerFn(meliDevolucoesRelatorioDia);
 
 
   const buscarBases = useServerFn(listarBasesSimples);
@@ -169,9 +180,12 @@ function MeliDevolucoesPage() {
       setRomaneioUuid("");
       setIniciandoRecebimento(true);
     } else {
+      // A devolução nasce somente na primeira bipagem, mas a tela já fica
+      // pronta para leitura assim que uma base é selecionada.
       setRomaneioUuid("");
-      setRecebimentoId("");
-      setIniciandoRecebimento(false);
+      setRecebimentoId("NOVO");
+      localStorage.setItem(storageKeyRec, "NOVO");
+      setIniciandoRecebimento(true);
     }
   }, [userId, baseId, storageKeyUuid, storageKeyRec]);
 
@@ -272,8 +286,9 @@ function MeliDevolucoesPage() {
         // Atualiza o ID visual caso tenha mudado ou não estivesse sincronizado
         if (res.codigo && res.codigo !== recebimentoId) {
           setRecebimentoId(res.codigo);
-          localStorage.setItem("active_rec_id", res.codigo);
+          localStorage.setItem(storageKeyRec, res.codigo);
         }
+        setPacotesDesteLote(Array.isArray(res.pacotes) ? res.pacotes : []);
         return res;
       } catch (err) {
         console.warn("UUID ativo inválido ou erro na consulta:", err);
@@ -457,21 +472,84 @@ function MeliDevolucoesPage() {
         beepOk();
         const tid = res && typeof res === 'object' && 'tracking_id' in res ? res.tracking_id : '';
         toast.success((res as any).mensagem ?? `Retorno de ${tid} registrado.`);
-        // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
-        const p = linhas.find((l: any) => l.tracking_id === tid);
-        if (p) {
-          setPacotesDesteLote(prev => [p, ...prev]);
+        const uuidAtual = (res as any)?.romaneio_id ?? romaneioUuid;
+        if (uuidAtual) {
+          const loteAtualizado = await detalharDevolucao({ data: { romaneio_id: uuidAtual } }) as any;
+          setPacotesDesteLote(Array.isArray(loteAtualizado?.pacotes) ? loteAtualizado.pacotes : []);
         }
       }
       setCodigo("");
       setObservacao("");
       inputRef.current?.focus();
       painelQuery.refetch();
+      romaneiosQuery.refetch();
     } catch (err: any) {
       beepError();
       toast.error(err.message || "Erro ao processar bipagem.");
     } finally {
       setEnviando(false);
+    }
+  }
+
+  async function imprimirRomaneioDoDia() {
+    if (!baseId) {
+      toast.error("Selecione a base para imprimir o romaneio do dia.");
+      return;
+    }
+
+    const janela = window.open("", "_blank", "width=1000,height=800");
+    if (!janela) {
+      toast.error("O navegador bloqueou a janela de impressão.");
+      return;
+    }
+
+    try {
+      const relatorio = await buscarRelatorioDia({ data: { base_id: baseId, data: hoje } });
+      const pacotes = Array.isArray(relatorio.pacotes) ? relatorio.pacotes : [];
+      const romaneios = Array.isArray(relatorio.romaneios) ? relatorio.romaneios : [];
+      const dataFormatada = new Date(`${hoje}T12:00:00`).toLocaleDateString("pt-BR");
+      const linhasHtml = pacotes.map((p: any, indice: number) => `
+        <tr>
+          <td>${indice + 1}</td>
+          <td class="mono">${escaparHtml(p.tracking_id)}</td>
+          <td>${escaparHtml(p.romaneio_codigo)}</td>
+          <td>${escaparHtml(p.occurrence_code ?? p.estado ?? "-")}</td>
+          <td>${p.divergencia_delivered ? "Sim" : "Não"}</td>
+        </tr>`).join("");
+
+      janela.document.write(`<!doctype html>
+        <html lang="pt-BR"><head><meta charset="utf-8"><title>Romaneio de devoluções - ${escaparHtml(dataFormatada)}</title>
+        <style>
+          @page { size: A4; margin: 14mm; }
+          * { box-sizing: border-box; }
+          body { color: #0b1938; font: 12px Arial, sans-serif; margin: 0; }
+          header { border-bottom: 3px solid #f4bd00; display: flex; justify-content: space-between; padding-bottom: 10px; }
+          h1 { font-size: 20px; margin: 0 0 5px; }
+          .meta { line-height: 1.6; text-align: right; }
+          .resumo { display: flex; gap: 12px; margin: 14px 0; }
+          .resumo div { border: 1px solid #cbd3e1; border-radius: 6px; flex: 1; padding: 9px; }
+          .resumo strong { display: block; font-size: 18px; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #cbd3e1; padding: 6px; text-align: left; }
+          th { background: #eef1f6; font-size: 10px; text-transform: uppercase; }
+          .mono { font-family: Consolas, monospace; }
+          .assinaturas { display: grid; gap: 18px; grid-template-columns: repeat(3, 1fr); margin-top: 52px; page-break-inside: avoid; }
+          .assinatura { border-top: 1px solid #0b1938; padding-top: 7px; text-align: center; }
+          footer { color: #647085; font-size: 9px; margin-top: 20px; text-align: center; }
+          .vazio { border: 1px solid #cbd3e1; padding: 24px; text-align: center; }
+        </style></head><body>
+          <header><div><h1>Romaneio diário de devoluções Meli</h1><div>JM Transportes - Last Mile</div></div>
+          <div class="meta"><strong>Base:</strong> ${escaparHtml(relatorio.base_codigo ?? "-")}<br><strong>Data:</strong> ${escaparHtml(dataFormatada)}</div></header>
+          <section class="resumo"><div>Total de IDs<strong>${pacotes.length}</strong></div><div>Devoluções geradas<strong>${romaneios.length}</strong></div><div>Finalizadas<strong>${romaneios.filter((r: any) => r.status === "concluido").length}</strong></div></section>
+          ${pacotes.length ? `<table><thead><tr><th>#</th><th>ID / Tracking</th><th>Devolução</th><th>Ocorrência</th><th>Divergência</th></tr></thead><tbody>${linhasHtml}</tbody></table>` : '<div class="vazio">Nenhuma devolução registrada nesta base na data selecionada.</div>'}
+          <section class="assinaturas"><div class="assinatura">Motorista</div><div class="assinatura">Responsável Meli</div><div class="assinatura">Responsável da base</div></section>
+          <footer>Documento gerado pelo JMRoutes em ${escaparHtml(new Date().toLocaleString("pt-BR"))}</footer>
+          <script>window.addEventListener('load', () => { window.print(); });<\/script>
+        </body></html>`);
+      janela.document.close();
+    } catch (err: any) {
+      janela.close();
+      toast.error(err.message || "Erro ao gerar o romaneio do dia.");
     }
   }
 
@@ -726,14 +804,14 @@ function MeliDevolucoesPage() {
                   Iniciando...
                 </>
               ) : (
-                "Gerar ou Iniciar Recebimento"
+                "Selecionar base e iniciar devolução"
               )}
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          <Card className="bg-primary/5 border-primary/20">
+        <div className="flex flex-col">
+          <Card className="order-2 bg-primary/5 border-primary/20 rounded-t-none border-t-0 shadow-none">
             <CardContent className="py-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="bg-primary text-primary-foreground p-3 rounded-full">
@@ -784,16 +862,19 @@ function MeliDevolucoesPage() {
                     size="sm"
                     className="h-8"
                     onClick={async () => {
-                      const activeUuid = localStorage.getItem("active_romaneio_uuid");
+                      const activeUuid = romaneioUuid;
                       if (!activeUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUuid)) {
-                        updateActiveRec("");
+                        toast.error("Bipe ao menos um ID antes de finalizar a devolução.");
                         return;
                       }
                       try {
-                        await finalizar({ data: { romaneio_id: activeUuid } });
+                        const resultado = await finalizar({ data: { romaneio_id: activeUuid } }) as any;
+                        if (resultado?.status === "erro") throw new Error(resultado.mensagem ?? "Não foi possível finalizar.");
                         toast.success("Devolução finalizada com sucesso.");
-                        updateActiveRec("");
-                        painelQuery.refetch();
+                        updateActiveRec("NOVO");
+                        setPacotesDesteLote([]);
+                        await Promise.all([painelQuery.refetch(), romaneiosQuery.refetch()]);
+                        setTimeout(() => inputRef.current?.focus(), 100);
                       } catch (err: any) {
                         toast.error(err.message || "Erro ao finalizar devolução.");
                       }
@@ -832,11 +913,22 @@ function MeliDevolucoesPage() {
 
 
 
-          <Card className="border-primary/20 shadow-sm">
+          <Card className="order-1 border-primary/20 shadow-sm rounded-b-none">
             <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
-              <CardTitle className="text-base flex items-center gap-2">
-                Bipagem de Pacotes
-              </CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  Bipagem de Pacotes
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-[10px] uppercase tracking-wider"
+                  onClick={imprimirRomaneioDoDia}
+                >
+                  <Printer className="h-3.5 w-3.5 mr-1.5" /> Imprimir romaneio do dia
+                </Button>
+              </div>
             </CardHeader>
           <CardContent className="pt-6">
             <form
@@ -884,14 +976,6 @@ function MeliDevolucoesPage() {
               <div className="mt-6 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-[10px] uppercase tracking-wider"
-                    onClick={() => window.print()}
-                  >
-                    <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
-                  </Button>
                 </div>
                 <ScrollArea className="h-48 border rounded-md">
                   <table className="w-full text-xs">
