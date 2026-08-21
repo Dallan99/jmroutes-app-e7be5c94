@@ -393,6 +393,84 @@ function MeliDevolucoesPage() {
     }
   };
 
+  const onFinalizarAtiva = async () => {
+    if (!romaneioUuid) {
+      toast.error("Nenhuma devolução ativa para finalizar. Bipe o primeiro pacote.");
+      return;
+    }
+    setFinalizando(true);
+    try {
+      await finalizar({ data: { romaneio_id: romaneioUuid } });
+      toast.success("Devolução finalizada com sucesso.");
+      updateActiveRec("");
+      setPacotesDesteLote([]);
+      painelQuery.refetch();
+      romaneiosQuery.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao finalizar devolução.");
+    } finally {
+      setFinalizando(false);
+    }
+  };
+
+  const onImprimirRomaneioDoDia = async () => {
+    if (!baseId) {
+      toast.error("Selecione a base para imprimir o romaneio do dia.");
+      return;
+    }
+    setImprimindoRomaneio(true);
+    try {
+      const romaneios = (await listarDevolucoes({
+        data: { base_id: baseId, data_de: hoje, data_ate: hoje, status: "concluido" },
+      })) as any[];
+      const concluidos = (romaneios ?? []).filter((r: any) => r.status === "concluido");
+      if (concluidos.length === 0) {
+        toast.error("Nenhuma devolução finalizada hoje para esta base.");
+        return;
+      }
+      const detalhes = await Promise.all(
+        concluidos.map((r: any) => detalharDevolucao({ data: { romaneio_id: r.id } }) as Promise<any>),
+      );
+      const linhasImpressao = detalhes.flatMap((d: any) =>
+        (d?.pacotes ?? []).map((p: any) => ({
+          romaneio: d?.codigo ?? "—",
+          tracking_id: p.tracking_id,
+          occurrence_code: p.occurrence_code ?? "",
+          recebido_em: p.recebido_em ? fmt(p.recebido_em) : "—",
+        })),
+      );
+      const baseCodigo =
+        (basesQuery.data ?? []).find((b) => b.id === baseId)?.codigo ?? "";
+      abrirRelatorio({
+        titulo: "Romaneio de Devoluções",
+        subtitulo: `Base ${baseCodigo} — devoluções finalizadas em ${new Date(`${hoje}T12:00:00`).toLocaleDateString("pt-BR")}`,
+        kpis: [
+          { label: "Devoluções", value: concluidos.length },
+          { label: "Pacotes", value: linhasImpressao.length },
+        ],
+        colunas: [
+          { header: "Devolução", value: (r) => r.romaneio },
+          { header: "ID do pacote", value: (r) => r.tracking_id },
+          { header: "Ocorrência", value: (r) => r.occurrence_code },
+          { header: "Recebido em", value: (r) => r.recebido_em },
+        ],
+        linhas: linhasImpressao,
+        agruparPor: (r) => r.romaneio,
+        nomeArquivo: `romaneio-devolucoes-${baseCodigo}-${hoje}`,
+        assinaturas: [
+          { label: "Motorista" },
+          { label: "Responsável Meli" },
+          { label: "Responsável da Base" },
+        ],
+        autoPrint: true,
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar o romaneio do dia.");
+    } finally {
+      setImprimindoRomaneio(false);
+    }
+  };
+
 
 
 
