@@ -169,9 +169,13 @@ function MeliDevolucoesPage() {
       setRomaneioUuid("");
       setIniciandoRecebimento(true);
     } else {
+      // Base selecionada sem devolução ativa: já deixa a bipagem pronta
       setRomaneioUuid("");
-      setRecebimentoId("");
-      setIniciandoRecebimento(false);
+      setRecebimentoId("NOVO");
+      localStorage.setItem(storageKeyRec, "NOVO");
+      localStorage.removeItem(storageKeyUuid);
+      setIniciandoRecebimento(true);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [userId, baseId, storageKeyUuid, storageKeyRec]);
 
