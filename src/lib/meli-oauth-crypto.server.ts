@@ -24,8 +24,17 @@ export async function sha256Base64Url(value: string): Promise<string> {
 async function encryptionKey(): Promise<CryptoKey> {
   const raw = process.env.MELI_TOKEN_ENCRYPTION_KEY;
   if (!raw) throw new Error("MELI_TOKEN_ENCRYPTION_KEY não configurada.");
-  const bytes = base64UrlToBytes(raw);
-  if (bytes.length !== 32) throw new Error("MELI_TOKEN_ENCRYPTION_KEY deve ter 32 bytes em base64url.");
+  let bytes: Uint8Array;
+  try {
+    const decoded = base64UrlToBytes(raw.trim());
+    bytes = decoded.length === 32
+      ? decoded
+      : new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(raw)));
+  } catch {
+    // Alguns gerenciadores de secrets normalizam caracteres de base64url.
+    // Nesse caso, derivamos uma chave AES-256 estável a partir do segredo.
+    bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(raw)));
+  }
   return crypto.subtle.importKey("raw", bytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
