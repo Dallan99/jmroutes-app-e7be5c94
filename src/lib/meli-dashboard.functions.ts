@@ -128,6 +128,13 @@ type RpcClient = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
 };
 
+export function meliDashboardQueryKey(filtros: MeliDashboardFiltros) {
+  const normalizados = Object.fromEntries(
+    Object.entries(filtros).filter(([, valor]) => valor !== null && valor !== undefined && valor !== ""),
+  );
+  return ["meli-dashboard-operacional", normalizados] as const;
+}
+
 export const meliDashboardOperacional = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filtroSchema.parse(d ?? {}))

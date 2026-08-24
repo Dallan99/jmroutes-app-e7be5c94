@@ -141,8 +141,7 @@ function DashboardPage() {
             size="sm"
             onClick={() => {
               qc.invalidateQueries({ queryKey: ["dashboard"] });
-              qc.invalidateQueries({ queryKey: ["dashboard-geral"] });
-              qc.invalidateQueries({ queryKey: ["meli-dashboard"] });
+              qc.invalidateQueries({ queryKey: ["meli-dashboard-operacional"] });
               sync.query.refetch();
             }}
           >

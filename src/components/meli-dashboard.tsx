@@ -5,6 +5,7 @@ import { hojeOperacional } from "@/lib/dia-operacional";
 import {
   meliDashboardOperacional,
   meliDashboardPacotesRota,
+  meliDashboardQueryKey,
   type MeliDashboardFiltros,
   type MeliDashboardRota,
 } from "@/lib/meli-dashboard.functions";
@@ -93,7 +94,7 @@ export function MeliDashboardSection({
   );
 
   const q = useQuery({
-    queryKey: ["meli-dashboard", filtros],
+    queryKey: meliDashboardQueryKey(filtros),
     queryFn: () => fetchDados({ data: filtros }),
     refetchInterval: REFETCH_MS,
     refetchOnWindowFocus: false,
