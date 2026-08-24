@@ -103,6 +103,9 @@ export function useMeliSync() {
     queryKey: ["meli-sync-status"],
     queryFn: () => fetchSync(),
     refetchInterval: 60_000,
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 

@@ -54,6 +54,9 @@ export function DashboardGeral({
     queryKey: ["dashboard-geral", filtros],
     queryFn: () => fetchDados({ data: filtros }),
     refetchInterval: 30_000,
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 

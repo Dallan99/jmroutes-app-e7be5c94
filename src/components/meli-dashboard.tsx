@@ -96,10 +96,11 @@ export function MeliDashboardSection({
     queryKey: ["meli-dashboard", filtros],
     queryFn: () => fetchDados({ data: filtros }),
     refetchInterval: REFETCH_MS,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     refetchIntervalInBackground: false,
     placeholderData: (prev) => prev, // mantém os dados anteriores durante o refetch
-    staleTime: 0,
+    staleTime: REFETCH_MS,
   });
 
   // Contador da próxima atualização
