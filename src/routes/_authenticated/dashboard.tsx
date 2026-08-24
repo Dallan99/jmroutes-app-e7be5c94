@@ -164,7 +164,7 @@ function DashboardPage() {
           <div>
             <h2 className="font-display text-lg font-bold tracking-tight">Produtividade por funcionário</h2>
             <p className="text-xs text-muted-foreground">
-              Pedidos bipados com sucesso no dia selecionado. Duplicidades e erros não aumentam a produção.
+              Ranking de leituras, eficiência e tempo de bipagem no dia selecionado. Pausas acima de 5 minutos não entram no tempo ativo.
             </p>
           </div>
           <Badge variant="outline">{d?.porOperador?.length ?? 0} funcionários ativos</Badge>
@@ -176,19 +176,22 @@ function DashboardPage() {
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <div className="min-w-[720px]">
-              <div className="grid grid-cols-[minmax(190px,1fr)_110px_110px_130px_110px_130px] gap-3 border-b px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="min-w-[1120px]">
+              <div className="grid grid-cols-[minmax(190px,1fr)_90px_90px_90px_100px_110px_120px_120px_130px] gap-3 border-b px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>Funcionário</span>
-                <span className="text-right">Pedidos</span>
-                <span className="text-right">Por hora</span>
-                <span className="text-right">Tempo médio</span>
+                <span className="text-right">Leituras</span>
+                <span className="text-right">OK</span>
                 <span className="text-right">Divergências</span>
-                <span className="text-right">Última bipagem</span>
+                <span className="text-right">Eficiência</span>
+                <span className="text-right">Prod./hora</span>
+                <span className="text-right">Tempo ativo</span>
+                <span className="text-right">Média/bipagem</span>
+                <span className="text-right">Início–fim</span>
               </div>
               {d.porOperador.map((item, indice) => (
                 <div
                   key={item.operador}
-                  className="grid grid-cols-[minmax(190px,1fr)_110px_110px_130px_110px_130px] items-center gap-3 border-b px-3 py-3 text-sm last:border-0"
+                  className="grid grid-cols-[minmax(190px,1fr)_90px_90px_90px_100px_110px_120px_120px_130px] items-center gap-3 border-b px-3 py-3 text-sm last:border-0"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
@@ -196,15 +199,20 @@ function DashboardPage() {
                     </span>
                     <span className="truncate font-semibold">{item.operador}</span>
                   </div>
-                  <span className="text-right font-display text-lg font-bold tabular-nums">{item.total}</span>
-                  <span className="text-right font-semibold tabular-nums">{item.porHora}/h</span>
-                  <span className="text-right tabular-nums">{fmtDuration(item.tempoMedioMs)}</span>
+                  <span className="text-right tabular-nums">{item.leituras.toLocaleString("pt-BR")}</span>
+                  <span className="text-right font-display text-lg font-bold tabular-nums">{item.ok.toLocaleString("pt-BR")}</span>
                   <span className={`text-right font-semibold tabular-nums ${item.divergencias > 0 ? "text-warning" : "text-success"}`}>
-                    {item.divergencias}
+                    {item.divergencias.toLocaleString("pt-BR")}
                   </span>
+                  <span className={`text-right font-semibold tabular-nums ${item.eficiencia >= 95 ? "text-success" : item.eficiencia < 85 ? "text-destructive" : ""}`}>
+                    {item.eficiencia.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                  </span>
+                  <span className="text-right font-semibold tabular-nums">{item.porHora.toLocaleString("pt-BR")}/h</span>
+                  <span className="text-right tabular-nums">{fmtDuration(item.tempoAtivoMs)}</span>
+                  <span className="text-right tabular-nums">{fmtDuration(item.tempoMedioMs)}</span>
                   <span className="text-right text-xs tabular-nums text-muted-foreground">
-                    {item.ultimaBipagem
-                      ? new Date(item.ultimaBipagem).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                    {item.primeiraBipagem && item.ultimaBipagem
+                      ? `${new Date(item.primeiraBipagem).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}–${new Date(item.ultimaBipagem).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
                       : "—"}
                   </span>
                 </div>
