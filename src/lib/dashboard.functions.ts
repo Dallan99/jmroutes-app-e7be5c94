@@ -48,7 +48,14 @@ export type DashboardData = {
   ocorrencias: Array<{ id: string; created_at: string; tipo: string; mensagem: string | null; operador: string | null }>;
   // Séries para gráficos
   porHora: { hora: string; total: number }[];
-  porOperador: { operador: string; total: number }[];
+  porOperador: Array<{
+    operador: string;
+    total: number;
+    divergencias: number;
+    porHora: number;
+    tempoMedioMs: number | null;
+    ultimaBipagem: string | null;
+  }>;
   porBase: { base: string; total: number }[];
   porStatus: { status: string; total: number }[]; // pizza
 };
@@ -185,13 +192,46 @@ export const dashboardData = createServerFn({ method: "GET" })
       : null;
 
     // Séries
-    const porOperadorMap = new Map<string, number>();
+    const porOperadorMap = new Map<string, {
+      total: number;
+      divergencias: number;
+      horas: Set<string>;
+      tempos: number[];
+      ultimaBipagem: string | null;
+    }>();
     for (const r of recArr) {
       const nome = nomePorId.get(r.operador_id) ?? "—";
-      porOperadorMap.set(nome, (porOperadorMap.get(nome) ?? 0) + 1);
+      const atual = porOperadorMap.get(nome) ?? {
+        total: 0,
+        divergencias: 0,
+        horas: new Set<string>(),
+        tempos: [],
+        ultimaBipagem: null,
+      };
+      if (!atual.ultimaBipagem || r.created_at > atual.ultimaBipagem) atual.ultimaBipagem = r.created_at;
+      if (r.resultado === "ok") {
+        atual.total += 1;
+        const dt = new Date(r.created_at);
+        atual.horas.add(`${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}-${dt.getHours()}`);
+        if (typeof r.tempo_desde_ultima_ms === "number" && r.tempo_desde_ultima_ms > 0 && r.tempo_desde_ultima_ms < 60_000) {
+          atual.tempos.push(r.tempo_desde_ultima_ms);
+        }
+      } else {
+        atual.divergencias += 1;
+      }
+      porOperadorMap.set(nome, atual);
     }
     const porOperador = [...porOperadorMap.entries()]
-      .map(([operador, total]) => ({ operador, total }))
+      .map(([operador, valores]) => ({
+        operador,
+        total: valores.total,
+        divergencias: valores.divergencias,
+        porHora: Math.round(valores.total / Math.max(valores.horas.size, 1)),
+        tempoMedioMs: valores.tempos.length
+          ? Math.round(valores.tempos.reduce((soma, tempo) => soma + tempo, 0) / valores.tempos.length)
+          : null,
+        ultimaBipagem: valores.ultimaBipagem,
+      }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
 
