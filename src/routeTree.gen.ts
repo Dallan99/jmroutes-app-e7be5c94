@@ -42,8 +42,10 @@ import { Route as TvGerencialRouteImport } from './routes/tv.gerencial'
 import { Route as TvMeliRouteImport } from './routes/tv.meli'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ApiMeliOauthCallbackRouteImport } from './routes/api/meli/oauth/callback'
 import { Route as ApiPublicMeliCicloRouteImport } from './routes/api/public/meli/ciclo'
 import { Route as ApiPublicMeliImportarRotaBrutaRouteImport } from './routes/api/public/meli/importar-rota-bruta'
+import { Route as ApiPublicMeliNotificacoesRouteImport } from './routes/api/public/meli/notificacoes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -220,6 +222,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiMeliOauthCallbackRoute = ApiMeliOauthCallbackRouteImport.update({
+  id: '/api/meli/oauth/callback',
+  path: '/api/meli/oauth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicMeliCicloRoute = ApiPublicMeliCicloRouteImport.update({
   id: '/api/public/meli/ciclo',
   path: '/api/public/meli/ciclo',
@@ -229,6 +236,12 @@ const ApiPublicMeliImportarRotaBrutaRoute =
   ApiPublicMeliImportarRotaBrutaRouteImport.update({
     id: '/api/public/meli/importar-rota-bruta',
     path: '/api/public/meli/importar-rota-bruta',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicMeliNotificacoesRoute =
+  ApiPublicMeliNotificacoesRouteImport.update({
+    id: '/api/public/meli/notificacoes',
+    path: '/api/public/meli/notificacoes',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -265,8 +278,10 @@ export interface FileRoutesByFullPath {
   '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/meli/oauth/callback': typeof ApiMeliOauthCallbackRoute
   '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
+  '/api/public/meli/notificacoes': typeof ApiPublicMeliNotificacoesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -301,8 +316,10 @@ export interface FileRoutesByTo {
   '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/meli/oauth/callback': typeof ApiMeliOauthCallbackRoute
   '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
+  '/api/public/meli/notificacoes': typeof ApiPublicMeliNotificacoesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -339,8 +356,10 @@ export interface FileRoutesById {
   '/tv/meli': typeof TvMeliRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/meli/oauth/callback': typeof ApiMeliOauthCallbackRoute
   '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
+  '/api/public/meli/notificacoes': typeof ApiPublicMeliNotificacoesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -377,8 +396,10 @@ export interface FileRouteTypes {
     | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/meli/oauth/callback'
     | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-rota-bruta'
+    | '/api/public/meli/notificacoes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -413,8 +434,10 @@ export interface FileRouteTypes {
     | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/meli/oauth/callback'
     | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-rota-bruta'
+    | '/api/public/meli/notificacoes'
   id:
     | '__root__'
     | '/'
@@ -450,8 +473,10 @@ export interface FileRouteTypes {
     | '/tv/meli'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/meli/oauth/callback'
     | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-rota-bruta'
+    | '/api/public/meli/notificacoes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -466,8 +491,10 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiMeliOauthCallbackRoute: typeof ApiMeliOauthCallbackRoute
   ApiPublicMeliCicloRoute: typeof ApiPublicMeliCicloRoute
   ApiPublicMeliImportarRotaBrutaRoute: typeof ApiPublicMeliImportarRotaBrutaRoute
+  ApiPublicMeliNotificacoesRoute: typeof ApiPublicMeliNotificacoesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -703,6 +730,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/meli/oauth/callback': {
+      id: '/api/meli/oauth/callback'
+      path: '/api/meli/oauth/callback'
+      fullPath: '/api/meli/oauth/callback'
+      preLoaderRoute: typeof ApiMeliOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/meli/ciclo': {
       id: '/api/public/meli/ciclo'
       path: '/api/public/meli/ciclo'
@@ -715,6 +749,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/meli/importar-rota-bruta'
       fullPath: '/api/public/meli/importar-rota-bruta'
       preLoaderRoute: typeof ApiPublicMeliImportarRotaBrutaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/meli/notificacoes': {
+      id: '/api/public/meli/notificacoes'
+      path: '/api/public/meli/notificacoes'
+      fullPath: '/api/public/meli/notificacoes'
+      preLoaderRoute: typeof ApiPublicMeliNotificacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -794,8 +835,10 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiMeliOauthCallbackRoute: ApiMeliOauthCallbackRoute,
   ApiPublicMeliCicloRoute: ApiPublicMeliCicloRoute,
   ApiPublicMeliImportarRotaBrutaRoute: ApiPublicMeliImportarRotaBrutaRoute,
+  ApiPublicMeliNotificacoesRoute: ApiPublicMeliNotificacoesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
