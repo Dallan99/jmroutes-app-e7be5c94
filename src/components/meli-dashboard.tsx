@@ -67,7 +67,6 @@ export function MeliDashboardSection({
   const [status, setStatus] = useState<string>(NONE);
   const [transportadora, setTransportadora] = useState("");
   const [risco, setRisco] = useState<string>(NONE);
-  const [ordem, setOrdem] = useState<Ordenacao>(null);
   const [rotaAberta, setRotaAberta] = useState<string | null>(null);
   const [drill, setDrill] = useState<SituacaoMeli | "total" | null>(null);
   const [drillBase, setDrillBase] = useState<string>(NONE);
@@ -137,22 +136,6 @@ export function MeliDashboardSection({
   const basesSemSync = (d?.sincronizacao_por_base ?? []).filter(
     (b) => !b.last_synced_at || (serverTime && new Date(serverTime).getTime() - new Date(b.last_synced_at).getTime() > SEM_SYNC_ALERTA_MS),
   );
-
-  const rotasOrdenadas = useMemo(() => {
-    if (!ordem) return rotas;
-    const arr = [...rotas];
-    arr.sort((a, b) => {
-      const va = a[ordem.coluna as keyof MeliDashboardRota] as unknown;
-      const vb = b[ordem.coluna as keyof MeliDashboardRota] as unknown;
-      const na = typeof va === "number" ? va : String(va ?? "");
-      const nb = typeof vb === "number" ? vb : String(vb ?? "");
-      const cmp = typeof na === "number" && typeof nb === "number"
-        ? na - nb
-        : String(na).localeCompare(String(nb), "pt-BR");
-      return ordem.dir === "asc" ? cmp : -cmp;
-    });
-    return arr;
-  }, [rotas, ordem]);
 
   const rotasRisco = useMemo(
     () => rotas.filter((r) => r.rota_area_risco || r.area_risco_parcial)
@@ -469,15 +452,6 @@ export function MeliDashboardSection({
           </Card>
         )}
         <RankingMotoristasSection data={data} baseId={baseId === NONE ? null : baseId} />
-
-        {/* Tabela operacional por rota */}
-
-        <Card className="p-4">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Rotas do dia ({rotasOrdenadas.length})
-          </h3>
-          <TabelaRotas rotas={rotasOrdenadas} ordem={ordem} setOrdem={setOrdem} onAbrir={(id) => abrirPedidos(id, "total")} />
-        </Card>
 
         {/* Detalhe por base — rotas de risco */}
         <Dialog open={verRisco} onOpenChange={setVerRisco}>
