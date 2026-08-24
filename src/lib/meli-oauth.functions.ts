@@ -63,3 +63,19 @@ export const meliApiIniciarOAuth = createServerFn({ method: "POST" })
     url.searchParams.set("code_challenge_method", "S256");
     return { url: url.toString() };
   });
+
+export const meliApiTestarConexao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirAdmin(context.supabase, context.userId);
+    const { meliGet } = await import("@/lib/meli-api.server");
+    const { data: conta, renovado } = await meliGet("/users/me");
+    const { data: preferencias } = await meliGet(`/users/${conta.id}/shipping_preferences`);
+    return {
+      ok: true,
+      conta: conta.nickname ?? String(conta.id),
+      site: conta.site_id ?? null,
+      modalidades: Array.isArray(preferencias?.modes) ? preferencias.modes : [],
+      renovado,
+    };
+  });
