@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { meliApiIniciarOAuth, meliApiStatus } from "@/lib/meli-oauth.functions";
+import { meliApiIniciarOAuth, meliApiStatus, meliApiTestarConexao } from "@/lib/meli-oauth.functions";
 import { Link2, Loader2, Settings } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
 function ConfiguracoesPage() {
   const statusFn = useServerFn(meliApiStatus);
   const conectarFn = useServerFn(meliApiIniciarOAuth);
+  const testarFn = useServerFn(meliApiTestarConexao);
   const status = useQuery({ queryKey: ["meli-api-status"], queryFn: () => statusFn(), staleTime: 30_000 });
 
   async function conectar() {
@@ -24,6 +25,16 @@ function ConfiguracoesPage() {
       window.location.assign(url);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível iniciar a conexão.");
+    }
+  }
+
+  async function testar() {
+    try {
+      const resultado = await testarFn();
+      toast.success(`API conectada: ${resultado.conta}${resultado.modalidades.length ? ` (${resultado.modalidades.join(", ")})` : ""}`);
+      await status.refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível testar a API.");
     }
   }
 
@@ -60,6 +71,9 @@ function ConfiguracoesPage() {
             {status.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {status.data?.conectado ? "Reconectar Mercado Livre" : "Conectar Mercado Livre"}
           </Button>
+          {status.data?.conectado && (
+            <Button className="ml-2" variant="outline" onClick={testar}>Testar API oficial</Button>
+          )}
         </div>
       </Card>
 
