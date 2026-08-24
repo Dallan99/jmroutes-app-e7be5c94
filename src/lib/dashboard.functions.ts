@@ -50,10 +50,15 @@ export type DashboardData = {
   porHora: { hora: string; total: number }[];
   porOperador: Array<{
     operador: string;
+    leituras: number;
+    ok: number;
     total: number;
     divergencias: number;
+    eficiencia: number;
     porHora: number;
+    tempoAtivoMs: number;
     tempoMedioMs: number | null;
+    primeiraBipagem: string | null;
     ultimaBipagem: string | null;
   }>;
   porBase: { base: string; total: number }[];
@@ -193,47 +198,65 @@ export const dashboardData = createServerFn({ method: "GET" })
 
     // Séries
     const porOperadorMap = new Map<string, {
-      total: number;
+      operador: string;
+      leituras: number;
+      ok: number;
       divergencias: number;
-      horas: Set<string>;
-      tempos: number[];
+      instantes: number[];
+      primeiraBipagem: string | null;
       ultimaBipagem: string | null;
     }>();
     for (const r of recArr) {
       const nome = nomePorId.get(r.operador_id) ?? "—";
-      const atual = porOperadorMap.get(nome) ?? {
-        total: 0,
+      const atual = porOperadorMap.get(r.operador_id) ?? {
+        operador: nome,
+        leituras: 0,
+        ok: 0,
         divergencias: 0,
-        horas: new Set<string>(),
-        tempos: [],
+        instantes: [],
+        primeiraBipagem: null,
         ultimaBipagem: null,
       };
+      atual.leituras += 1;
+      atual.instantes.push(new Date(r.created_at).getTime());
+      if (!atual.primeiraBipagem || r.created_at < atual.primeiraBipagem) atual.primeiraBipagem = r.created_at;
       if (!atual.ultimaBipagem || r.created_at > atual.ultimaBipagem) atual.ultimaBipagem = r.created_at;
       if (r.resultado === "ok") {
-        atual.total += 1;
-        const dt = new Date(r.created_at);
-        atual.horas.add(`${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}-${dt.getHours()}`);
-        if (typeof r.tempo_desde_ultima_ms === "number" && r.tempo_desde_ultima_ms > 0 && r.tempo_desde_ultima_ms < 60_000) {
-          atual.tempos.push(r.tempo_desde_ultima_ms);
-        }
+        atual.ok += 1;
       } else {
         atual.divergencias += 1;
       }
-      porOperadorMap.set(nome, atual);
+      porOperadorMap.set(r.operador_id, atual);
     }
-    const porOperador = [...porOperadorMap.entries()]
-      .map(([operador, valores]) => ({
-        operador,
-        total: valores.total,
+    const porOperador = [...porOperadorMap.values()]
+      .map((valores) => {
+        const instantes = valores.instantes.slice().sort((a, b) => a - b);
+        const tempos: number[] = [];
+        for (let i = 1; i < instantes.length; i += 1) {
+          const intervalo = instantes[i] - instantes[i - 1];
+          // Intervalos de até 5 minutos representam trabalho contínuo. Acima
+          // disso são pausa, almoço, reunião ou troca de atividade.
+          if (intervalo > 0 && intervalo <= 5 * 60_000) tempos.push(intervalo);
+        }
+        const tempoAtivoMs = tempos.reduce((soma, tempo) => soma + tempo, 0);
+        return {
+        operador: valores.operador,
+        leituras: valores.leituras,
+        ok: valores.ok,
+        // Mantido para o gráfico antigo: produção válida, não tentativas.
+        total: valores.ok,
         divergencias: valores.divergencias,
-        porHora: Math.round(valores.total / Math.max(valores.horas.size, 1)),
-        tempoMedioMs: valores.tempos.length
-          ? Math.round(valores.tempos.reduce((soma, tempo) => soma + tempo, 0) / valores.tempos.length)
+        eficiencia: valores.leituras > 0 ? Math.round((valores.ok / valores.leituras) * 1000) / 10 : 0,
+        porHora: tempoAtivoMs > 0 ? Math.round(valores.ok / (tempoAtivoMs / 3_600_000)) : 0,
+        tempoAtivoMs,
+        tempoMedioMs: tempos.length
+          ? Math.round(tempoAtivoMs / tempos.length)
           : null,
+        primeiraBipagem: valores.primeiraBipagem,
         ultimaBipagem: valores.ultimaBipagem,
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10);
+      };
+      })
+      .sort((a, b) => b.ok - a.ok);
 
     const porBaseMap = new Map<string, number>();
     for (const r of recArr) {
