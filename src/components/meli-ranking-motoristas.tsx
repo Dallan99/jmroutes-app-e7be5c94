@@ -33,7 +33,12 @@ export function RankingMotoristasSection({
     placeholderData: (prev) => prev,
   });
 
-  const motoristas = q.data?.status === "ok" ? (q.data.motoristas ?? []) : [];
+  const motoristas = q.data?.status === "ok"
+    ? (q.data.motoristas ?? []).filter((m) => {
+        const nome = m.motorista?.trim().toLocaleLowerCase("pt-BR");
+        return nome && nome !== "sem motorista informado" && nome !== "não identificado";
+      })
+    : [];
 
   return (
     <Card className="overflow-hidden p-0">
