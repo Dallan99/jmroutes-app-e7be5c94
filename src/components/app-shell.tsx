@@ -29,6 +29,7 @@ import {
   Boxes,
   RotateCcw,
   ShieldAlert,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,7 @@ const NAV_OPERACIONAL: NavItem[] = [
 const NAV_GESTAO: NavItem[] = [
   { title: "Histórico", to: "/historico", icon: History, roles: ["admin", "supervisor", "gerente"] },
   { title: "Gerencial", to: "/gerencial", icon: TrendingUp, roles: ["admin", "supervisor", "gerente"] },
+  { title: "BSC", to: "/bsc", icon: ChartNoAxesCombined, roles: ["admin", "supervisor", "gerente"] },
   { title: "Área de Risco", to: "/meli-risco", icon: ShieldAlert, roles: ["admin", "supervisor", "gerente"] },
 ];
 const NAV_ADMIN: NavItem[] = [
