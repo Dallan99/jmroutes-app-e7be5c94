@@ -31,6 +31,9 @@ export type PayloadNormalizado = {
   cluster: string | null;
   carrier: string | null;
   facility: string | null;
+  driver_name: string | null;
+  driver_id: string | null;
+  vehicle_license: string | null;
   data_rota: string | null;
   status: string | null;
   substatus: string | null;
@@ -402,6 +405,17 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
   const routeId = s(payloadInput.id) ?? "";
   const cluster = s(payloadInput.cluster);
   const facility = s(payloadInput.serviceCenterId);
+  const driver = asRec(payloadInput.driver);
+  const vehicle = asRec(payloadInput.vehicle);
+  const driverName =
+    s(payloadInput.driver_name) ?? s(payloadInput.driverName) ??
+    s(driver.driverName) ?? s(driver.name) ?? s(driver.nickname);
+  const driverId =
+    s(payloadInput.driver_id) ?? s(payloadInput.driverId) ??
+    s(driver.driverUserId) ?? s(driver.user_id) ?? s(driver.id);
+  const vehicleLicense =
+    s(payloadInput.vehicle_license) ?? s(payloadInput.license) ?? s(payloadInput.plate) ??
+    s(vehicle.license_plate) ?? s(vehicle.license) ?? s(vehicle.plate);
 
   const comRisco = finais.filter((x) => x.area_risco).length;
   const rotaIntegral = riscoRota.area_risco || (finais.length > 0 && comRisco === finais.length);
@@ -413,6 +427,9 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
       cluster,
       carrier: s(payloadInput.carrier),
       facility,
+      driver_name: driverName,
+      driver_id: driverId,
+      vehicle_license: vehicleLicense?.trim().toUpperCase() ?? null,
       data_rota: unixParaData(payloadInput.initDate),
       status: s(payloadInput.status),
       substatus: s(payloadInput.substatus),
