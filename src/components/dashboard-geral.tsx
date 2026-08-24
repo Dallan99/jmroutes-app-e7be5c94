@@ -83,10 +83,6 @@ export function DashboardGeral({
     <section className="space-y-4">
       <Card className="p-4 md:p-5">
         <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
-        <p className="text-xs text-muted-foreground">
-          Progresso automático da operação — também preciso que seja clicável os cards e abra os detalhes
-        </p>
-
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {q.isLoading && (
