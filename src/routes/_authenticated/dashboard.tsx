@@ -75,6 +75,10 @@ function DashboardPage() {
     queryKey: ["dashboard", cleanFilters],
     queryFn: () => fetchDados({ data: cleanFilters }),
     refetchInterval: 10_000,
+    staleTime: 10_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (previous) => previous,
   });
 
   useEffect(() => {
