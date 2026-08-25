@@ -1,19 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { z } from "zod";
-
-const CLIENT_ID = "4330561201844861";
-const REDIRECT_URI = "https://jmroutes.app/api/meli/oauth/callback";
-
-async function exigirAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error || !data) throw new Error("Apenas administradores podem configurar a integração Meli.");
-}
+import { MELI_CLIENT_ID, MELI_REDIRECT_URI, erroControladoTesteShipment, exigirAdmin, validarShipmentTesteInput } from "@/lib/meli-oauth-support";
 
 export const meliApiStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -28,10 +15,10 @@ export const meliApiStatus = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
     return {
-      configurado: Boolean(process.env.MELI_CLIENT_SECRET && process.env.MELI_TOKEN_ENCRYPTION_KEY),
+      configurado: Boolean(process.env["MELI_CLIENT_SECRET"] && process.env["MELI_TOKEN_ENCRYPTION_KEY"]),
       conectado: Boolean(data),
       conta: data ?? null,
-      clientId: CLIENT_ID,
+      clientId: MELI_CLIENT_ID,
     };
   });
 
@@ -39,7 +26,7 @@ export const meliApiIniciarOAuth = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await exigirAdmin(context.supabase, context.userId);
-    if (!process.env.MELI_CLIENT_SECRET || !process.env.MELI_TOKEN_ENCRYPTION_KEY) {
+    if (!process.env["MELI_CLIENT_SECRET"] || !process.env["MELI_TOKEN_ENCRYPTION_KEY"]) {
       throw new Error("Os segredos da API Meli ainda não foram configurados no servidor.");
     }
     const { randomBase64Url, sha256Base64Url } = await import("@/lib/meli-oauth-crypto.server");
@@ -57,8 +44,8 @@ export const meliApiIniciarOAuth = createServerFn({ method: "POST" })
 
     const url = new URL("https://auth.mercadolivre.com.br/authorization");
     url.searchParams.set("response_type", "code");
-    url.searchParams.set("client_id", CLIENT_ID);
-    url.searchParams.set("redirect_uri", REDIRECT_URI);
+    url.searchParams.set("client_id", MELI_CLIENT_ID);
+    url.searchParams.set("redirect_uri", MELI_REDIRECT_URI);
     url.searchParams.set("state", state);
     url.searchParams.set("code_challenge", challenge);
     url.searchParams.set("code_challenge_method", "S256");
@@ -81,29 +68,39 @@ export const meliApiTestarConexao = createServerFn({ method: "POST" })
     };
   });
 
-const shipmentSchema = z.object({
-  shipmentId: z.string().trim().regex(/^\d{5,30}$/, "Informe um shipment ID válido."),
-});
-
 export const meliApiTestarShipment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => shipmentSchema.parse(input))
+  .inputValidator(validarShipmentTesteInput)
   .handler(async ({ data, context }) => {
     await exigirAdmin(context.supabase, context.userId);
     const { meliGet } = await import("@/lib/meli-api.server");
-    const { data: shipment, renovado } = await meliGet(`/shipments/${data.shipmentId}`);
-    return {
-      ok: true,
-      shipment: {
-        id: String(shipment.id ?? data.shipmentId),
-        status: shipment.status ?? null,
-        substatus: shipment.substatus ?? null,
-        logisticType: shipment.logistic_type ?? shipment.logistic?.type ?? null,
-        mode: shipment.shipping_mode ?? shipment.mode ?? null,
-        trackingNumber: shipment.tracking_number ?? null,
-        dateCreated: shipment.date_created ?? null,
-        lastUpdated: shipment.last_updated ?? null,
-      },
-      renovado,
-    };
+    try {
+      const { data: shipment, renovado } = await meliGet(`/shipments/${data.shipmentId}`);
+      return {
+        ok: true as const,
+        shipment: {
+          id: String(shipment.id ?? data.shipmentId),
+          status: shipment.status ?? null,
+          substatus: shipment.substatus ?? null,
+          logisticType: shipment.logistic_type ?? shipment.logistic?.type ?? null,
+          mode: shipment.shipping_mode ?? shipment.mode ?? null,
+          trackingNumber: shipment.tracking_number ?? null,
+          dateCreated: shipment.date_created ?? null,
+          lastUpdated: shipment.last_updated ?? null,
+        },
+        renovado,
+        codigo: null,
+        mensagem: null,
+      };
+    } catch (error) {
+      const erro = erroControladoTesteShipment(error);
+      if (!erro) throw error;
+      return {
+        ok: false as const,
+        shipment: null,
+        renovado: false,
+        codigo: erro.codigo,
+        mensagem: erro.mensagem,
+      };
+    }
   });

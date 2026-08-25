@@ -53,7 +53,11 @@ function ConfiguracoesPage() {
     try {
       const resultado = await testarShipmentFn({ data: { shipmentId: id } });
       setShipmentResultado(resultado);
-      toast.success(`Shipment ${resultado.shipment.id} acessível pela API oficial.`);
+      if (resultado.ok) {
+        toast.success(`Shipment ${resultado.shipment.id} acessível pela API oficial.`);
+      } else {
+        toast.warning(resultado.mensagem);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "A API não liberou esse shipment para a conta conectada.");
     } finally {
@@ -131,11 +135,18 @@ function ConfiguracoesPage() {
               </Button>
             </div>
             {shipmentResultado && (
-              <div className="grid gap-2 rounded-lg border bg-emerald-50/50 p-3 text-sm sm:grid-cols-3">
-                <div><span className="text-muted-foreground">ID</span><br /><b>{shipmentResultado.shipment.id}</b></div>
-                <div><span className="text-muted-foreground">Status</span><br /><b>{shipmentResultado.shipment.status ?? "—"}</b></div>
-                <div><span className="text-muted-foreground">Logística</span><br /><b>{shipmentResultado.shipment.logisticType ?? shipmentResultado.shipment.mode ?? "—"}</b></div>
-              </div>
+              shipmentResultado.ok ? (
+                <div className="grid gap-2 rounded-lg border bg-muted/50 p-3 text-sm sm:grid-cols-3">
+                  <div><span className="text-muted-foreground">ID</span><br /><b>{shipmentResultado.shipment.id}</b></div>
+                  <div><span className="text-muted-foreground">Status</span><br /><b>{shipmentResultado.shipment.status ?? "—"}</b></div>
+                  <div><span className="text-muted-foreground">Logística</span><br /><b>{shipmentResultado.shipment.logisticType ?? shipmentResultado.shipment.mode ?? "—"}</b></div>
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-muted/50 p-3 text-sm">
+                  <div className="font-medium">Shipment não acessível</div>
+                  <p className="mt-1 text-muted-foreground">{shipmentResultado.mensagem}</p>
+                </div>
+              )
             )}
           </div>
         )}
