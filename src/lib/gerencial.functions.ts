@@ -529,27 +529,22 @@ export const rotasPorBase = createServerFn({ method: "POST" })
       );
       const PAGE_SIZE = 1000;
 
-      // O PostgREST limita cada resposta a 1.000 registros. Uma consulta única
-      // fazia o painel exibir somente a primeira base encontrada. Carregamos
-      // cada importação em páginas e em paralelo para manter todas as bases.
-      const carregarImportacao = async (importacaoId: string) => {
-        const resultado: EscalaPainel[] = [];
-        for (let inicio = 0; ; inicio += PAGE_SIZE) {
-          const { data: pagina, error: paginaErro } = await supabaseAdmin
-            .from("escalas")
-            .select("nro_rota, driver, placa, triado, devolvido, importacao_id, base_operacional_id")
-            .eq("importacao_id", importacaoId)
-            .order("id", { ascending: true })
-            .range(inicio, inicio + PAGE_SIZE - 1);
-          if (paginaErro) throw new Error(paginaErro.message);
-          if (!pagina || pagina.length === 0) break;
-          resultado.push(...(pagina as EscalaPainel[]));
-          if (pagina.length < PAGE_SIZE) break;
-        }
-        return resultado;
-      };
-
-      escalas = (await Promise.all(importIds.map(carregarImportacao))).flat();
+      // Carrega todas as importações do dia em uma única paginação sequencial.
+      // A versão anterior abria uma paginação paralela por importação e ordenava
+      // por `id`, fazendo o Postgres repetir leituras/sorts caros até estourar o
+      // statement_timeout. Aqui não precisamos de ordenação: o agrupamento abaixo
+      // calcula os totais por base/rota independentemente da ordem das linhas.
+      for (let inicio = 0; ; inicio += PAGE_SIZE) {
+        const { data: pagina, error: paginaErro } = await supabaseAdmin
+          .from("escalas")
+          .select("nro_rota, driver, placa, triado, devolvido, importacao_id, base_operacional_id")
+          .in("importacao_id", importIds)
+          .range(inicio, inicio + PAGE_SIZE - 1);
+        if (paginaErro) throw new Error(paginaErro.message);
+        if (!pagina || pagina.length === 0) break;
+        escalas.push(...(pagina as EscalaPainel[]));
+        if (pagina.length < PAGE_SIZE) break;
+      }
     }
 
     // Agrupamento por base+rota
