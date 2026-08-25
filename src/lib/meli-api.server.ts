@@ -25,9 +25,9 @@ async function conexaoAtiva(): Promise<Conexao> {
   return data as Conexao;
 }
 
-export async function obterMeliAccessToken(): Promise<{ accessToken: string; userId: number; renovado: boolean }> {
+export async function obterMeliAccessToken(forcarRenovacao = false): Promise<{ accessToken: string; userId: number; renovado: boolean }> {
   const atual = await conexaoAtiva();
-  if (new Date(atual.token_expira_em).getTime() > Date.now() + 5 * 60_000) {
+  if (!forcarRenovacao && new Date(atual.token_expira_em).getTime() > Date.now() + 5 * 60_000) {
     return { accessToken: await decryptSecret(atual.access_token_criptografado), userId: atual.meli_user_id, renovado: false };
   }
 
@@ -76,10 +76,35 @@ export async function obterMeliAccessToken(): Promise<{ accessToken: string; use
 }
 
 export async function meliGet(path: string): Promise<{ data: any; renovado: boolean }> {
-  const auth = await obterMeliAccessToken();
-  const response = await fetch(`https://api.mercadolibre.com${path}`, {
-    headers: { Authorization: `Bearer ${auth.accessToken}`, "x-format-new": "true" },
+  let auth = await obterMeliAccessToken();
+  const request = (accessToken: string) => fetch(`https://api.mercadolibre.com${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}`, "x-format-new": "true" },
   });
-  if (!response.ok) throw new Error(`A API do Mercado Livre respondeu ${response.status}.`);
+
+  let response = await request(auth.accessToken);
+
+  // O Meli pode invalidar um access token antes do horário informado. Nesse caso,
+  // renova uma única vez e repete a consulta, sem criar um ciclo de tentativas.
+  if (response.status === 401) {
+    try {
+      auth = await obterMeliAccessToken(true);
+    } catch {
+      throw new Error("A autorização do Mercado Livre expirou ou foi revogada. Reconecte a conta.");
+    }
+    response = await request(auth.accessToken);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("A conta conectada não está autorizada a acessar esse shipment. Confirme se o envio pertence à conta DALLANRICARDO2008.");
+    }
+    if (response.status === 403) {
+      throw new Error("A conta conectada não tem permissão para acessar esse shipment.");
+    }
+    if (response.status === 404) {
+      throw new Error("Shipment não encontrado ou não disponível para a conta conectada.");
+    }
+    throw new Error(`A API do Mercado Livre respondeu ${response.status}.`);
+  }
   return { data: await response.json(), renovado: auth.renovado };
 }
