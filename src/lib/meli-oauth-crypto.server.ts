@@ -26,7 +26,7 @@ export async function sha256Base64Url(value: string): Promise<string> {
 async function encryptionKey(): Promise<CryptoKey> {
   const raw = process.env.MELI_TOKEN_ENCRYPTION_KEY;
   if (!raw) throw new Error("MELI_TOKEN_ENCRYPTION_KEY não configurada.");
-  let bytes: Uint8Array;
+  let bytes: Uint8Array<ArrayBuffer>;
   try {
     const decoded = base64UrlToBytes(raw.trim());
     bytes = decoded.length === 32
