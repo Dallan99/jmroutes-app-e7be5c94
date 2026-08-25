@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { leituraQrMeliCompleta, normalizarCodigoTriagem } from "../../src/lib/triagem-domain";
+import {
+  leituraQrMeliCompleta,
+  mensagemRotaDivergente,
+  normalizarCodigoTriagem,
+} from "../../src/lib/triagem-domain";
 
 const triagemPage = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/triagem.tsx"),
@@ -34,6 +38,13 @@ describe("Triagem — agilidade entre bips", () => {
     const leitura = "`^id^Ç^47833550005^,^t^Ç^lm^{";
     expect(normalizarCodigoTriagem(leitura)).toBe("47833550005");
     expect(leituraQrMeliCompleta(leitura)).toBe(true);
+  });
+
+  it("informa a rota selecionada e a rota correta quando o pacote diverge", () => {
+    expect(mensagemRotaDivergente("L1_AM1", "L3_AM1")).toBe(
+      "Este pacote não pertence à rota L1_AM1. Ele pertence à rota L3_AM1.",
+    );
+    expect(triagemFunctions).toContain('log("rota_divergente"');
   });
 
   it("consolida atualizações pesadas após uma sequência de leituras", () => {
