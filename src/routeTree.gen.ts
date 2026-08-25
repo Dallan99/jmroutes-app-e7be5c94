@@ -21,6 +21,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
 import { Route as AuthenticatedBasesRouteImport } from './routes/_authenticated/bases'
 import { Route as AuthenticatedBscRouteImport } from './routes/_authenticated/bsc'
+import { Route as AuthenticatedColetorRouteImport } from './routes/_authenticated/coletor'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedContagemRouteImport } from './routes/_authenticated/contagem'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -107,6 +108,11 @@ const AuthenticatedBasesRoute = AuthenticatedBasesRouteImport.update({
 const AuthenticatedBscRoute = AuthenticatedBscRouteImport.update({
   id: '/bsc',
   path: '/bsc',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedColetorRoute = AuthenticatedColetorRouteImport.update({
+  id: '/coletor',
+  path: '/coletor',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedConfiguracoesRoute =
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/bases': typeof AuthenticatedBasesRoute
   '/bsc': typeof AuthenticatedBscRoute
+  '/coletor': typeof AuthenticatedColetorRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/contagem': typeof AuthenticatedContagemRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/bases': typeof AuthenticatedBasesRoute
   '/bsc': typeof AuthenticatedBscRoute
+  '/coletor': typeof AuthenticatedColetorRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/contagem': typeof AuthenticatedContagemRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/bases': typeof AuthenticatedBasesRoute
   '/_authenticated/bsc': typeof AuthenticatedBscRoute
+  '/_authenticated/coletor': typeof AuthenticatedColetorRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/contagem': typeof AuthenticatedContagemRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/auditoria'
     | '/bases'
     | '/bsc'
+    | '/coletor'
     | '/configuracoes'
     | '/contagem'
     | '/dashboard'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
     | '/auditoria'
     | '/bases'
     | '/bsc'
+    | '/coletor'
     | '/configuracoes'
     | '/contagem'
     | '/dashboard'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/_authenticated/auditoria'
     | '/_authenticated/bases'
     | '/_authenticated/bsc'
+    | '/_authenticated/coletor'
     | '/_authenticated/configuracoes'
     | '/_authenticated/contagem'
     | '/_authenticated/dashboard'
@@ -593,6 +605,13 @@ declare module '@tanstack/react-router' {
       path: '/bsc'
       fullPath: '/bsc'
       preLoaderRoute: typeof AuthenticatedBscRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/coletor': {
+      id: '/_authenticated/coletor'
+      path: '/coletor'
+      fullPath: '/coletor'
+      preLoaderRoute: typeof AuthenticatedColetorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/configuracoes': {
@@ -784,6 +803,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedBasesRoute: typeof AuthenticatedBasesRoute
   AuthenticatedBscRoute: typeof AuthenticatedBscRoute
+  AuthenticatedColetorRoute: typeof AuthenticatedColetorRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedContagemRoute: typeof AuthenticatedContagemRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -807,6 +827,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedBasesRoute: AuthenticatedBasesRoute,
   AuthenticatedBscRoute: AuthenticatedBscRoute,
+  AuthenticatedColetorRoute: AuthenticatedColetorRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedContagemRoute: AuthenticatedContagemRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
