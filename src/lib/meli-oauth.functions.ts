@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 const CLIENT_ID = "4330561201844861";
 const REDIRECT_URI = "https://jmroutes.app/api/meli/oauth/callback";
@@ -76,6 +77,33 @@ export const meliApiTestarConexao = createServerFn({ method: "POST" })
       conta: conta.nickname ?? String(conta.id),
       site: conta.site_id ?? null,
       modalidades: Array.isArray(preferencias?.modes) ? preferencias.modes : [],
+      renovado,
+    };
+  });
+
+const shipmentSchema = z.object({
+  shipmentId: z.string().trim().regex(/^\d{5,30}$/, "Informe um shipment ID válido."),
+});
+
+export const meliApiTestarShipment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => shipmentSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context.supabase, context.userId);
+    const { meliGet } = await import("@/lib/meli-api.server");
+    const { data: shipment, renovado } = await meliGet(`/shipments/${data.shipmentId}`);
+    return {
+      ok: true,
+      shipment: {
+        id: String(shipment.id ?? data.shipmentId),
+        status: shipment.status ?? null,
+        substatus: shipment.substatus ?? null,
+        logisticType: shipment.logistic_type ?? shipment.logistic?.type ?? null,
+        mode: shipment.shipping_mode ?? shipment.mode ?? null,
+        trackingNumber: shipment.tracking_number ?? null,
+        dateCreated: shipment.date_created ?? null,
+        lastUpdated: shipment.last_updated ?? null,
+      },
       renovado,
     };
   });
