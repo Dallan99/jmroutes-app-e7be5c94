@@ -49,6 +49,7 @@ import {
   Search,
   Loader2,
   ArrowRight,
+  Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -68,6 +69,7 @@ import { RequireBaseOperacional } from "@/components/base-operacional-selector";
 import { useBaseOperacional } from "@/lib/base-operacional-context";
 import { ErroBloqueioOverlay } from "@/components/erro-bloqueio-overlay";
 import { leituraQrMeliCompleta, normalizarCodigoTriagem } from "@/lib/triagem-domain";
+import { useCollectorMode } from "@/lib/collector-mode";
 
 export const Route = createFileRoute("/_authenticated/triagem")({
   head: () => ({ meta: [{ title: "Triagem — JM Transportes" }] }),
@@ -186,6 +188,8 @@ function TriagemPage() {
   const [dialogRessalvaAberto, setDialogRessalvaAberto] = useState(false);
   const [motivoRessalva, setMotivoRessalva] = useState("");
   const [bloqueioErro, setBloqueioErro] = useState<string | null>(null);
+  const [cameraAberta, setCameraAberta] = useState(false);
+  const { modoColetor } = useCollectorMode();
 
   const detalheQuery = useQuery({
     queryKey: ["triagem-pendentes", baseId, dataOperacional, rotaDetalhe],
@@ -483,6 +487,7 @@ function TriagemPage() {
     },
     [mutation, paused, rotaSelecionada, rotaConcluidaRessalva],
   );
+  const processarLeituraCamera = useCallback((valor: string) => submit(valor), [submit]);
 
   // Mantém o foco no scanner sem roubar o foco de campos, diálogos ou formulários.
   useEffect(() => {
@@ -1001,6 +1006,19 @@ function TriagemPage() {
                 </div>
               </div>
 
+              {modoColetor && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mb-3 h-14 w-full gap-2 text-base"
+                  onClick={() => setCameraAberta(true)}
+                  disabled={!rotaSelecionada || rotaConcluidaRessalva}
+                >
+                  <Camera className="h-5 w-5" />
+                  Ler código de barras com a câmera
+                </Button>
+              )}
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1035,6 +1053,12 @@ function TriagemPage() {
                   disabled={!rotaSelecionada || rotaConcluidaRessalva}
                 />
               </form>
+
+              <CameraBarcodeDialog
+                open={cameraAberta}
+                onOpenChange={setCameraAberta}
+                onScan={processarLeituraCamera}
+              />
 
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                 <span>
@@ -1310,6 +1334,96 @@ function UltimoCard({
           : last.mensagem}
       </div>
     </Card>
+  );
+}
+
+type BarcodeDetectorResult = { rawValue?: string };
+type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<BarcodeDetectorResult[]> };
+type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance;
+
+function CameraBarcodeDialog({
+  open,
+  onOpenChange,
+  onScan,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onScan: (valor: string) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const onScanRef = useRef(onScan);
+  const onOpenChangeRef = useRef(onOpenChange);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => { onScanRef.current = onScan; }, [onScan]);
+  useEffect(() => { onOpenChangeRef.current = onOpenChange; }, [onOpenChange]);
+
+  useEffect(() => {
+    if (!open) return;
+    let ativo = true;
+    let stream: MediaStream | null = null;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const iniciar = async () => {
+      const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+      if (!Detector) {
+        setErro("Este navegador não oferece leitura pela câmera. Use o Chrome atualizado ou o leitor físico.");
+        return;
+      }
+      try {
+        setErro(null);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        if (!ativo || !videoRef.current) return;
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        const detector = new Detector({
+          formats: ["code_128", "code_39", "ean_13", "ean_8", "qr_code", "data_matrix"],
+        });
+        timer = setInterval(async () => {
+          const video = videoRef.current;
+          if (!ativo || !video || video.readyState < 2) return;
+          try {
+            const resultados = await detector.detect(video);
+            const valor = resultados.find((r) => r.rawValue)?.rawValue;
+            if (!valor) return;
+            ativo = false;
+            onOpenChangeRef.current(false);
+            onScanRef.current(valor);
+          } catch {
+            // Continua procurando enquanto a câmera estiver aberta.
+          }
+        }, 250);
+      } catch {
+        setErro("Não foi possível abrir a câmera. Autorize o acesso à câmera nas configurações do navegador.");
+      }
+    };
+
+    void iniciar();
+    return () => {
+      ativo = false;
+      if (timer) clearInterval(timer);
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-4">
+        <DialogHeader>
+          <DialogTitle>Ler código de barras</DialogTitle>
+          <DialogDescription>Aponte a câmera traseira para o código da etiqueta.</DialogDescription>
+        </DialogHeader>
+        <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-black">
+          <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
+          <div className="pointer-events-none absolute inset-x-8 top-1/2 h-24 -translate-y-1/2 rounded-lg border-2 border-white shadow-[0_0_0_999px_rgba(0,0,0,0.25)]" />
+        </div>
+        {erro && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{erro}</p>}
+        <Button variant="outline" className="h-12" onClick={() => onOpenChange(false)}>Cancelar</Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
