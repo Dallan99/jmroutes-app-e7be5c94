@@ -19,7 +19,7 @@ import "@fontsource/space-grotesk/500.css";
 import "@fontsource/space-grotesk/700.css";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "sonner";
-import jmLogo from "@/assets/jm-logo.jpeg.asset.json";
+import { JM_LOGO_URL } from "@/components/jm-logo";
 
 function NotFoundComponent() {
   return (
@@ -104,8 +104,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: jmLogo.url, type: "image/jpeg" },
-      { rel: "apple-touch-icon", href: jmLogo.url },
+      { rel: "icon", href: JM_LOGO_URL, type: "image/png" },
+      { rel: "apple-touch-icon", href: JM_LOGO_URL },
     ],
   }),
   shellComponent: RootShell,

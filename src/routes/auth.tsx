@@ -36,7 +36,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import heroImg from "@/assets/jm-hero.png.asset.json";
-import logoImg from "@/assets/jm-logo.jpeg.asset.json";
+import { JM_LOGO_URL } from "@/components/jm-logo";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -156,7 +156,7 @@ function AuthPage() {
             <div>
               <div className="flex items-center gap-4">
                 <img
-                  src={logoImg.url}
+                  src={JM_LOGO_URL}
                   alt="JM"
                   className="w-16 h-16 md:w-20 md:h-20 rounded-lg shadow-lg"
                 />
