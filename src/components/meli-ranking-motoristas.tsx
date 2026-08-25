@@ -33,10 +33,28 @@ export function RankingMotoristasSection({
     [data, baseId],
   );
 
+  // Só consulta com sessão ativa: sem token o serverFn responde 401.
+  const [autenticado, setAutenticado] = useState(false);
+  useEffect(() => {
+    let ativo = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (ativo) setAutenticado(Boolean(data.session?.access_token));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAutenticado(Boolean(session?.access_token));
+    });
+    return () => {
+      ativo = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   const q = useQuery({
     queryKey: ["meli-ranking-motoristas", filtros],
     queryFn: () => fetchRanking({ data: filtros }),
-    refetchInterval: REFETCH_MS,
+    enabled: autenticado,
+    refetchInterval: autenticado ? REFETCH_MS : false,
+    retry: false,
     placeholderData: (prev) => prev,
   });
 
