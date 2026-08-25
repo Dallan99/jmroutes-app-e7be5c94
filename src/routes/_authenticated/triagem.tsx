@@ -67,7 +67,7 @@ import {
 import { RequireBaseOperacional } from "@/components/base-operacional-selector";
 import { useBaseOperacional } from "@/lib/base-operacional-context";
 import { ErroBloqueioOverlay } from "@/components/erro-bloqueio-overlay";
-import { normalizarCodigoTriagem } from "@/lib/triagem-domain";
+import { leituraQrMeliCompleta, normalizarCodigoTriagem } from "@/lib/triagem-domain";
 
 export const Route = createFileRoute("/_authenticated/triagem")({
   head: () => ({ meta: [{ title: "Triagem — JM Transportes" }] }),
@@ -1010,7 +1010,17 @@ function TriagemPage() {
                 <Input
                   ref={inputRef}
                   value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
+                  onChange={(e) => {
+                    const leitura = e.target.value;
+                    setCodigo(leitura);
+                    if (leituraQrMeliCompleta(leitura)) submit(leitura);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Tab") {
+                      e.preventDefault();
+                      submit(codigo);
+                    }
+                  }}
                   autoFocus
                   spellCheck={false}
                   autoComplete="off"

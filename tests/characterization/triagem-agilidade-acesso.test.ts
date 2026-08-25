@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { normalizarCodigoTriagem } from "../../src/lib/triagem-domain";
+import { leituraQrMeliCompleta, normalizarCodigoTriagem } from "../../src/lib/triagem-domain";
 
 const triagemPage = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/triagem.tsx"),
@@ -28,6 +28,12 @@ describe("Triagem — agilidade entre bips", () => {
     "id=47686653148&t=lm",
   ])("extrai o shipment do QR Code Meli: %s", (codigo) => {
     expect(normalizarCodigoTriagem(codigo)).toBe("47686653148");
+  });
+
+  it("extrai e reconhece como completa a leitura real que termina sem Enter", () => {
+    const leitura = "`^id^Ç^47833550005^,^t^Ç^lm^{";
+    expect(normalizarCodigoTriagem(leitura)).toBe("47833550005");
+    expect(leituraQrMeliCompleta(leitura)).toBe(true);
   });
 
   it("consolida atualizações pesadas após uma sequência de leituras", () => {

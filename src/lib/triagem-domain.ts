@@ -27,6 +27,11 @@ export function normalizarCodigoTriagem(codigo: string): string {
   return leitura.replace(/[^0-9A-Za-z]/g, "");
 }
 
+/** Indica que o leitor terminou de enviar um QR Meli, mesmo sem sufixo Enter. */
+export function leituraQrMeliCompleta(codigo: string): boolean {
+  return /(?:^|[^0-9A-Za-z])id[^0-9A-Za-z]+[0-9]{6,}/i.test(codigo) && /[{}]\s*$/.test(codigo);
+}
+
 /** Regra canônica usada em toda a Triagem para determinar a rota operacional. */
 export function rotaEfetivaTriagem(
   linha: Pick<LinhaResumoTriagem, "otimizada" | "planejada">,
