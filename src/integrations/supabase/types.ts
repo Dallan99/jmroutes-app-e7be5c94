@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -846,6 +846,87 @@ export type Database = {
           },
         ]
       }
+      meli_api_conexoes: {
+        Row: {
+          access_token_criptografado: string
+          apelido: string | null
+          ativo: boolean
+          atualizado_em: string
+          conectado_em: string
+          conectado_por: string | null
+          id: string
+          meli_user_id: number
+          refresh_token_criptografado: string
+          scopes: string[]
+          token_expira_em: string
+        }
+        Insert: {
+          access_token_criptografado: string
+          apelido?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          conectado_em?: string
+          conectado_por?: string | null
+          id?: string
+          meli_user_id: number
+          refresh_token_criptografado: string
+          scopes?: string[]
+          token_expira_em: string
+        }
+        Update: {
+          access_token_criptografado?: string
+          apelido?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          conectado_em?: string
+          conectado_por?: string | null
+          id?: string
+          meli_user_id?: number
+          refresh_token_criptografado?: string
+          scopes?: string[]
+          token_expira_em?: string
+        }
+        Relationships: []
+      }
+      meli_api_notificacoes: {
+        Row: {
+          application_id: number | null
+          erro: string | null
+          id: string
+          meli_user_id: number | null
+          notification_id: string | null
+          payload: Json
+          processado_em: string | null
+          recebido_em: string
+          resource: string
+          topic: string
+        }
+        Insert: {
+          application_id?: number | null
+          erro?: string | null
+          id?: string
+          meli_user_id?: number | null
+          notification_id?: string | null
+          payload: Json
+          processado_em?: string | null
+          recebido_em?: string
+          resource: string
+          topic: string
+        }
+        Update: {
+          application_id?: number | null
+          erro?: string | null
+          id?: string
+          meli_user_id?: number | null
+          notification_id?: string | null
+          payload?: Json
+          processado_em?: string | null
+          recebido_em?: string
+          resource?: string
+          topic?: string
+        }
+        Relationships: []
+      }
       meli_devolucao_romaneios: {
         Row: {
           aberto_em: string
@@ -1136,6 +1217,33 @@ export type Database = {
           total_pacotes?: number
           total_rotas?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      meli_oauth_states: {
+        Row: {
+          code_verifier: string
+          criado_em: string
+          expira_em: string
+          solicitado_por: string
+          state_hash: string
+          usado_em: string | null
+        }
+        Insert: {
+          code_verifier: string
+          criado_em?: string
+          expira_em?: string
+          solicitado_por: string
+          state_hash: string
+          usado_em?: string | null
+        }
+        Update: {
+          code_verifier?: string
+          criado_em?: string
+          expira_em?: string
+          solicitado_por?: string
+          state_hash?: string
+          usado_em?: string | null
         }
         Relationships: []
       }
