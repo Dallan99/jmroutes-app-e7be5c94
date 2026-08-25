@@ -33,6 +33,8 @@ export type MeliRankingResult = {
   status: "ok" | "erro";
   erro?: string;
   data_operacional?: string;
+  periodo_inicio?: string;
+  periodo_fim?: string;
   motoristas?: MeliRankingMotorista[];
   ocorrencias_gerais?: MeliRankingOcorrencia[];
   total_insucessos?: number;
@@ -62,24 +64,47 @@ function diaOperacionalSp(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
+export function periodoSemanaMeli(dataReferencia: string): { inicio: string; fim: string } {
+  const [ano, mes, dia] = dataReferencia.split("-").map(Number);
+  const referencia = new Date(Date.UTC(ano, mes - 1, dia));
+  const inicio = new Date(referencia);
+  inicio.setUTCDate(referencia.getUTCDate() - referencia.getUTCDay());
+  const fim = new Date(inicio);
+  fim.setUTCDate(inicio.getUTCDate() + 6);
+  return {
+    inicio: inicio.toISOString().slice(0, 10),
+    fim: fim.toISOString().slice(0, 10),
+  };
+}
+
 export const meliRankingMotoristas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => rankingSchema.parse(d ?? {}))
   .handler(async ({ data, context }): Promise<MeliRankingResult> => {
     const sb = context.supabase;
     const dia = data.data ?? diaOperacionalSp();
+    const periodo = periodoSemanaMeli(dia);
 
     let rotasQuery = sb
       .from("meli_rotas")
       .select("id, route_id, cluster, driver_name, base_id, route_status, route_substatus")
-      .eq("data_rota", dia);
+      .gte("data_rota", periodo.inicio)
+      .lte("data_rota", periodo.fim);
     if (data.base_id) rotasQuery = rotasQuery.eq("base_id", data.base_id);
 
     const { data: rotasRaw, error: erroRotas } = await rotasQuery;
     if (erroRotas) return { status: "erro", erro: erroRotas.message };
     const rotas = (rotasRaw ?? []) as RotaRow[];
     if (!rotas.length) {
-      return { status: "ok", data_operacional: dia, motoristas: [], ocorrencias_gerais: [], total_insucessos: 0 };
+      return {
+        status: "ok",
+        data_operacional: dia,
+        periodo_inicio: periodo.inicio,
+        periodo_fim: periodo.fim,
+        motoristas: [],
+        ocorrencias_gerais: [],
+        total_insucessos: 0,
+      };
     }
 
     const { data: basesRaw } = await sb.from("bases").select("id, codigo");
@@ -216,6 +241,8 @@ export const meliRankingMotoristas = createServerFn({ method: "GET" })
     return {
       status: "ok",
       data_operacional: dia,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
       motoristas,
       ocorrencias_gerais,
       total_insucessos: ocorrencias_gerais.reduce((s, o) => s + o.total, 0),
