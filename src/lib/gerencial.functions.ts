@@ -512,15 +512,44 @@ export const rotasPorBase = createServerFn({ method: "POST" })
     const importIds = (imports ?? []).map((i) => i.id);
     const importBaseMap = new Map((imports ?? []).map((i) => [i.id, i.base_id] as const));
 
-    let escalas: { nro_rota: string | null; driver: string | null; placa: string | null; recebido: boolean | null; devolvido: boolean | null; importacao_id: string | null; base_operacional_id: string | null }[] = [];
+    type EscalaPainel = {
+      nro_rota: string | null;
+      driver: string | null;
+      placa: string | null;
+      triado: boolean | null;
+      devolvido: boolean | null;
+      importacao_id: string | null;
+      base_operacional_id: string | null;
+    };
+
+    let escalas: EscalaPainel[] = [];
     if (importIds.length > 0) {
-      const { data: es, error: ee } = await supabase
-        .from("escalas")
-        .select("nro_rota, driver, placa, recebido, devolvido, importacao_id, base_operacional_id")
-        .in("importacao_id", importIds)
-        .limit(50000);
-      if (ee) throw new Error(ee.message);
-      escalas = (es ?? []) as any[];
+      const { supabaseAdmin } = await import(
+        "@/integrations/supabase/client.server"
+      );
+      const PAGE_SIZE = 1000;
+
+      // O PostgREST limita cada resposta a 1.000 registros. Uma consulta única
+      // fazia o painel exibir somente a primeira base encontrada. Carregamos
+      // cada importação em páginas e em paralelo para manter todas as bases.
+      const carregarImportacao = async (importacaoId: string) => {
+        const resultado: EscalaPainel[] = [];
+        for (let inicio = 0; ; inicio += PAGE_SIZE) {
+          const { data: pagina, error: paginaErro } = await supabaseAdmin
+            .from("escalas")
+            .select("nro_rota, driver, placa, triado, devolvido, importacao_id, base_operacional_id")
+            .eq("importacao_id", importacaoId)
+            .order("id", { ascending: true })
+            .range(inicio, inicio + PAGE_SIZE - 1);
+          if (paginaErro) throw new Error(paginaErro.message);
+          if (!pagina || pagina.length === 0) break;
+          resultado.push(...(pagina as EscalaPainel[]));
+          if (pagina.length < PAGE_SIZE) break;
+        }
+        return resultado;
+      };
+
+      escalas = (await Promise.all(importIds.map(carregarImportacao))).flat();
     }
 
     // Agrupamento por base+rota
@@ -547,7 +576,8 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         status: "vazia" as const,
       };
       cur.total++;
-      if (e.recebido) cur.recebido++;
+      // Neste painel, "bipado" representa a leitura feita na Triagem.
+      if (e.triado) cur.recebido++;
       if (e.devolvido) cur.devolvido++;
       grupos.set(key, cur);
     }
