@@ -1435,6 +1435,10 @@ function labelRes(r: TriagemResult["resultado"]) {
       return "Não recebido";
     case "outra_base":
       return "Outra base";
+    case "outra_data":
+      return "Outra data";
+    case "outra_expedicao":
+      return "Outra expedição";
     case "rota_divergente":
       return "Outra rota";
     case "cancelada":

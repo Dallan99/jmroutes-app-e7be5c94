@@ -33,6 +33,8 @@ export type TriagemResult = {
     | "inexistente"
     | "nao_recebido"
     | "outra_base"
+    | "outra_data"
+    | "outra_expedicao"
     | "rota_divergente"
     | "cancelada"
     | "encerrada";
@@ -265,6 +267,8 @@ export const biparTriagem = createServerFn({ method: "POST" })
       const mapped =
         resultado === "nao_recebido"
           ? "inexistente"
+          : resultado === "outra_data" || resultado === "outra_expedicao"
+            ? "inexistente"
           : resultado === "rota_divergente"
             ? "outra_rota"
             : resultado;
@@ -324,19 +328,70 @@ export const biparTriagem = createServerFn({ method: "POST" })
     }
 
 
-    // 3) Não achou? Verifica se pertence a outra Base ativa
+    // 3) Não achou na escala ativa do dia? Primeiro diferencia a mesma base
+    // em outra data/versão. Só acusa "outra base" quando a base é realmente outra.
     if (!escala) {
-      const { data: outros } = await supabase
+      const { data: encontrados } = await supabase
         .from("escalas")
-        .select("id, base_id, bases:base_id(codigo, nome), importacoes_escala!inner(ativa)")
+        .select("id, base_id, triado, recebido, bases:base_id(codigo, nome), importacao:importacao_id!inner(id, data_operacional, ativa, arquivo_nome, versao, importado_em)")
         .eq("shipment", data.codigo)
-        .eq("importacoes_escala.ativa", true)
-        .limit(1);
-      const outro = outros?.[0] as
-        { id: string; base_id: string; bases: { codigo: string; nome: string } | null } | undefined;
-      if (outro) {
-        const msg = `Pedido pertence a outra operação — base ${outro.bases?.codigo ?? "?"} ${outro.bases?.nome ?? ""}.`;
-        await log("outra_base", msg, outro.base_id, outro.id);
+        .limit(100);
+
+      type ShipmentEncontrado = {
+        id: string;
+        base_id: string;
+        triado: boolean | null;
+        recebido: boolean | null;
+        bases: { codigo: string; nome: string } | null;
+        importacao: {
+          id: string;
+          data_operacional: string;
+          ativa: boolean;
+          arquivo_nome: string | null;
+          versao: number;
+          importado_em: string;
+        } | null;
+      };
+
+      const candidatos = (encontrados ?? []) as unknown as ShipmentEncontrado[];
+      const mesmaBase = candidatos
+        .filter((item) => item.base_id === data.baseId && item.importacao)
+        .sort((a, b) => {
+          const mesmaDataA = Number(a.importacao!.data_operacional === data.dataOperacional);
+          const mesmaDataB = Number(b.importacao!.data_operacional === data.dataOperacional);
+          if (mesmaDataA !== mesmaDataB) return mesmaDataB - mesmaDataA;
+          const ativa = Number(b.importacao!.ativa) - Number(a.importacao!.ativa);
+          if (ativa !== 0) return ativa;
+          return b.importacao!.importado_em.localeCompare(a.importacao!.importado_em);
+        })[0];
+
+      if (mesmaBase?.importacao) {
+        const imp = mesmaBase.importacao;
+        const dataEncontrada = new Date(`${imp.data_operacional}T00:00:00`).toLocaleDateString("pt-BR");
+        const status = mesmaBase.triado
+          ? "já triado nessa operação"
+          : mesmaBase.recebido
+            ? "recebido e aguardando triagem"
+            : "aguardando recebimento/triagem";
+        const exp = imp.arquivo_nome
+          ? `, expedição ${imp.arquivo_nome}`
+          : `, versão ${imp.versao}`;
+
+        if (imp.data_operacional !== data.dataOperacional) {
+          const msg = `Pedido pertence à mesma base ${mesmaBase.bases?.codigo ?? ""} ${mesmaBase.bases?.nome ?? ""}, mas ao dia operacional ${dataEncontrada}${exp}. Status: ${status}.`;
+          await log("outra_data", msg, mesmaBase.base_id, mesmaBase.id);
+          return { resultado: "outra_data", mensagem: msg, hora };
+        }
+
+        const msg = `Pedido pertence à mesma base e data, mas está em outra expedição${exp}. Status: ${status}.`;
+        await log("outra_expedicao", msg, mesmaBase.base_id, mesmaBase.id);
+        return { resultado: "outra_expedicao", mensagem: msg, hora };
+      }
+
+      const outraBase = candidatos.find((item) => item.base_id !== data.baseId);
+      if (outraBase) {
+        const msg = `Pedido pertence a outra operação — base ${outraBase.bases?.codigo ?? "?"} ${outraBase.bases?.nome ?? ""}.`;
+        await log("outra_base", msg, outraBase.base_id, outraBase.id);
         return { resultado: "outra_base", mensagem: msg, hora };
       }
       const msg = "Shipment não encontrado nas planilhas importadas.";
