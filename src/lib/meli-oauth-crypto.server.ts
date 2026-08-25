@@ -7,10 +7,12 @@ function bytesToBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function base64UrlToBytes(value: string): Uint8Array {
+function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
   const binary = atob(padded);
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
 export function randomBase64Url(length = 32): string {
@@ -24,7 +26,7 @@ export async function sha256Base64Url(value: string): Promise<string> {
 async function encryptionKey(): Promise<CryptoKey> {
   const raw = process.env.MELI_TOKEN_ENCRYPTION_KEY;
   if (!raw) throw new Error("MELI_TOKEN_ENCRYPTION_KEY não configurada.");
-  let bytes: Uint8Array;
+  let bytes: Uint8Array<ArrayBuffer>;
   try {
     const decoded = base64UrlToBytes(raw.trim());
     bytes = decoded.length === 32
