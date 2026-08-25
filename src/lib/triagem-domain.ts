@@ -32,6 +32,10 @@ export function leituraQrMeliCompleta(codigo: string): boolean {
   return /(?:^|[^0-9A-Za-z])id[^0-9A-Za-z]+[0-9]{6,}/i.test(codigo) && /[{}]\s*$/.test(codigo);
 }
 
+export function mensagemRotaDivergente(rotaSelecionada: string, rotaCorreta: string): string {
+  return `Este pacote não pertence à rota ${rotaSelecionada}. Ele pertence à rota ${rotaCorreta}.`;
+}
+
 /** Regra canônica usada em toda a Triagem para determinar a rota operacional. */
 export function rotaEfetivaTriagem(
   linha: Pick<LinhaResumoTriagem, "otimizada" | "planejada">,

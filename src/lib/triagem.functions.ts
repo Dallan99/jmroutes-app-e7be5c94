@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { normalizarCodigoTriagem, resumirRotasTriagem, rotaEfetivaTriagem } from "./triagem-domain";
+import {
+  mensagemRotaDivergente,
+  normalizarCodigoTriagem,
+  resumirRotasTriagem,
+  rotaEfetivaTriagem,
+} from "./triagem-domain";
 import { nomeOperacionalRota } from "./meli-status";
 
 // O PostgREST/Supabase limita respostas a 1.000 linhas por página neste projeto.
@@ -396,8 +401,8 @@ export const biparTriagem = createServerFn({ method: "POST" })
 
     // 4.a) Se o operador escolheu uma rota, o shipment tem que pertencer a ela
     if (data.rotaSelecionada && rotaCodigo !== data.rotaSelecionada) {
-      const msg = `Shipment pertence à rota ${rotaCodigo}, mas a rota selecionada é ${data.rotaSelecionada}.`;
-      await log("outra_base", msg, escala.base_id, escala.id);
+      const msg = mensagemRotaDivergente(data.rotaSelecionada, rotaCodigo);
+      await log("rota_divergente", msg, escala.base_id, escala.id);
       return { resultado: "rota_divergente", mensagem: msg, hora };
     }
 
