@@ -22,6 +22,14 @@ describe("Triagem — agilidade entre bips", () => {
     expect(normalizarCodigoTriagem(codigo)).toBe(codigo);
   });
 
+  it.each([
+    "`^id^Ç^47686653148^,^t^Ç^lm^{",
+    '{"id":"47686653148","t":"lm"}',
+    "id=47686653148&t=lm",
+  ])("extrai o shipment do QR Code Meli: %s", (codigo) => {
+    expect(normalizarCodigoTriagem(codigo)).toBe("47686653148");
+  });
+
   it("consolida atualizações pesadas após uma sequência de leituras", () => {
     expect(triagemPage).toContain("agendarAtualizacoes");
     expect(triagemPage).toContain("}, 800)");

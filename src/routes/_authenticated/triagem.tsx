@@ -67,6 +67,7 @@ import {
 import { RequireBaseOperacional } from "@/components/base-operacional-selector";
 import { useBaseOperacional } from "@/lib/base-operacional-context";
 import { ErroBloqueioOverlay } from "@/components/erro-bloqueio-overlay";
+import { normalizarCodigoTriagem } from "@/lib/triagem-domain";
 
 export const Route = createFileRoute("/_authenticated/triagem")({
   head: () => ({ meta: [{ title: "Triagem — JM Transportes" }] }),
@@ -434,7 +435,7 @@ function TriagemPage() {
   });
 
   const consultarShipment = (valor: string) => {
-    const normalizado = valor.replace(/[^0-9A-Za-z]/g, "");
+    const normalizado = normalizarCodigoTriagem(valor);
     if (normalizado.length < 3) {
       toast.warning("Bipe ou digite um shipment válido.");
       return;
@@ -464,20 +465,20 @@ function TriagemPage() {
         setCodigo("");
         return;
       }
-      const trimmed = cod.trim();
-      if (trimmed.length < 3) return;
+      const normalizado = normalizarCodigoTriagem(cod);
+      if (normalizado.length < 3) return;
       const ts = Date.now();
       if (
         lastRef.current &&
-        lastRef.current.codigo === trimmed &&
+        lastRef.current.codigo === normalizado &&
         ts - lastRef.current.ts < DEDUPE_MS
       ) {
         setCodigo("");
         inputRef.current?.focus();
         return;
       }
-      lastRef.current = { codigo: trimmed, ts };
-      mutation.mutate(trimmed);
+      lastRef.current = { codigo: normalizado, ts };
+      mutation.mutate(normalizado);
       setCodigo("");
     },
     [mutation, paused, rotaSelecionada, rotaConcluidaRessalva],
