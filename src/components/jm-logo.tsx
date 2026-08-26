@@ -1,4 +1,4 @@
-export const JM_LOGO_URL = "/jm-logo-2026.png";
+export const JM_LOGO_URL = "/jm-logo-amarelo.png";
 
 export function JmLogo({
   size = 36,
