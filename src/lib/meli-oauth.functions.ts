@@ -73,6 +73,7 @@ console.log(
       site: conta.site_id ?? null,
       modalidades: Array.isArray(preferencias?.modes) ? preferencias.modes : [],
       renovado,
+      aplicacao,
     };
   });
 
