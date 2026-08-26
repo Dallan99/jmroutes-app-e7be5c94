@@ -784,7 +784,27 @@ function TriagemPage() {
                 )}
                 Localizar
               </Button>
+              {modoColetor && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 gap-2"
+                  onClick={() => setCameraAberta(true)}
+                  disabled={localizarMutation.isPending}
+                >
+                  <Camera className="h-5 w-5" />
+                  Ler com a câmera
+                </Button>
+              )}
             </form>
+
+            {modoColetor && (
+              <CameraBarcodeDialog
+                open={cameraAberta}
+                onOpenChange={setCameraAberta}
+                onScan={consultarShipment}
+              />
+            )}
 
             {resultadoConsulta && (
               <div
