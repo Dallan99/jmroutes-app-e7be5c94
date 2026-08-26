@@ -119,6 +119,8 @@ export function AppShell() {
 }
 
 function AppShellContent() {
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
     queryKey: ["meu-perfil"],
@@ -129,6 +131,12 @@ function AppShellContent() {
   const roles = (perfilQuery.data?.roles ?? []) as Array<Role>;
   const { modoColetor } = useCollectorMode();
   useInactivityLogout();
+
+  useEffect(() => {
+    if (modoColetor && pathname === "/dashboard") {
+      navigate({ to: "/coletor", replace: true });
+    }
+  }, [modoColetor, navigate, pathname]);
 
   return (
     <BaseOperacionalProvider>
