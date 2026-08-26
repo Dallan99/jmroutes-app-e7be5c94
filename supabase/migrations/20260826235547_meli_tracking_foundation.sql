@@ -2,11 +2,17 @@
 -- Não cria triggers operacionais, não envia notificações e não altera o worker AdminML.
 
 alter table public.meli_pacotes
-  add column if not exists tracking_number text;
+  add column if not exists tracking_number text,
+  add column if not exists facility text,
+  add column if not exists service_center_id text;
 
 create index if not exists meli_pacotes_tracking_number_idx
   on public.meli_pacotes (tracking_number)
   where tracking_number is not null;
+
+create index if not exists meli_pacotes_service_center_idx
+  on public.meli_pacotes (service_center_id)
+  where service_center_id is not null;
 
 create table if not exists public.meli_tracking_eventos (
   id uuid primary key default gen_random_uuid(),
@@ -73,4 +79,3 @@ comment on table public.meli_tracking_eventos is
   'Fila interna inativa de eventos de tracking; envio oficial ainda não implementado.';
 comment on table public.meli_carrier_oauth_tokens is
   'Cache server-side criptografado de tokens client_credentials por audience.';
-
