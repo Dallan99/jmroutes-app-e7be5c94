@@ -59,6 +59,14 @@ export const meliApiTestarConexao = createServerFn({ method: "POST" })
     const { meliGet } = await import("@/lib/meli-api.server");
     const { data: conta, renovado } = await meliGet("/users/me");
     const { data: preferencias } = await meliGet(`/users/${conta.id}/shipping_preferences`);
+    const { data: aplicacao } = await meliGet(
+  `/applications/${MELI_CLIENT_ID}`
+);
+
+console.log(
+  "MELI APPLICATION:",
+  JSON.stringify(aplicacao, null, 2)
+);
     return {
       ok: true,
       conta: conta.nickname ?? String(conta.id),
