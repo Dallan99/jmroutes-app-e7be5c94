@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const STORAGE_KEY = "jmroutes:modo-coletor";
 
@@ -34,22 +34,26 @@ export function CollectorModeProvider({ children }: { children: ReactNode }) {
     setModoColetor(collectorStorage()?.getItem(STORAGE_KEY) === "1");
   }, []);
 
+  const ativarModoColetor = useCallback(() => {
+    collectorStorage()?.setItem(STORAGE_KEY, "1");
+    setModoColetor(true);
+  }, []);
+
+  const sairModoColetor = useCallback(() => {
+    collectorStorage()?.removeItem(STORAGE_KEY);
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* limpa somente quando o armazenamento estiver disponível */
+    }
+    setModoColetor(false);
+  }, []);
+
   const value = useMemo<CollectorModeContextValue>(() => ({
     modoColetor,
-    ativarModoColetor: () => {
-      collectorStorage()?.setItem(STORAGE_KEY, "1");
-      setModoColetor(true);
-    },
-    sairModoColetor: () => {
-      collectorStorage()?.removeItem(STORAGE_KEY);
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        /* limpa somente quando o armazenamento estiver disponível */
-      }
-      setModoColetor(false);
-    },
-  }), [modoColetor]);
+    ativarModoColetor,
+    sairModoColetor,
+  }), [ativarModoColetor, modoColetor, sairModoColetor]);
 
   return <CollectorModeContext.Provider value={value}>{children}</CollectorModeContext.Provider>;
 }
