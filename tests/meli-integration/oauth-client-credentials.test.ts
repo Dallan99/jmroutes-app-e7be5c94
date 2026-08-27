@@ -132,4 +132,36 @@ describe("oauth client_credentials (isolado, sem rede)", () => {
     ).rejects.toBeInstanceOf(MeliClientCredentialsError);
     await expect(obterClientCredentialsToken("  ")).rejects.toBeInstanceOf(MeliClientCredentialsError);
   });
+
+  it("exige MELI_TOKEN_URL sem assumir URL default", async () => {
+    delete process.env["MELI_TOKEN_URL"];
+    const registro = { calls: [] as any[] };
+    let capturado: unknown;
+    try {
+      await obterClientCredentialsToken(AUD_A, { fetchImpl: fakeFetch(["x"], registro), now: () => 0 });
+    } catch (error) {
+      capturado = error;
+    }
+    expect(capturado).toBeInstanceOf(MeliClientCredentialsError);
+    expect((capturado as Error).message).toContain("MELI_TOKEN_URL");
+    // Nenhuma chamada de rede foi tentada contra host algum.
+    expect(registro.calls).toHaveLength(0);
+  });
+
+  it("rejeita MELI_TOKEN_URL não-HTTPS ou malformada sem expor o valor", async () => {
+    for (const valor of ["http://exemplo.test/oauth/token", "nao-e-url", "ftp://exemplo.test/t"]) {
+      process.env["MELI_TOKEN_URL"] = valor;
+      const registro = { calls: [] as any[] };
+      let capturado: unknown;
+      try {
+        await obterClientCredentialsToken(AUD_A, { fetchImpl: fakeFetch(["x"], registro), now: () => 0 });
+      } catch (error) {
+        capturado = error;
+      }
+      expect(capturado).toBeInstanceOf(MeliClientCredentialsError);
+      const texto = `${(capturado as Error).message}${(capturado as Error).stack ?? ""}`;
+      expect(texto).not.toContain(valor);
+      expect(registro.calls).toHaveLength(0);
+    }
+  });
 });
