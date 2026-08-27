@@ -3,7 +3,7 @@ import {
   MeliClientCredentialsError,
   limparClientCredentialsCache,
   obterClientCredentialsToken,
-} from "@/lib/meli-integration/oauth-client-credentials.server";
+} from "../../src/lib/meli-integration/oauth-client-credentials.server";
 
 const AUD_A = "https://api.mercadolibre.com/aud-a";
 const AUD_B = "https://api.mercadolibre.com/aud-b";
@@ -31,6 +31,8 @@ describe("oauth client_credentials (isolado, sem rede)", () => {
 
   afterEach(() => {
     limparClientCredentialsCache();
+    delete process.env["MELI_CLIENT_ID"];
+    delete process.env["MELI_CLIENT_SECRET"];
     delete process.env["MELI_TOKEN_URL"];
   });
 
@@ -129,5 +131,37 @@ describe("oauth client_credentials (isolado, sem rede)", () => {
       obterClientCredentialsToken(AUD_A, { fetchImpl: fakeFetch(["x"], { calls: [] }) }),
     ).rejects.toBeInstanceOf(MeliClientCredentialsError);
     await expect(obterClientCredentialsToken("  ")).rejects.toBeInstanceOf(MeliClientCredentialsError);
+  });
+
+  it("exige MELI_TOKEN_URL sem assumir URL default", async () => {
+    delete process.env["MELI_TOKEN_URL"];
+    const registro = { calls: [] as any[] };
+    let capturado: unknown;
+    try {
+      await obterClientCredentialsToken(AUD_A, { fetchImpl: fakeFetch(["x"], registro), now: () => 0 });
+    } catch (error) {
+      capturado = error;
+    }
+    expect(capturado).toBeInstanceOf(MeliClientCredentialsError);
+    expect((capturado as Error).message).toContain("MELI_TOKEN_URL");
+    // Nenhuma chamada de rede foi tentada contra host algum.
+    expect(registro.calls).toHaveLength(0);
+  });
+
+  it("rejeita MELI_TOKEN_URL não-HTTPS ou malformada sem expor o valor", async () => {
+    for (const valor of ["http://exemplo.test/oauth/token", "nao-e-url", "ftp://exemplo.test/t"]) {
+      process.env["MELI_TOKEN_URL"] = valor;
+      const registro = { calls: [] as any[] };
+      let capturado: unknown;
+      try {
+        await obterClientCredentialsToken(AUD_A, { fetchImpl: fakeFetch(["x"], registro), now: () => 0 });
+      } catch (error) {
+        capturado = error;
+      }
+      expect(capturado).toBeInstanceOf(MeliClientCredentialsError);
+      const texto = `${(capturado as Error).message}${(capturado as Error).stack ?? ""}`;
+      expect(texto).not.toContain(valor);
+      expect(registro.calls).toHaveLength(0);
+    }
   });
 });

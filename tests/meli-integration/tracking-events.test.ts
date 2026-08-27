@@ -5,7 +5,7 @@ import {
   TRACKING_STATUS_ENVIO_PADRAO,
   isTrackingEventoInterno,
   isTrackingStatusEnvio,
-} from "@/lib/meli-integration/tracking-events";
+} from "../../src/lib/meli-integration/tracking-events";
 
 describe("eventos internos de rastreio", () => {
   it("mantém o conjunto fechado e exato dos 7 eventos", () => {

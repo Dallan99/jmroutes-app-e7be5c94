@@ -9,7 +9,6 @@
 // client secret ou header Authorization; cache/dedupe por audience.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DEFAULT_TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
 const RENOVACAO_PREVENTIVA_MS = 5 * 60_000;
 const EXPIRES_IN_PADRAO_S = 21_600;
 
@@ -57,9 +56,31 @@ function credenciais(): { clientId: string; clientSecret: string } {
   return { clientId, clientSecret };
 }
 
+/**
+ * URL do endpoint de token — obrigatória, lida dentro da chamada.
+ * Sem default: nenhum host é assumido. Precisa ser HTTPS absoluta.
+ * O valor configurado nunca é ecoado na mensagem de erro.
+ */
 function tokenUrl(): string {
-  const configurado = process.env["MELI_TOKEN_URL"];
-  return configurado && configurado.trim() ? configurado.trim() : DEFAULT_TOKEN_URL;
+  const configurado = (process.env["MELI_TOKEN_URL"] ?? "").trim();
+  if (!configurado) {
+    throw new MeliClientCredentialsError(
+      "Endpoint de autorização Meli não configurado (MELI_TOKEN_URL).",
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(configurado);
+  } catch {
+    throw new MeliClientCredentialsError(
+      "MELI_TOKEN_URL inválida: informe uma URL HTTPS absoluta.",
+    );
+  }
+  if (parsed.protocol !== "https:") {
+    throw new MeliClientCredentialsError("MELI_TOKEN_URL inválida: use o esquema HTTPS.");
+  }
+  return parsed.toString();
 }
 
 async function solicitarToken(
@@ -67,12 +88,14 @@ async function solicitarToken(
   deps: ClientCredentialsDeps,
 ): Promise<ClientCredentialsToken> {
   const { clientId, clientSecret } = credenciais();
+  // Validado fora do try do fetch para não ser confundido com erro de rede.
+  const url = tokenUrl();
   const doFetch = deps.fetchImpl ?? fetch;
   const agora = (deps.now ?? Date.now)();
 
   let response: Response;
   try {
-    response = await doFetch(tokenUrl(), {
+    response = await doFetch(url, {
       method: "POST",
       headers: {
         accept: "application/json",
