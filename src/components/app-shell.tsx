@@ -119,8 +119,6 @@ export function AppShell() {
 }
 
 function AppShellContent() {
-  const navigate = useNavigate();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
     queryKey: ["meu-perfil"],
@@ -131,12 +129,6 @@ function AppShellContent() {
   const roles = (perfilQuery.data?.roles ?? []) as Array<Role>;
   const { modoColetor } = useCollectorMode();
   useInactivityLogout();
-
-  useEffect(() => {
-    if (modoColetor && pathname === "/dashboard") {
-      navigate({ to: "/coletor", replace: true });
-    }
-  }, [modoColetor, navigate, pathname]);
 
   return (
     <BaseOperacionalProvider>
@@ -268,7 +260,7 @@ function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: 
 
   function sairDoColetor() {
     sairModoColetor();
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/dashboard", replace: true });
   }
 
   return (
@@ -299,7 +291,7 @@ function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: 
         <div className="hidden w-8 h-8 rounded-full brand-gradient text-white md:flex items-center justify-center text-xs font-bold uppercase">{(nome ?? "?").slice(0, 2)}</div>
         {modoColetor && (
           <Button variant="outline" className="h-10 px-3 text-xs" onClick={sairDoColetor}>
-            Sair do modo coletor
+            Sair do modo leitor
           </Button>
         )}
         <Button variant="ghost" size="icon" className="h-10 w-10 md:h-9 md:w-9" onClick={logout} title="Sair">

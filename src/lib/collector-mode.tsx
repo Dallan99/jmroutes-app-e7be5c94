@@ -2,6 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 const STORAGE_KEY = "jmroutes:modo-coletor";
 
+function collectorStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 type CollectorModeContextValue = {
   modoColetor: boolean;
   ativarModoColetor: () => void;
@@ -14,17 +23,30 @@ export function CollectorModeProvider({ children }: { children: ReactNode }) {
   const [modoColetor, setModoColetor] = useState(false);
 
   useEffect(() => {
-    setModoColetor(window.localStorage.getItem(STORAGE_KEY) === "1");
+    // O modo leitor pertence somente à aba/sessão que entrou pelo /coletor.
+    // Remove a preferência antiga persistente, que fazia o site normal reabrir
+    // no coletor mesmo quando o usuário acessava o Dashboard.
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* armazenamento pode estar indisponível em navegadores restritos */
+    }
+    setModoColetor(collectorStorage()?.getItem(STORAGE_KEY) === "1");
   }, []);
 
   const value = useMemo<CollectorModeContextValue>(() => ({
     modoColetor,
     ativarModoColetor: () => {
-      window.localStorage.setItem(STORAGE_KEY, "1");
+      collectorStorage()?.setItem(STORAGE_KEY, "1");
       setModoColetor(true);
     },
     sairModoColetor: () => {
-      window.localStorage.removeItem(STORAGE_KEY);
+      collectorStorage()?.removeItem(STORAGE_KEY);
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* limpa somente quando o armazenamento estiver disponível */
+      }
       setModoColetor(false);
     },
   }), [modoColetor]);
