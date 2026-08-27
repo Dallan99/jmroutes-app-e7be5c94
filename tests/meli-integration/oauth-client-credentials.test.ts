@@ -3,7 +3,7 @@ import {
   MeliClientCredentialsError,
   limparClientCredentialsCache,
   obterClientCredentialsToken,
-} from "@/lib/meli-integration/oauth-client-credentials.server";
+} from "../../src/lib/meli-integration/oauth-client-credentials.server";
 
 const AUD_A = "https://api.mercadolibre.com/aud-a";
 const AUD_B = "https://api.mercadolibre.com/aud-b";
