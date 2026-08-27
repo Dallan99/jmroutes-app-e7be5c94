@@ -1,4 +1,4 @@
-const CACHE_NAME = "jmroutes-coletor-v5";
+const CACHE_NAME = "jmroutes-coletor-v6";
 const PRECACHE = [
   "/offline.html",
   "/manifest.webmanifest",

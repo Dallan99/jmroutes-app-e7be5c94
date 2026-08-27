@@ -119,6 +119,7 @@ export function AppShell() {
 }
 
 function AppShellContent() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
     queryKey: ["meu-perfil"],
@@ -127,20 +128,25 @@ function AppShellContent() {
   });
   const rolesCarregadas = perfilQuery.isSuccess;
   const roles = (perfilQuery.data?.roles ?? []) as Array<Role>;
-  const { modoColetor } = useCollectorMode();
+  const { modoColetor, sairModoColetor } = useCollectorMode();
+  const modoColetorAtivo = modoColetor && pathname !== "/dashboard";
   useInactivityLogout();
+
+  useEffect(() => {
+    if (pathname === "/dashboard" && modoColetor) sairModoColetor();
+  }, [modoColetor, pathname, sairModoColetor]);
 
   return (
     <BaseOperacionalProvider>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetor} />
+          <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} />
           <div className="flex-1 flex flex-col min-w-0">
-            <TopBar nome={perfilQuery.data?.profile?.nome ?? null} roles={roles} rolesCarregadas={rolesCarregadas} />
-            <main className={`flex-1 min-w-0 ${modoColetor ? "pb-20" : ""}`}>
+            <TopBar nome={perfilQuery.data?.profile?.nome ?? null} roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} />
+            <main className={`flex-1 min-w-0 ${modoColetorAtivo ? "pb-20" : ""}`}>
               <Outlet />
             </main>
-            {modoColetor && <CollectorBottomNav />}
+            {modoColetorAtivo && <CollectorBottomNav />}
           </div>
         </div>
       </SidebarProvider>
@@ -229,12 +235,12 @@ function AppSidebar({ roles, rolesCarregadas, modoColetor }: { roles: Array<Role
   );
 }
 
-function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: string[]; rolesCarregadas: boolean }) {
+function TopBar({ nome, roles, rolesCarregadas, modoColetor }: { nome: string | null; roles: string[]; rolesCarregadas: boolean; modoColetor: boolean }) {
 
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { base, diaOperacional, limpar } = useBaseOperacional();
-  const { modoColetor, sairModoColetor } = useCollectorMode();
+  const { sairModoColetor } = useCollectorMode();
   const [trocarOpen, setTrocarOpen] = useState(false);
   const principal = roles.includes("admin")
     ? "Administrador"
