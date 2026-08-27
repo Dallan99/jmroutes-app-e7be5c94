@@ -88,12 +88,14 @@ async function solicitarToken(
   deps: ClientCredentialsDeps,
 ): Promise<ClientCredentialsToken> {
   const { clientId, clientSecret } = credenciais();
+  // Validado fora do try do fetch para não ser confundido com erro de rede.
+  const url = tokenUrl();
   const doFetch = deps.fetchImpl ?? fetch;
   const agora = (deps.now ?? Date.now)();
 
   let response: Response;
   try {
-    response = await doFetch(tokenUrl(), {
+    response = await doFetch(url, {
       method: "POST",
       headers: {
         accept: "application/json",

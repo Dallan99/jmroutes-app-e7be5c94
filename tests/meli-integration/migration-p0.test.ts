@@ -17,11 +17,12 @@ describe("migration P0 (estática)", () => {
 
   it("é aditiva e idempotente", () => {
     expect(SQL).toContain("ADD COLUMN IF NOT EXISTS");
-    expect(SQL).not.toMatch(/\bDROP\s+(TABLE|COLUMN|CONSTRAINT)\b/i);
-    expect(SQL).not.toMatch(/\bDELETE\s+FROM\b/i);
-    expect(SQL).not.toMatch(/\bUPDATE\s+public\./i);
-    expect(SQL).not.toMatch(/\bRENAME\b/i);
-    expect(SQL).not.toMatch(/CREATE\s+TRIGGER/i);
+    // Asserções semânticas: comentários descritivos não contam como comandos.
+    expect(SQL_SEM_COMENTARIOS).not.toMatch(/\bDROP\s+(TABLE|COLUMN|CONSTRAINT)\b/i);
+    expect(SQL_SEM_COMENTARIOS).not.toMatch(/\bDELETE\s+FROM\b/i);
+    expect(SQL_SEM_COMENTARIOS).not.toMatch(/\bUPDATE\s+public\./i);
+    expect(SQL_SEM_COMENTARIOS).not.toMatch(/\bRENAME\b/i);
+    expect(SQL_SEM_COMENTARIOS).not.toMatch(/CREATE\s+TRIGGER/i);
   });
 
   it("mantém a tabela server-only", () => {
