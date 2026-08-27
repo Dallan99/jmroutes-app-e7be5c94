@@ -53,11 +53,20 @@ function ModoColetorPage() {
   }, []);
 
   async function instalarApp() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") toast.success("JMRoutes Coletor instalado.");
-    setInstallPrompt(null);
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") toast.success("JMRoutes Coletor instalado.");
+      setInstallPrompt(null);
+      return;
+    }
+
+    if (ios) {
+      toast.info("No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.", { duration: 7000 });
+      return;
+    }
+
+    toast.info("No Chrome, abra o menu ⋮ e toque em Instalar aplicativo ou Adicionar à tela inicial.", { duration: 7000 });
   }
 
   return (
@@ -66,7 +75,7 @@ function ModoColetorPage() {
         <h1 className="text-2xl font-bold">Modo Coletor</h1>
         <p className="text-sm text-muted-foreground">Escolha uma função para iniciar a operação.</p>
       </div>
-      {!instalado && (installPrompt || ios) && (
+      {!instalado && (
         <Card className="mb-4 border-primary/25 bg-primary/5 p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
@@ -79,12 +88,10 @@ function ModoColetorPage() {
                   ? "No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início."
                   : "Abra o coletor pela tela inicial, como um aplicativo."}
               </p>
-              {installPrompt && (
-                <Button className="mt-3 h-11 w-full sm:w-auto" onClick={instalarApp}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Baixar app no celular
-                </Button>
-              )}
+              <Button className="mt-3 h-11 w-full sm:w-auto" onClick={instalarApp}>
+                {ios ? <Share className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                {installPrompt ? "Baixar app no celular" : "Como instalar o app"}
+              </Button>
             </div>
           </div>
         </Card>
