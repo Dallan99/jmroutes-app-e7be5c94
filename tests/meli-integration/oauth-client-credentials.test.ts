@@ -31,6 +31,8 @@ describe("oauth client_credentials (isolado, sem rede)", () => {
 
   afterEach(() => {
     limparClientCredentialsCache();
+    delete process.env["MELI_CLIENT_ID"];
+    delete process.env["MELI_CLIENT_SECRET"];
     delete process.env["MELI_TOKEN_URL"];
   });
 
