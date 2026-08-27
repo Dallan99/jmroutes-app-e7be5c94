@@ -1,5 +1,11 @@
-const CACHE_NAME = "jmroutes-coletor-v4";
-const PRECACHE = ["/offline.html", "/manifest.webmanifest", "/icons/jm-coletor-192.png", "/icons/jm-coletor-512.png"];
+const CACHE_NAME = "jmroutes-coletor-v5";
+const PRECACHE = [
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/jm-logo-original.jpeg",
+  "/icons/jm-coletor-192.png",
+  "/icons/jm-coletor-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)));
