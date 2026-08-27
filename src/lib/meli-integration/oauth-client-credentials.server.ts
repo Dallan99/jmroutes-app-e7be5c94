@@ -9,7 +9,6 @@
 // client secret ou header Authorization; cache/dedupe por audience.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DEFAULT_TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
 const RENOVACAO_PREVENTIVA_MS = 5 * 60_000;
 const EXPIRES_IN_PADRAO_S = 21_600;
 
