@@ -7,6 +7,12 @@ let installPrompt: PwaInstallPromptEvent | null = null;
 let initialized = false;
 const listeners = new Set<(prompt: PwaInstallPromptEvent | null) => void>();
 
+export function isPwaStandalone() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches
+    || ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+}
+
 function notify() {
   listeners.forEach((listener) => listener(installPrompt));
 }

@@ -42,6 +42,9 @@ import { BaseOperacionalProvider, useBaseOperacional } from "@/lib/base-operacio
 import { SeletorBaseDia } from "@/components/base-operacional-selector";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CollectorModeProvider, useCollectorMode } from "@/lib/collector-mode";
+import { isPwaStandalone } from "@/lib/pwa-install";
+
+const ROTAS_APP_COLETOR = new Set(["/coletor", "/recebimento", "/triagem", "/meli-devolucoes"]);
 
 const INACTIVITY_MS = 4 * 60 * 60 * 1000;
 
@@ -119,7 +122,9 @@ export function AppShell() {
 }
 
 function AppShellContent() {
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [appColetorInstalado, setAppColetorInstalado] = useState(() => isPwaStandalone());
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
     queryKey: ["meu-perfil"],
@@ -129,12 +134,24 @@ function AppShellContent() {
   const rolesCarregadas = perfilQuery.isSuccess;
   const roles = (perfilQuery.data?.roles ?? []) as Array<Role>;
   const { modoColetor, sairModoColetor } = useCollectorMode();
-  const modoColetorAtivo = modoColetor && pathname !== "/dashboard";
+  const modoColetorAtivo = appColetorInstalado || (modoColetor && pathname !== "/dashboard");
   useInactivityLogout();
 
   useEffect(() => {
-    if (pathname === "/dashboard" && modoColetor) sairModoColetor();
-  }, [modoColetor, pathname, sairModoColetor]);
+    const media = window.matchMedia("(display-mode: standalone)");
+    const atualizar = () => setAppColetorInstalado(isPwaStandalone());
+    atualizar();
+    media.addEventListener?.("change", atualizar);
+    return () => media.removeEventListener?.("change", atualizar);
+  }, []);
+
+  useEffect(() => {
+    if (appColetorInstalado && !ROTAS_APP_COLETOR.has(pathname)) {
+      navigate({ to: "/coletor", replace: true });
+      return;
+    }
+    if (!appColetorInstalado && pathname === "/dashboard" && modoColetor) sairModoColetor();
+  }, [appColetorInstalado, modoColetor, navigate, pathname, sairModoColetor]);
 
   return (
     <BaseOperacionalProvider>
@@ -142,7 +159,7 @@ function AppShellContent() {
         <div className="min-h-screen flex w-full bg-background">
           <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} />
           <div className="flex-1 flex flex-col min-w-0">
-            <TopBar nome={perfilQuery.data?.profile?.nome ?? null} roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} />
+            <TopBar nome={perfilQuery.data?.profile?.nome ?? null} roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} appColetorInstalado={appColetorInstalado} />
             <main className={`flex-1 min-w-0 ${modoColetorAtivo ? "pb-20" : ""}`}>
               <Outlet />
             </main>
@@ -213,7 +230,7 @@ function AppSidebar({ roles, rolesCarregadas, modoColetor }: { roles: Array<Role
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border h-14 flex items-center justify-center px-3">
-        <Link to="/dashboard" title="Ir para o Dashboard" className="flex items-center justify-center w-full">
+        <Link to={modoColetor ? "/coletor" : "/dashboard"} title={modoColetor ? "Ir para o início do Coletor" : "Ir para o Dashboard"} className="flex items-center justify-center w-full">
           {collapsed ? <JmLogo size={28} /> : <JmWordmark />}
         </Link>
       </SidebarHeader>
@@ -235,7 +252,7 @@ function AppSidebar({ roles, rolesCarregadas, modoColetor }: { roles: Array<Role
   );
 }
 
-function TopBar({ nome, roles, rolesCarregadas, modoColetor }: { nome: string | null; roles: string[]; rolesCarregadas: boolean; modoColetor: boolean }) {
+function TopBar({ nome, roles, rolesCarregadas, modoColetor, appColetorInstalado }: { nome: string | null; roles: string[]; rolesCarregadas: boolean; modoColetor: boolean; appColetorInstalado: boolean }) {
 
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -295,7 +312,7 @@ function TopBar({ nome, roles, rolesCarregadas, modoColetor }: { nome: string | 
 
         </div>
         <div className="hidden w-8 h-8 rounded-full brand-gradient text-white md:flex items-center justify-center text-xs font-bold uppercase">{(nome ?? "?").slice(0, 2)}</div>
-        {modoColetor && (
+        {modoColetor && !appColetorInstalado && (
           <Button variant="outline" className="h-10 px-3 text-xs" onClick={sairDoColetor}>
             Sair do modo leitor
           </Button>
