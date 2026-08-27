@@ -1,4 +1,4 @@
-const CACHE_NAME = "jmroutes-coletor-v3";
+const CACHE_NAME = "jmroutes-coletor-v4";
 const PRECACHE = ["/offline.html", "/manifest.webmanifest", "/icons/jm-coletor-192.png", "/icons/jm-coletor-512.png"];
 
 self.addEventListener("install", (event) => {
