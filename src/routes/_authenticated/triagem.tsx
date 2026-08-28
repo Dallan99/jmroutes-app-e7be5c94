@@ -32,7 +32,6 @@ import {
   XCircle,
   AlertTriangle,
   ScanLine,
-  
   Package,
   PackageCheck,
   PackageX,
@@ -69,14 +68,14 @@ import { useBaseOperacional } from "@/lib/base-operacional-context";
 import { ErroBloqueioOverlay } from "@/components/erro-bloqueio-overlay";
 
 export const Route = createFileRoute("/_authenticated/triagem")({
-  head: () => ({ meta: [{ title: "Triagem — JM Transportes" }] }),
+  head: () => ({ meta: [{ title: "Recebimento — JM Transportes" }] }),
   component: TriagemGuard,
 });
 
 function TriagemGuard() {
   return (
     <RequireBaseOperacional
-      titulo="Triagem"
+      titulo="Recebimento"
       descricao="Selecione a Base e o Dia Operacional. A escala ativa correspondente será carregada."
     >
       <TriagemComHeader />
@@ -89,7 +88,7 @@ function TriagemComHeader() {
   return (
     <>
       <div className="border-b bg-muted/30 px-4 md:px-6 py-2 flex items-center gap-3 flex-wrap text-xs">
-        <span className="font-display font-semibold text-sm">Triagem</span>
+        <span className="font-display font-semibold text-sm">Recebimento</span>
         <span className="text-muted-foreground">·</span>
         <span>
           Base: <b>{base?.nome ?? "—"}</b>
@@ -285,10 +284,8 @@ function TriagemPage() {
     staleTime: 60_000,
   });
 
-  const rotaAtual =
-    (rotas.data ?? []).find((r) => r.rota === rotaSelecionada) ?? null;
-  const rotaConcluidaRessalva =
-    rotaAtual?.status === "concluida_ressalva";
+  const rotaAtual = (rotas.data ?? []).find((r) => r.rota === rotaSelecionada) ?? null;
+  const rotaConcluidaRessalva = rotaAtual?.status === "concluida_ressalva";
 
   const agendarAtualizacoes = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -302,9 +299,12 @@ function TriagemPage() {
     }, 800);
   }, [qc]);
 
-  useEffect(() => () => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   // Se a rota selecionada bateu 100%, mantém aberta mas indica; se sumiu da lista, limpa.
   useEffect(() => {
@@ -365,7 +365,7 @@ function TriagemPage() {
         paused: false,
         sessionErr: s.sessionErr + 1,
       }));
-      setBloqueioErro(err instanceof Error ? err.message : "Falha na triagem.");
+      setBloqueioErro(err instanceof Error ? err.message : "Falha no recebimento.");
       setTimeout(() => setFlash(null), 500);
     },
   });
@@ -406,12 +406,9 @@ function TriagemPage() {
     },
     onError: (erro: unknown) => {
       beepError();
-      toast.error(
-        erro instanceof Error
-          ? erro.message
-          : "Falha ao concluir a rota com ressalva.",
-        { duration: 7000 },
-      );
+      toast.error(erro instanceof Error ? erro.message : "Falha ao concluir a rota com ressalva.", {
+        duration: 7000,
+      });
     },
   });
 
@@ -489,19 +486,12 @@ function TriagemPage() {
       const ativo = document.activeElement as HTMLElement | null;
 
       return Boolean(
-        ativo?.closest(
-          "input, textarea, select, [contenteditable='true'], [role='textbox']",
-        ),
+        ativo?.closest("input, textarea, select, [contenteditable='true'], [role='textbox']"),
       );
     };
 
     const focarScanner = () => {
-      if (
-        !modoRota ||
-        dialogRessalvaAberto ||
-        rotaConcluidaRessalva ||
-        elementoEditavelAtivo()
-      ) {
+      if (!modoRota || dialogRessalvaAberto || rotaConcluidaRessalva || elementoEditavelAtivo()) {
         return;
       }
 
@@ -562,19 +552,19 @@ function TriagemPage() {
       const totalPendentes = detalhe.pendentes.length;
       const pctRota = totalRota ? Math.round((totalTriados / totalRota) * 100) : 0;
       const ok = abrirRelatorio<TriagemLinhaImpressao>({
-        titulo: `Triagem — Rota ${rota}`,
+        titulo: `Recebimento — Rota ${rota}`,
         subtitulo: `${base?.nome ?? ""} · ${dataOperacional ? new Date(dataOperacional + "T00:00:00").toLocaleDateString("pt-BR") : ""}`,
         nomeArquivo: `triagem_rota_${rota}_${dataOperacional}`,
         kpis: [
           { label: "Total da rota", value: totalRota },
-          { label: "Triados", value: totalTriados },
+          { label: "Recebidos", value: totalTriados },
           { label: "Pendentes", value: totalPendentes },
           { label: "Conclusão", value: `${pctRota}%` },
         ],
         colunas: [
           { header: "ID (Shipment)", value: (l) => l.shipment },
           { header: "Cidade", value: (l) => l.cidade ?? "" },
-          { header: "Status", value: (l) => (l.status === "triado" ? "Triado" : "Pendente") },
+          { header: "Status", value: (l) => (l.status === "triado" ? "Recebido" : "Pendente") },
         ],
         linhas,
         autoPrint: true,
@@ -619,12 +609,12 @@ function TriagemPage() {
     }
     const linhas = montarLinhasTriagemRota(detalhe);
     baixarCSV({
-      titulo: `Triagem — Rota ${rotaSelecionada}`,
+      titulo: `Recebimento — Rota ${rotaSelecionada}`,
       nomeArquivo: `triagem_rota_${rotaSelecionada}_${dataOperacional}`,
       colunas: [
         { header: "ID (Shipment)", value: (l) => l.shipment },
         { header: "Cidade", value: (l) => l.cidade ?? "" },
-        { header: "Status", value: (l) => (l.status === "triado" ? "Triado" : "Pendente") },
+        { header: "Status", value: (l) => (l.status === "triado" ? "Recebido" : "Pendente") },
       ],
       linhas,
     });
@@ -673,12 +663,11 @@ function TriagemPage() {
     autoAjusteDiaRef.current = chave;
     trocarDia(ultimoDiaImportado.data_operacional);
     toast.info(
-      `Triagem ajustada para o último dia importado da base ${base?.codigo ?? ""}: ${new Date(
+      `Recebimento ajustado para o último dia importado da base ${base?.codigo ?? ""}: ${new Date(
         ultimoDiaImportado.data_operacional + "T00:00:00",
       ).toLocaleDateString("pt-BR")}.`,
     );
   }, [base?.codigo, baseId, dataOperacional, diaSemImportacao, trocarDia, ultimoDiaImportado]);
-
 
   const flashClass = flash === "ok" ? "scan-flash-ok" : flash === "error" ? "scan-flash-error" : "";
 
@@ -698,7 +687,7 @@ function TriagemPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Kpi
               icon={PackageCheck}
-              label="Volumes triados"
+              label="Volumes recebidos"
               value={totalTri.toLocaleString("pt-BR")}
               tone="success"
             />
@@ -714,7 +703,6 @@ function TriagemPage() {
               label="Meus hoje"
               value={(resumo.data?.meusHoje ?? 0).toLocaleString("pt-BR")}
             />
-            
           </div>
           <Progress value={pct} className="h-2" />
 
@@ -725,7 +713,12 @@ function TriagemPage() {
                 <div>
                   <div className="font-semibold">Não há escala ativa neste dia operacional.</div>
                   <div className="text-muted-foreground">
-                    Última importação da base: {new Date(ultimoDiaImportado.data_operacional + "T00:00:00").toLocaleDateString("pt-BR")} · {ultimoDiaImportado.total_linhas.toLocaleString("pt-BR")} IDs · {ultimoDiaImportado.total_rotas.toLocaleString("pt-BR")} rotas.
+                    Última importação da base:{" "}
+                    {new Date(ultimoDiaImportado.data_operacional + "T00:00:00").toLocaleDateString(
+                      "pt-BR",
+                    )}{" "}
+                    · {ultimoDiaImportado.total_linhas.toLocaleString("pt-BR")} IDs ·{" "}
+                    {ultimoDiaImportado.total_rotas.toLocaleString("pt-BR")} rotas.
                   </div>
                 </div>
               </div>
@@ -798,7 +791,7 @@ function TriagemPage() {
                         {resultadoConsulta.cidade ? ` · ${resultadoConsulta.cidade}` : ""}
                         {resultadoConsulta.triado && (
                           <Badge variant="secondary" className="ml-2">
-                            Já triado
+                            Já recebido
                           </Badge>
                         )}
                       </div>
@@ -874,7 +867,7 @@ function TriagemPage() {
               <b className="text-xl">{rotaAtual?.previstos ?? 0}</b>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Triados</div>
+              <div className="text-xs text-muted-foreground">Recebidos</div>
               <b className="text-xl">{rotaAtual?.triados ?? 0}</b>
             </div>
             <div>
@@ -942,7 +935,7 @@ function TriagemPage() {
                   </div>
                   <div>
                     <h1 className="font-display text-2xl md:text-3xl font-bold leading-tight">
-                      Triagem de Volumes
+                      Recebimento de Volumes
                     </h1>
                     <p className="text-xs md:text-sm text-muted-foreground">
                       {paused
@@ -1055,13 +1048,12 @@ function TriagemPage() {
                 linhas={rotaOperacaoQuery.data?.pendentes ?? []}
               />
               <ListaShipments
-                titulo="Triados"
+                titulo="Recebidos"
                 tone="success"
                 linhas={rotaOperacaoQuery.data?.triados ?? []}
               />
             </div>
           </Card>
-
         </>
       )}
       <Dialog
@@ -1076,8 +1068,8 @@ function TriagemPage() {
             <DialogTitle>Concluir rota com itens faltantes</DialogTitle>
             <DialogDescription>
               A rota {rotaSelecionada} possui {rotaAtual?.pendentes ?? 0} item(ns) faltante(s).
-              Informe obrigatoriamente o motivo da conclusão. O registro ficará disponível na
-              auditoria.
+              Informe obrigatoriamente o motivo da conclusão. Os shipment IDs não localizados serão
+              preservados na auditoria como divergência de Recebimento, sem marcação LOST.
             </DialogDescription>
           </DialogHeader>
 
@@ -1112,10 +1104,7 @@ function TriagemPage() {
               type="button"
               className="bg-amber-600 text-white hover:bg-amber-700"
               onClick={() => concluirRessalvaMutation.mutate()}
-              disabled={
-                motivoRessalva.trim().length < 5 ||
-                concluirRessalvaMutation.isPending
-              }
+              disabled={motivoRessalva.trim().length < 5 || concluirRessalvaMutation.isPending}
             >
               {concluirRessalvaMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1231,13 +1220,13 @@ function UltimoCard({
         tag:
           progressoAtual && progressoAtual.quantidade_triada >= progressoAtual.quantidade_prevista
             ? "Rota completa"
-            : "Triado com sucesso",
+            : "Recebido com sucesso",
         icon: CheckCircle2,
         color: "bg-success text-success-foreground",
       };
     if (last.resultado === "duplicado")
       return {
-        tag: "Já triado",
+        tag: "Já recebido",
         icon: AlertTriangle,
         color: "bg-warning text-warning-foreground",
       };
@@ -1295,7 +1284,7 @@ function UltimoCard({
       )}
       <div className="mt-4 text-sm">
         {last.resultado === "ok" && last.rota && progressoAtual
-          ? `Shipment triado — rota ${last.rota.codigo} (${progressoAtual.quantidade_triada}/${progressoAtual.quantidade_prevista}).`
+          ? `Shipment recebido — rota ${last.rota.codigo} (${progressoAtual.quantidade_triada}/${progressoAtual.quantidade_prevista}).`
           : last.mensagem}
       </div>
     </Card>
@@ -1516,7 +1505,7 @@ function RotaDetalheDialog({
         <DialogHeader>
           <DialogTitle className="font-mono">Rota {rota}</DialogTitle>
           <DialogDescription>
-            Shipments pendentes (não bipados) e já triados desta rota.
+            Shipments pendentes (não bipados) e já recebidos desta rota.
           </DialogDescription>
         </DialogHeader>
         {loading && !data ? (
@@ -1572,11 +1561,11 @@ function RotaDetalheDialog({
             </div>
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-wider font-semibold text-success mb-2">
-                Triados ({data.triados.length})
+                Recebidos ({data.triados.length})
               </div>
               <div className="border rounded-md max-h-[32vh] md:max-h-[50vh] overflow-auto divide-y">
                 {data.triados.length === 0 ? (
-                  <div className="p-3 text-xs text-muted-foreground">Nenhum triado ainda.</div>
+                  <div className="p-3 text-xs text-muted-foreground">Nenhum recebido ainda.</div>
                 ) : (
                   data.triados.map((p) => (
                     <div

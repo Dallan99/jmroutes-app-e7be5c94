@@ -14,6 +14,168 @@ export type Database = {
   }
   public: {
     Tables: {
+      expedicao_leituras: {
+        Row: {
+          created_at: string
+          escala_id: string
+          expedicao_id: string
+          id: string
+          localizado_posteriormente_na_expedicao: boolean
+          nao_localizado_no_recebimento: boolean
+          operador_id: string
+          resultado: string
+          shipment: string
+        }
+        Insert: {
+          created_at?: string
+          escala_id: string
+          expedicao_id: string
+          id?: string
+          localizado_posteriormente_na_expedicao?: boolean
+          nao_localizado_no_recebimento?: boolean
+          operador_id: string
+          resultado: string
+          shipment: string
+        }
+        Update: {
+          created_at?: string
+          escala_id?: string
+          expedicao_id?: string
+          id?: string
+          localizado_posteriormente_na_expedicao?: boolean
+          nao_localizado_no_recebimento?: boolean
+          operador_id?: string
+          resultado?: string
+          shipment?: string
+        }
+        Relationships: []
+      }
+      expedicoes: {
+        Row: {
+          base_id: string
+          concluida_em: string | null
+          concluida_por: string | null
+          created_at: string
+          data_operacional: string
+          id: string
+          importacao_id: string
+          iniciada_em: string
+          iniciada_por: string
+          motorista: string | null
+          observacao: string | null
+          outro_responsavel: string | null
+          quantidade_conferida: number
+          quantidade_prevista: number
+          responsavel_expedicao_id: string | null
+          responsavel_meli_svc: string | null
+          rota: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          data_operacional: string
+          id?: string
+          importacao_id: string
+          iniciada_em?: string
+          iniciada_por: string
+          motorista?: string | null
+          observacao?: string | null
+          outro_responsavel?: string | null
+          quantidade_conferida?: number
+          quantidade_prevista: number
+          responsavel_expedicao_id?: string | null
+          responsavel_meli_svc?: string | null
+          rota: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          data_operacional?: string
+          id?: string
+          importacao_id?: string
+          iniciada_em?: string
+          iniciada_por?: string
+          motorista?: string | null
+          observacao?: string | null
+          outro_responsavel?: string | null
+          quantidade_conferida?: number
+          quantidade_prevista?: number
+          responsavel_expedicao_id?: string | null
+          responsavel_meli_svc?: string | null
+          rota?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fechamentos_operacionais: {
+        Row: {
+          base_id: string
+          created_at: string
+          criado_por: string
+          data_operacional: string
+          email_destinatario: string | null
+          email_message_id: string | null
+          enviado_em: string | null
+          enviado_por: string | null
+          evidencia_envio: Json | null
+          faltantes_finais: number
+          faltantes_recebimento: number
+          id: string
+          pdf_path: string | null
+          recuperados_expedicao: number
+          shipment_ids_finais: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          created_at?: string
+          criado_por: string
+          data_operacional: string
+          email_destinatario?: string | null
+          email_message_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          evidencia_envio?: Json | null
+          faltantes_finais?: number
+          faltantes_recebimento?: number
+          id?: string
+          pdf_path?: string | null
+          recuperados_expedicao?: number
+          shipment_ids_finais?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          created_at?: string
+          criado_por?: string
+          data_operacional?: string
+          email_destinatario?: string | null
+          email_message_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          evidencia_envio?: Json | null
+          faltantes_finais?: number
+          faltantes_recebimento?: number
+          id?: string
+          pdf_path?: string | null
+          recuperados_expedicao?: number
+          shipment_ids_finais?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           acao: string

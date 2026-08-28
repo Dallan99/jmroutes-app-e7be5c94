@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
-  ScanBarcode,
   PackageSearch,
   ClipboardList,
   History,
@@ -30,6 +29,7 @@ import {
   RotateCcw,
   ShieldAlert,
   ChartNoAxesCombined,
+  Truck,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
 import { Button } from "@/components/ui/button";
@@ -83,19 +83,44 @@ type Role = "admin" | "supervisor" | "gerente" | "operador";
 
 const NAV_OPERACIONAL: NavItem[] = [
   { title: "Bases", to: "/bases", icon: Boxes },
-  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard, roles: ["admin", "supervisor", "gerente"] },
+  {
+    title: "Dashboard",
+    to: "/dashboard",
+    icon: LayoutDashboard,
+    roles: ["admin", "supervisor", "gerente"],
+  },
   { title: "Painel Operacional", to: "/painel-operacional", icon: TrendingUp },
-  { title: "Recebimento", to: "/recebimento", icon: ScanBarcode },
-  { title: "Triagem", to: "/triagem", icon: PackageSearch },
+  { title: "Recebimento", to: "/triagem", icon: PackageSearch },
+  { title: "Expedição", to: "/expedicao", icon: Truck },
   { title: "Contagem", to: "/contagem", icon: ClipboardList },
   { title: "Devoluções", to: "/meli-devolucoes", icon: RotateCcw },
   { title: "Inventário", to: "/inventario-central", icon: ClipboardList },
 ];
 const NAV_GESTAO: NavItem[] = [
-  { title: "Histórico", to: "/historico", icon: History, roles: ["admin", "supervisor", "gerente"] },
-  { title: "Gerencial", to: "/gerencial", icon: TrendingUp, roles: ["admin", "supervisor", "gerente"] },
-  { title: "BSC", to: "/bsc", icon: ChartNoAxesCombined, roles: ["admin", "supervisor", "gerente"] },
-  { title: "Área de Risco", to: "/meli-risco", icon: ShieldAlert, roles: ["admin", "supervisor", "gerente"] },
+  {
+    title: "Histórico",
+    to: "/historico",
+    icon: History,
+    roles: ["admin", "supervisor", "gerente"],
+  },
+  {
+    title: "Gerencial",
+    to: "/gerencial",
+    icon: TrendingUp,
+    roles: ["admin", "supervisor", "gerente"],
+  },
+  {
+    title: "BSC",
+    to: "/bsc",
+    icon: ChartNoAxesCombined,
+    roles: ["admin", "supervisor", "gerente"],
+  },
+  {
+    title: "Área de Risco",
+    to: "/meli-risco",
+    icon: ShieldAlert,
+    roles: ["admin", "supervisor", "gerente"],
+  },
 ];
 const NAV_ADMIN: NavItem[] = [
   { title: "Usuários", to: "/usuarios", icon: Users, roles: ["admin"] },
@@ -143,7 +168,11 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
     if (!visible.length) return null;
     return (
       <SidebarGroup>
-        {!collapsed && <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase tracking-[0.14em] text-[10px]">{label}</SidebarGroupLabel>}
+        {!collapsed && (
+          <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase tracking-[0.14em] text-[10px]">
+            {label}
+          </SidebarGroupLabel>
+        )}
         <SidebarGroupContent>
           <SidebarMenu>
             {visible.map((item) => {
@@ -163,7 +192,9 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
                         {!collapsed && (
                           <>
                             <span className="truncate">{item.title}</span>
-                            <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-sidebar-accent/60 text-sidebar-foreground/60 uppercase">em breve</span>
+                            <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-sidebar-accent/60 text-sidebar-foreground/60 uppercase">
+                              em breve
+                            </span>
                           </>
                         )}
                       </div>
@@ -186,7 +217,11 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border h-14 flex items-center justify-center px-3">
-        <Link to="/dashboard" title="Ir para o Dashboard" className="flex items-center justify-center w-full">
+        <Link
+          to="/dashboard"
+          title="Ir para o Dashboard"
+          className="flex items-center justify-center w-full"
+        >
           {collapsed ? <JmLogo size={28} /> : <JmWordmark />}
         </Link>
       </SidebarHeader>
@@ -200,14 +235,23 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
         )}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        {!collapsed && <div className="text-[10px] text-sidebar-foreground/50 px-2 py-1">v1.0 · Iteração 1</div>}
+        {!collapsed && (
+          <div className="text-[10px] text-sidebar-foreground/50 px-2 py-1">v1.0 · Iteração 1</div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
 }
 
-function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: string[]; rolesCarregadas: boolean }) {
-
+function TopBar({
+  nome,
+  roles,
+  rolesCarregadas,
+}: {
+  nome: string | null;
+  roles: string[];
+  rolesCarregadas: boolean;
+}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { base, diaOperacional, limpar } = useBaseOperacional();
@@ -215,10 +259,10 @@ function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: 
   const principal = roles.includes("admin")
     ? "Administrador"
     : roles.includes("gerente")
-    ? "Gerente"
-    : roles.includes("supervisor")
-    ? "Supervisor"
-    : "Operador";
+      ? "Gerente"
+      : roles.includes("supervisor")
+        ? "Supervisor"
+        : "Operador";
 
   async function logout() {
     try {
@@ -245,11 +289,13 @@ function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: 
             {base && diaOperacional && (
               <>
                 {" · "}
-                <span className="font-mono normal-case">{base.codigo} · {new Date(diaOperacional + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                <span className="font-mono normal-case">
+                  {base.codigo} ·{" "}
+                  {new Date(diaOperacional + "T00:00:00").toLocaleDateString("pt-BR")}
+                </span>
               </>
             )}
           </div>
-
         </div>
         <div className="w-8 h-8 rounded-full brand-gradient text-white flex items-center justify-center text-xs font-bold uppercase">{(nome ?? "?").slice(0, 2)}</div>
         <Button variant="ghost" size="icon" onClick={logout} title="Sair">
@@ -266,7 +312,14 @@ function TopBar({ nome, roles, rolesCarregadas }: { nome: string | null; roles: 
           />
           {base && (
             <div className="text-center pb-4">
-              <Button variant="ghost" size="sm" onClick={() => { limpar(); setTrocarOpen(false); }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  limpar();
+                  setTrocarOpen(false);
+                }}
+              >
                 Limpar seleção
               </Button>
             </div>
