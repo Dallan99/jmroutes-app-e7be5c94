@@ -55,9 +55,6 @@ export function DashboardGeral({
     queryKey: meliDashboardQueryKey(filtros),
     queryFn: () => fetchDados({ data: filtros }),
     refetchInterval: 30_000,
-    staleTime: 30_000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 
@@ -87,6 +84,8 @@ export function DashboardGeral({
     <section className="space-y-4">
       <Card className="p-4 md:p-5">
         <h2 className="font-display text-xl md:text-2xl font-bold tracking-tight">Painel Operacional</h2>
+
+
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {q.isLoading && (

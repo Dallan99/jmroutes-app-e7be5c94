@@ -28,7 +28,6 @@ import {
   Boxes,
   RotateCcw,
   ShieldAlert,
-  ChartNoAxesCombined,
   Smartphone,
   Truck,
 } from "lucide-react";
@@ -43,6 +42,9 @@ import { BaseOperacionalProvider, useBaseOperacional } from "@/lib/base-operacio
 import { SeletorBaseDia } from "@/components/base-operacional-selector";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CollectorModeProvider, useCollectorMode } from "@/lib/collector-mode";
+import { isPwaStandalone } from "@/lib/pwa-install";
+
+const ROTAS_APP_COLETOR = new Set(["/coletor", "/recebimento", "/triagem", "/expedicao", "/meli-devolucoes"]);
 
 const INACTIVITY_MS = 4 * 60 * 60 * 1000;
 
@@ -86,12 +88,7 @@ type Role = "admin" | "supervisor" | "gerente" | "operador";
 const NAV_OPERACIONAL: NavItem[] = [
   { title: "Modo coletor", to: "/coletor", icon: Smartphone },
   { title: "Bases", to: "/bases", icon: Boxes },
-  {
-    title: "Dashboard",
-    to: "/dashboard",
-    icon: LayoutDashboard,
-    roles: ["admin", "supervisor", "gerente"],
-  },
+  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard, roles: ["admin", "supervisor", "gerente"] },
   { title: "Painel Operacional", to: "/painel-operacional", icon: TrendingUp },
   { title: "Recebimento", to: "/triagem", icon: PackageSearch },
   { title: "Expedição", to: "/expedicao", icon: Truck },
@@ -100,30 +97,9 @@ const NAV_OPERACIONAL: NavItem[] = [
   { title: "Inventário", to: "/inventario-central", icon: ClipboardList },
 ];
 const NAV_GESTAO: NavItem[] = [
-  {
-    title: "Histórico",
-    to: "/historico",
-    icon: History,
-    roles: ["admin", "supervisor", "gerente"],
-  },
-  {
-    title: "Gerencial",
-    to: "/gerencial",
-    icon: TrendingUp,
-    roles: ["admin", "supervisor", "gerente"],
-  },
-  {
-    title: "BSC",
-    to: "/bsc",
-    icon: ChartNoAxesCombined,
-    roles: ["admin", "supervisor", "gerente"],
-  },
-  {
-    title: "Área de Risco",
-    to: "/meli-risco",
-    icon: ShieldAlert,
-    roles: ["admin", "supervisor", "gerente"],
-  },
+  { title: "Histórico", to: "/historico", icon: History, roles: ["admin", "supervisor", "gerente"] },
+  { title: "Gerencial", to: "/gerencial", icon: TrendingUp, roles: ["admin", "supervisor", "gerente"] },
+  { title: "Área de Risco", to: "/meli-risco", icon: ShieldAlert, roles: ["admin", "supervisor", "gerente"] },
 ];
 const NAV_ADMIN: NavItem[] = [
   { title: "Usuários", to: "/usuarios", icon: Users, roles: ["admin"] },
@@ -148,6 +124,7 @@ export function AppShell() {
 function AppShellContent() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [appColetorInstalado, setAppColetorInstalado] = useState(() => isPwaStandalone());
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
     queryKey: ["meu-perfil"],
@@ -156,30 +133,37 @@ function AppShellContent() {
   });
   const rolesCarregadas = perfilQuery.isSuccess;
   const roles = (perfilQuery.data?.roles ?? []) as Array<Role>;
-  const { modoColetor } = useCollectorMode();
+  const { modoColetor, sairModoColetor } = useCollectorMode();
+  const modoColetorAtivo = appColetorInstalado || (modoColetor && pathname !== "/dashboard");
   useInactivityLogout();
 
   useEffect(() => {
-    if (modoColetor && pathname === "/dashboard") {
+    const media = window.matchMedia("(display-mode: standalone)");
+    const atualizar = () => setAppColetorInstalado(isPwaStandalone());
+    atualizar();
+    media.addEventListener?.("change", atualizar);
+    return () => media.removeEventListener?.("change", atualizar);
+  }, []);
+
+  useEffect(() => {
+    if (appColetorInstalado && !ROTAS_APP_COLETOR.has(pathname)) {
       navigate({ to: "/coletor", replace: true });
+      return;
     }
-  }, [modoColetor, navigate, pathname]);
+    if (!appColetorInstalado && pathname === "/dashboard" && modoColetor) sairModoColetor();
+  }, [appColetorInstalado, modoColetor, navigate, pathname, sairModoColetor]);
 
   return (
     <BaseOperacionalProvider>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetor} />
+          <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} />
           <div className="flex-1 flex flex-col min-w-0">
-            <TopBar
-              nome={perfilQuery.data?.profile?.nome ?? null}
-              roles={roles}
-              rolesCarregadas={rolesCarregadas}
-            />
-            <main className={`flex-1 min-w-0 ${modoColetor ? "pb-20" : ""}`}>
+            <TopBar nome={perfilQuery.data?.profile?.nome ?? null} roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetorAtivo} appColetorInstalado={appColetorInstalado} />
+            <main className={`flex-1 min-w-0 ${modoColetorAtivo ? "pb-20" : ""}`}>
               <Outlet />
             </main>
-            {modoColetor && <CollectorBottomNav />}
+            {modoColetorAtivo && <CollectorBottomNav />}
           </div>
         </div>
       </SidebarProvider>
@@ -187,15 +171,8 @@ function AppShellContent() {
   );
 }
 
-function AppSidebar({
-  roles,
-  rolesCarregadas,
-  modoColetor,
-}: {
-  roles: Array<Role>;
-  rolesCarregadas: boolean;
-  modoColetor: boolean;
-}) {
+function AppSidebar({ roles, rolesCarregadas, modoColetor }: { roles: Array<Role>; rolesCarregadas: boolean; modoColetor: boolean }) {
+
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -206,11 +183,7 @@ function AppSidebar({
     if (!visible.length) return null;
     return (
       <SidebarGroup>
-        {!collapsed && (
-          <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase tracking-[0.14em] text-[10px]">
-            {label}
-          </SidebarGroupLabel>
-        )}
+        {!collapsed && <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase tracking-[0.14em] text-[10px]">{label}</SidebarGroupLabel>}
         <SidebarGroupContent>
           <SidebarMenu>
             {visible.map((item) => {
@@ -230,9 +203,7 @@ function AppSidebar({
                         {!collapsed && (
                           <>
                             <span className="truncate">{item.title}</span>
-                            <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-sidebar-accent/60 text-sidebar-foreground/60 uppercase">
-                              em breve
-                            </span>
+                            <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-sidebar-accent/60 text-sidebar-foreground/60 uppercase">em breve</span>
                           </>
                         )}
                       </div>
@@ -259,56 +230,42 @@ function AppSidebar({
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border h-14 flex items-center justify-center px-3">
-        <Link
-          to="/dashboard"
-          title="Ir para o Dashboard"
-          className="flex items-center justify-center w-full"
-        >
+        <Link to={modoColetor ? "/coletor" : "/dashboard"} title={modoColetor ? "Ir para o início do Coletor" : "Ir para o Dashboard"} className="flex items-center justify-center w-full">
           {collapsed ? <JmLogo size={28} /> : <JmWordmark />}
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        {rolesCarregadas &&
-          (modoColetor ? (
-            renderGroup("Coletor", NAV_COLETOR)
-          ) : (
+        {rolesCarregadas && (
+          modoColetor ? renderGroup("Coletor", NAV_COLETOR) : (
             <>
               {renderGroup("Operação", NAV_OPERACIONAL)}
               {renderGroup("Gestão", NAV_GESTAO)}
               {renderGroup("Administração", NAV_ADMIN)}
             </>
-          ))}
+          )
+        )}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        {!collapsed && (
-          <div className="text-[10px] text-sidebar-foreground/50 px-2 py-1">v1.0 · Iteração 1</div>
-        )}
+        {!collapsed && <div className="text-[10px] text-sidebar-foreground/50 px-2 py-1">v1.0 · Iteração 1</div>}
       </SidebarFooter>
     </Sidebar>
   );
 }
 
-function TopBar({
-  nome,
-  roles,
-  rolesCarregadas,
-}: {
-  nome: string | null;
-  roles: string[];
-  rolesCarregadas: boolean;
-}) {
+function TopBar({ nome, roles, rolesCarregadas, modoColetor, appColetorInstalado }: { nome: string | null; roles: string[]; rolesCarregadas: boolean; modoColetor: boolean; appColetorInstalado: boolean }) {
+
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { base, diaOperacional, limpar } = useBaseOperacional();
-  const { modoColetor, sairModoColetor } = useCollectorMode();
+  const { sairModoColetor } = useCollectorMode();
   const [trocarOpen, setTrocarOpen] = useState(false);
   const principal = roles.includes("admin")
     ? "Administrador"
     : roles.includes("gerente")
-      ? "Gerente"
-      : roles.includes("supervisor")
-        ? "Supervisor"
-        : "Operador";
+    ? "Gerente"
+    : roles.includes("supervisor")
+    ? "Supervisor"
+    : "Operador";
 
   async function logout() {
     try {
@@ -326,16 +283,14 @@ function TopBar({
 
   function sairDoColetor() {
     sairModoColetor();
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/dashboard", replace: true });
   }
 
   return (
     <header className="h-12 md:h-14 border-b bg-card flex items-center px-2 md:px-3 gap-2 md:gap-3 sticky top-0 z-30">
       <SidebarTrigger className="h-10 w-10 md:h-7 md:w-7" />
       <div className={`min-w-0 ${modoColetor ? "" : "md:hidden"}`}>
-        <p className="truncate text-sm font-semibold">
-          {modoColetor ? "JMRoutes Coletor" : "JMRoutes"}
-        </p>
+        <p className="truncate text-sm font-semibold">{modoColetor ? "JMRoutes Coletor" : "JMRoutes"}</p>
         {base && diaOperacional && (
           <p className="truncate text-[10px] text-muted-foreground">
             {base.codigo} · {new Date(diaOperacional + "T00:00:00").toLocaleDateString("pt-BR")}
@@ -350,29 +305,19 @@ function TopBar({
             {base && diaOperacional && (
               <>
                 {" · "}
-                <span className="font-mono normal-case">
-                  {base.codigo} ·{" "}
-                  {new Date(diaOperacional + "T00:00:00").toLocaleDateString("pt-BR")}
-                </span>
+                <span className="font-mono normal-case">{base.codigo} · {new Date(diaOperacional + "T00:00:00").toLocaleDateString("pt-BR")}</span>
               </>
             )}
           </div>
+
         </div>
-        <div className="hidden w-8 h-8 rounded-full brand-gradient text-white md:flex items-center justify-center text-xs font-bold uppercase">
-          {(nome ?? "?").slice(0, 2)}
-        </div>
-        {modoColetor && (
+        <div className="hidden w-8 h-8 rounded-full brand-gradient text-white md:flex items-center justify-center text-xs font-bold uppercase">{(nome ?? "?").slice(0, 2)}</div>
+        {modoColetor && !appColetorInstalado && (
           <Button variant="outline" className="h-10 px-3 text-xs" onClick={sairDoColetor}>
-            Sair do modo coletor
+            Sair do modo leitor
           </Button>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 md:h-9 md:w-9"
-          onClick={logout}
-          title="Sair"
-        >
+        <Button variant="ghost" size="icon" className="h-10 w-10 md:h-9 md:w-9" onClick={logout} title="Sair">
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
@@ -386,14 +331,7 @@ function TopBar({
           />
           {base && (
             <div className="text-center pb-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  limpar();
-                  setTrocarOpen(false);
-                }}
-              >
+              <Button variant="ghost" size="sm" onClick={() => { limpar(); setTrocarOpen(false); }}>
                 Limpar seleção
               </Button>
             </div>
@@ -420,7 +358,9 @@ function CollectorBottomNav() {
             to={item.to}
             aria-current={active ? "page" : undefined}
             className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium transition-colors ${
-              active ? "bg-primary/10 text-primary" : "text-muted-foreground active:bg-muted"
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground active:bg-muted"
             }`}
           >
             <item.icon className="h-5 w-5" />

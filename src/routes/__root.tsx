@@ -20,6 +20,9 @@ import "@fontsource/space-grotesk/700.css";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "sonner";
 import { JM_LOGO_URL } from "@/components/jm-logo";
+import { initializePwaInstallCapture } from "@/lib/pwa-install";
+
+initializePwaInstallCapture();
 
 function NotFoundComponent() {
   return (

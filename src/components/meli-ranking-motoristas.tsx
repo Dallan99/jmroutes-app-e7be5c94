@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 import { meliRankingMotoristas, type MeliRankingMotorista } from "@/lib/meli-ranking.functions";
 import { descreverMotivo } from "@/lib/meli-status";
 import { Card } from "@/components/ui/card";
@@ -32,10 +33,28 @@ export function RankingMotoristasSection({
     [data, baseId],
   );
 
+  // Só consulta com sessão ativa: sem token o serverFn responde 401.
+  const [autenticado, setAutenticado] = useState(false);
+  useEffect(() => {
+    let ativo = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (ativo) setAutenticado(Boolean(data.session?.access_token));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAutenticado(Boolean(session?.access_token));
+    });
+    return () => {
+      ativo = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   const q = useQuery({
     queryKey: ["meli-ranking-motoristas", filtros],
     queryFn: () => fetchRanking({ data: filtros }),
-    refetchInterval: REFETCH_MS,
+    enabled: autenticado,
+    refetchInterval: autenticado ? REFETCH_MS : false,
+    retry: false,
     placeholderData: (prev) => prev,
   });
 

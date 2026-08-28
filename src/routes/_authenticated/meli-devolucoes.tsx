@@ -13,7 +13,6 @@ import {
   meliDevolucoesSincronizar,
   meliDevolucoesPainel,
   meliDevolucoesHistorico,
-  meliDevolucoesRelatorioDia,
 } from "@/lib/meli-devolucoes.functions";
 import { meuPerfil } from "@/lib/recebimento.functions";
 
@@ -52,6 +51,7 @@ import {
 } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
 import { beepOk, beepError, startAlarm, stopAlarm } from "@/lib/scanner-sound";
+import { abrirRelatorio } from "@/lib/relatorio";
 
 export const Route = createFileRoute("/_authenticated/meli-devolucoes")({
   head: () => ({
@@ -95,15 +95,6 @@ function fmt(dt: string | null | undefined) {
     minute: "2-digit",
   });
 }
-
-function escaparHtml(valor: unknown) {
-  return String(valor ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
 function MeliDevolucoesPage() {
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
@@ -122,7 +113,6 @@ function MeliDevolucoesPage() {
   const sincronizarDevolucoes = useServerFn(meliDevolucoesSincronizar);
   const buscarPainel = useServerFn(meliDevolucoesPainel);
   const buscarHistorico = useServerFn(meliDevolucoesHistorico);
-  const buscarRelatorioDia = useServerFn(meliDevolucoesRelatorioDia);
 
 
   const buscarBases = useServerFn(listarBasesSimples);
@@ -146,6 +136,8 @@ function MeliDevolucoesPage() {
   const [buscarRecId, setBuscarRecId] = useState("");
   const [gerandoRec, setGerandoRec] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
+  const [imprimindoRomaneio, setImprimindoRomaneio] = useState(false);
   const [alertaCritico, setAlertaCritico] = useState<string | null>(null);
 
   // v3: Identificadores de estado ativo
@@ -180,12 +172,13 @@ function MeliDevolucoesPage() {
       setRomaneioUuid("");
       setIniciandoRecebimento(true);
     } else {
-      // A devolução nasce somente na primeira bipagem, mas a tela já fica
-      // pronta para leitura assim que uma base é selecionada.
+      // Base selecionada sem devolução ativa: já deixa a bipagem pronta
       setRomaneioUuid("");
       setRecebimentoId("NOVO");
       localStorage.setItem(storageKeyRec, "NOVO");
+      localStorage.removeItem(storageKeyUuid);
       setIniciandoRecebimento(true);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [userId, baseId, storageKeyUuid, storageKeyRec]);
 
@@ -231,8 +224,6 @@ function MeliDevolucoesPage() {
 
 
   const [detalhe, setDetalhe] = useState<any | null>(null);
-  const [romaneioDetalhe, setRomaneioDetalhe] = useState<any | null>(null);
-  const [carregandoRomaneio, setCarregandoRomaneio] = useState(false);
   const [cardDetalhe, setCardDetalhe] = useState<{ id: string; label: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -288,9 +279,8 @@ function MeliDevolucoesPage() {
         // Atualiza o ID visual caso tenha mudado ou não estivesse sincronizado
         if (res.codigo && res.codigo !== recebimentoId) {
           setRecebimentoId(res.codigo);
-          localStorage.setItem(storageKeyRec, res.codigo);
+          localStorage.setItem("active_rec_id", res.codigo);
         }
-        setPacotesDesteLote(Array.isArray(res.pacotes) ? res.pacotes : []);
         return res;
       } catch (err) {
         console.warn("UUID ativo inválido ou erro na consulta:", err);
@@ -406,6 +396,85 @@ function MeliDevolucoesPage() {
     }
   };
 
+  const onFinalizarAtiva = async () => {
+    if (!romaneioUuid) {
+      toast.error("Nenhuma devolução ativa para finalizar. Bipe o primeiro pacote.");
+      return;
+    }
+    setFinalizando(true);
+    try {
+      await finalizar({ data: { romaneio_id: romaneioUuid } });
+      toast.success("Devolução finalizada com sucesso.");
+      updateActiveRec("");
+      setPacotesDesteLote([]);
+      painelQuery.refetch();
+      romaneiosQuery.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao finalizar devolução.");
+    } finally {
+      setFinalizando(false);
+    }
+  };
+
+  const onImprimirRomaneioDoDia = async () => {
+    if (!baseId) {
+      toast.error("Selecione a base para imprimir o romaneio do dia.");
+      return;
+    }
+    setImprimindoRomaneio(true);
+    try {
+      const romaneios = (await listarDevolucoes({
+        data: { base_id: baseId, data_de: hoje, data_ate: hoje, status: "concluido" },
+      })) as any[];
+      const concluidos = (romaneios ?? []).filter((r: any) => r.status === "concluido");
+      if (concluidos.length === 0) {
+        toast.error("Nenhuma devolução finalizada hoje para esta base.");
+        return;
+      }
+      const detalhes = await Promise.all(
+        concluidos.map((r: any) => detalharDevolucao({ data: { romaneio_id: r.id } }) as Promise<any>),
+      );
+      type LinhaRomaneio = { romaneio: string; tracking_id: string; occurrence_code: string; recebido_em: string };
+      const linhasImpressao: LinhaRomaneio[] = detalhes.flatMap((d: any) =>
+        (d?.pacotes ?? []).map((p: any) => ({
+          romaneio: d?.codigo ?? "—",
+          tracking_id: p.tracking_id,
+          occurrence_code: p.occurrence_code ?? "",
+          recebido_em: p.recebido_em ? fmt(p.recebido_em) : "—",
+        })),
+      );
+      const baseCodigo =
+        (basesQuery.data ?? []).find((b) => b.id === baseId)?.codigo ?? "";
+      abrirRelatorio<LinhaRomaneio>({
+        titulo: "Romaneio de Devoluções",
+        subtitulo: `Base ${baseCodigo} — devoluções finalizadas em ${new Date(`${hoje}T12:00:00`).toLocaleDateString("pt-BR")}`,
+        kpis: [
+          { label: "Devoluções", value: concluidos.length },
+          { label: "Pacotes", value: linhasImpressao.length },
+        ],
+        colunas: [
+          { header: "Devolução", value: (r) => r.romaneio },
+          { header: "ID do pacote", value: (r) => r.tracking_id },
+          { header: "Ocorrência", value: (r) => r.occurrence_code },
+          { header: "Recebido em", value: (r) => r.recebido_em },
+        ],
+        linhas: linhasImpressao,
+        agruparPor: (r) => r.romaneio,
+        nomeArquivo: `romaneio-devolucoes-${baseCodigo}-${hoje}`,
+        assinaturas: [
+          { label: "Motorista" },
+          { label: "Responsável Meli" },
+          { label: "Responsável da Base" },
+        ],
+        autoPrint: true,
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar o romaneio do dia.");
+    } finally {
+      setImprimindoRomaneio(false);
+    }
+  };
+
 
 
 
@@ -474,127 +543,22 @@ function MeliDevolucoesPage() {
         beepOk();
         const tid = res && typeof res === 'object' && 'tracking_id' in res ? res.tracking_id : '';
         toast.success((res as any).mensagem ?? `Retorno de ${tid} registrado.`);
-        const uuidAtual = (res as any)?.romaneio_id ?? romaneioUuid;
-        if (uuidAtual) {
-          const loteAtualizado = await detalharDevolucao({ data: { romaneio_id: uuidAtual } }) as any;
-          setPacotesDesteLote(Array.isArray(loteAtualizado?.pacotes) ? loteAtualizado.pacotes : []);
+        // Tenta encontrar o pacote nas linhas atuais para exibir na lista do lote
+        const p = linhas.find((l: any) => l.tracking_id === tid);
+        if (p) {
+          setPacotesDesteLote(prev => [p, ...prev]);
         }
       }
       setCodigo("");
       setObservacao("");
       inputRef.current?.focus();
       painelQuery.refetch();
-      romaneiosQuery.refetch();
     } catch (err: any) {
       beepError();
       toast.error(err.message || "Erro ao processar bipagem.");
     } finally {
       setEnviando(false);
     }
-  }
-
-  async function imprimirRomaneioDoDia() {
-    if (!baseId) {
-      toast.error("Selecione a base para imprimir o romaneio do dia.");
-      return;
-    }
-
-    const janela = window.open("", "_blank", "width=1000,height=800");
-    if (!janela) {
-      toast.error("O navegador bloqueou a janela de impressão.");
-      return;
-    }
-
-    try {
-      const relatorio = await buscarRelatorioDia({ data: { base_id: baseId, data: hoje } });
-      const pacotes = Array.isArray(relatorio.pacotes) ? relatorio.pacotes : [];
-      const romaneios = Array.isArray(relatorio.romaneios) ? relatorio.romaneios : [];
-      const dataFormatada = new Date(`${hoje}T12:00:00`).toLocaleDateString("pt-BR");
-      const linhasHtml = pacotes.map((p: any, indice: number) => `
-        <tr>
-          <td>${indice + 1}</td>
-          <td class="mono">${escaparHtml(p.tracking_id)}</td>
-          <td>${escaparHtml(p.romaneio_codigo)}</td>
-          <td>${escaparHtml(p.occurrence_code ?? p.estado ?? "-")}</td>
-          <td>${p.divergencia_delivered ? "Sim" : "Não"}</td>
-        </tr>`).join("");
-
-      janela.document.write(`<!doctype html>
-        <html lang="pt-BR"><head><meta charset="utf-8"><title>Romaneio de devoluções - ${escaparHtml(dataFormatada)}</title>
-        <style>
-          @page { size: A4; margin: 14mm; }
-          * { box-sizing: border-box; }
-          body { color: #0b1938; font: 12px Arial, sans-serif; margin: 0; }
-          header { border-bottom: 3px solid #f4bd00; display: flex; justify-content: space-between; padding-bottom: 10px; }
-          h1 { font-size: 20px; margin: 0 0 5px; }
-          .meta { line-height: 1.6; text-align: right; }
-          .resumo { display: flex; gap: 12px; margin: 14px 0; }
-          .resumo div { border: 1px solid #cbd3e1; border-radius: 6px; flex: 1; padding: 9px; }
-          .resumo strong { display: block; font-size: 18px; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #cbd3e1; padding: 6px; text-align: left; }
-          th { background: #eef1f6; font-size: 10px; text-transform: uppercase; }
-          .mono { font-family: Consolas, monospace; }
-          .assinaturas { display: grid; gap: 18px; grid-template-columns: repeat(3, 1fr); margin-top: 52px; page-break-inside: avoid; }
-          .assinatura { border-top: 1px solid #0b1938; padding-top: 7px; text-align: center; }
-          footer { color: #647085; font-size: 9px; margin-top: 20px; text-align: center; }
-          .vazio { border: 1px solid #cbd3e1; padding: 24px; text-align: center; }
-        </style></head><body>
-          <header><div><h1>Romaneio diário de devoluções Meli</h1><div>JM Transportes - Last Mile</div></div>
-          <div class="meta"><strong>Base:</strong> ${escaparHtml(relatorio.base_codigo ?? "-")}<br><strong>Data:</strong> ${escaparHtml(dataFormatada)}</div></header>
-          <section class="resumo"><div>Total de IDs<strong>${pacotes.length}</strong></div><div>Devoluções geradas<strong>${romaneios.length}</strong></div><div>Finalizadas<strong>${romaneios.filter((r: any) => r.status === "concluido").length}</strong></div></section>
-          ${pacotes.length ? `<table><thead><tr><th>#</th><th>ID / Tracking</th><th>Devolução</th><th>Ocorrência</th><th>Divergência</th></tr></thead><tbody>${linhasHtml}</tbody></table>` : '<div class="vazio">Nenhuma devolução registrada nesta base na data selecionada.</div>'}
-          <section class="assinaturas"><div class="assinatura">Motorista</div><div class="assinatura">Responsável Meli</div><div class="assinatura">Responsável da base</div></section>
-          <footer>Documento gerado pelo JMRoutes em ${escaparHtml(new Date().toLocaleString("pt-BR"))}</footer>
-          <script>window.addEventListener('load', () => { window.print(); });<\/script>
-        </body></html>`);
-      janela.document.close();
-    } catch (err: any) {
-      janela.close();
-      toast.error(err.message || "Erro ao gerar o romaneio do dia.");
-    }
-  }
-
-  async function abrirRomaneioConcluido(romaneio: any) {
-    setCarregandoRomaneio(true);
-    try {
-      const dados = await detalharDevolucao({ data: { romaneio_id: romaneio.id } }) as any;
-      setRomaneioDetalhe({ ...romaneio, ...dados, pacotes: dados?.pacotes ?? [] });
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao abrir o romaneio.");
-    } finally {
-      setCarregandoRomaneio(false);
-    }
-  }
-
-  function imprimirRomaneioSelecionado() {
-    if (!romaneioDetalhe) return;
-    const janela = window.open("", "_blank", "width=1000,height=800");
-    if (!janela) {
-      toast.error("O navegador bloqueou a janela de impressão.");
-      return;
-    }
-    const pacotes = Array.isArray(romaneioDetalhe.pacotes) ? romaneioDetalhe.pacotes : [];
-    const base = romaneioDetalhe.base_codigo ??
-      (basesQuery.data ?? []).find((b) => b.id === romaneioDetalhe.base_id)?.codigo ?? "-";
-    const linhasHtml = pacotes.map((p: any, indice: number) => `<tr>
-      <td>${indice + 1}</td><td class="mono">${escaparHtml(p.tracking_id)}</td>
-      <td>${escaparHtml(p.occurrence_code ?? "-")}</td><td>${escaparHtml(fmt(p.recebido_em))}</td>
-    </tr>`).join("");
-    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-      <title>${escaparHtml(romaneioDetalhe.codigo)}</title><style>
-      @page{size:A4;margin:14mm}*{box-sizing:border-box}body{color:#0b1938;font:12px Arial,sans-serif;margin:0}
-      header{border-bottom:3px solid #f4bd00;display:flex;justify-content:space-between;padding-bottom:10px}h1{font-size:20px;margin:0 0 5px}.meta{text-align:right;line-height:1.6}
-      .resumo{display:flex;gap:12px;margin:14px 0}.resumo div{border:1px solid #cbd3e1;border-radius:6px;flex:1;padding:9px}.resumo strong{display:block;font-size:18px}
-      table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd3e1;padding:6px;text-align:left}th{background:#eef1f6;font-size:10px;text-transform:uppercase}.mono{font-family:Consolas,monospace}
-      .assinaturas{display:grid;gap:18px;grid-template-columns:repeat(3,1fr);margin-top:52px;page-break-inside:avoid}.assinatura{border-top:1px solid #0b1938;padding-top:7px;text-align:center}footer{color:#647085;font-size:9px;margin-top:20px;text-align:center}
-      </style></head><body><header><div><h1>Romaneio de devolução Meli</h1><div>JM Transportes - Last Mile</div></div>
-      <div class="meta"><strong>${escaparHtml(romaneioDetalhe.codigo)}</strong><br>Base: ${escaparHtml(base)}<br>Concluído: ${escaparHtml(fmt(romaneioDetalhe.concluido_em ?? romaneioDetalhe.finalizado_em))}</div></header>
-      <section class="resumo"><div>Status<strong>Concluído</strong></div><div>Total de IDs<strong>${pacotes.length}</strong></div></section>
-      <table><thead><tr><th>#</th><th>ID / Tracking</th><th>Ocorrência</th><th>Recebido em</th></tr></thead><tbody>${linhasHtml}</tbody></table>
-      <section class="assinaturas"><div class="assinatura">Motorista</div><div class="assinatura">Responsável Meli</div><div class="assinatura">Responsável da base</div></section>
-      <footer>Documento gerado pelo JMRoutes em ${escaparHtml(new Date().toLocaleString("pt-BR"))}</footer><script>window.addEventListener('load',()=>window.print());<\/script></body></html>`);
-    janela.document.close();
   }
 
 
@@ -848,22 +812,113 @@ function MeliDevolucoesPage() {
                   Iniciando...
                 </>
               ) : (
-                "Selecionar base e iniciar devolução"
+                "Gerar ou Iniciar Recebimento"
               )}
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col">
-          <Card className="order-2 bg-primary/5 border-primary/20 rounded-t-none border-t-0 shadow-none">
+        <div className="space-y-4">
+          <Card className="border-primary/20 shadow-sm">
+            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
+              <CardTitle className="text-base flex items-center gap-2">
+                Bipagem de Pacotes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <form
+                className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  onReceber(e);
+                }}
+              >
+                <div className="space-y-1">
+                  <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
+                  <Input
+                    id="dev-codigo"
+                    ref={inputRef}
+                    autoFocus
+                    autoComplete="off"
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value)}
+                    disabled={!recebimentoId}
+                    placeholder="Tracking / shipment"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="dev-obs">Observação (opcional)</Label>
+                  <Input
+                    id="dev-obs"
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    disabled={!recebimentoId}
+                    placeholder="Avaria, embalagem aberta..."
+                  />
+                </div>
+                <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
+                  {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
+                </Button>
+              </form>
+
+              <p className="text-xs text-muted-foreground mt-2">
+                O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
+                um pacote como recebido.
+              </p>
+
+              {pacotesDesteLote.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] uppercase tracking-wider"
+                      onClick={() => window.print()}
+                    >
+                      <Printer className="h-3 w-3 mr-1.5" /> Imprimir devolução
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-48 border rounded-md">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 text-muted-foreground sticky top-0">
+                        <tr className="text-left border-b">
+                          <th className="py-2 px-3">Tracking</th>
+                          <th className="py-2 px-3">Rota</th>
+                          <th className="py-2 px-3">Ocorrência</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pacotesDesteLote.map((p) => (
+                          <tr key={p.id} className="border-b last:border-0">
+                            <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
+                            <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
+                            <td className="py-2 px-3">{p.occurrence_code}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </ScrollArea>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-primary/5 border-primary/20">
             <CardContent className="py-4 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="bg-primary text-primary-foreground p-3 rounded-full">
                   <PackageCheck className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold font-mono">{recebimentoId}</h2>
-                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Recebimento em andamento</p>
+                  <h2 className="text-xl font-bold font-mono">
+                    {recebimentoId === "NOVO" ? "Nova devolução" : recebimentoId}
+                  </h2>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">
+                    {recebimentoId === "NOVO"
+                      ? "Bipe o primeiro pacote para abrir"
+                      : "Recebimento em andamento"}
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
@@ -881,7 +936,6 @@ function MeliDevolucoesPage() {
                     onClick={async () => {
                       if (!buscarRecId.trim()) return;
                       const q = buscarRecId.trim().toUpperCase();
-                      // Tenta localizar o UUID do romaneio pelo código
                       try {
                         const romaneios = (await listarDevolucoes({ data: { base_id: baseId || null } })) as any[];
                         const encontrado = romaneios?.find((r: any) => r.codigo === q);
@@ -905,26 +959,10 @@ function MeliDevolucoesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={async () => {
-                      const activeUuid = romaneioUuid;
-                      if (!activeUuid || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeUuid)) {
-                        toast.error("Bipe ao menos um ID antes de finalizar a devolução.");
-                        return;
-                      }
-                      try {
-                        const resultado = await finalizar({ data: { romaneio_id: activeUuid } }) as any;
-                        if (resultado?.status === "erro") throw new Error(resultado.mensagem ?? "Não foi possível finalizar.");
-                        toast.success("Devolução finalizada com sucesso.");
-                        updateActiveRec("NOVO");
-                        setPacotesDesteLote([]);
-                        await Promise.all([painelQuery.refetch(), romaneiosQuery.refetch()]);
-                        setTimeout(() => inputRef.current?.focus(), 100);
-                      } catch (err: any) {
-                        toast.error(err.message || "Erro ao finalizar devolução.");
-                      }
-                    }}
+                    disabled={finalizando || !romaneioUuid}
+                    onClick={onFinalizarAtiva}
                   >
-                    Finalizar
+                    {finalizando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar"}
                   </Button>
                   <Button
                     variant="outline"
@@ -940,6 +978,20 @@ function MeliDevolucoesPage() {
                     Novo
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={onImprimirRomaneioDoDia}
+                    disabled={imprimindoRomaneio || !baseId}
+                  >
+                    {imprimindoRomaneio ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="h-4 w-4 mr-2" />
+                    )}
+                    Imprimir romaneio do dia
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="h-8"
@@ -952,98 +1004,6 @@ function MeliDevolucoesPage() {
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-
-
-          <Card className="order-1 border-primary/20 shadow-sm rounded-b-none">
-            <CardHeader className="pb-2 border-b border-border/50 bg-muted/5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  Bipagem de Pacotes
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-[10px] uppercase tracking-wider"
-                  onClick={imprimirRomaneioDoDia}
-                >
-                  <Printer className="h-3.5 w-3.5 mr-1.5" /> Imprimir romaneio do dia
-                </Button>
-              </div>
-            </CardHeader>
-          <CardContent className="pt-6">
-            <form
-              className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
-              onSubmit={(e) => {
-                e.preventDefault();
-                onReceber(e);
-              }}
-            >
-
-              <div className="space-y-1">
-                <Label htmlFor="dev-codigo">Bipe o ID do pacote devolvido</Label>
-                <Input
-                  id="dev-codigo"
-                  ref={inputRef}
-                  autoFocus
-                  autoComplete="off"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  disabled={!recebimentoId}
-                  placeholder="Tracking / shipment"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="dev-obs">Observação (opcional)</Label>
-                <Input
-                  id="dev-obs"
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  disabled={!recebimentoId}
-                  placeholder="Avaria, embalagem aberta..."
-                />
-              </div>
-              <Button type="submit" disabled={enviando || !codigo.trim() || !recebimentoId}>
-                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar retorno"}
-              </Button>
-            </form>
-
-            <p className="text-xs text-muted-foreground mt-2">
-              O recebimento só é registrado por leitura física. Mudança de status externa nunca marca
-              um pacote como recebido.
-            </p>
-
-            {pacotesDesteLote.length > 0 && (
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">Bipados neste lote ({pacotesDesteLote.length})</h3>
-                </div>
-                <ScrollArea className="h-48 border rounded-md">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/50 text-muted-foreground sticky top-0">
-                      <tr className="text-left border-b">
-                        <th className="py-2 px-3">Tracking</th>
-                        <th className="py-2 px-3">Rota</th>
-                        <th className="py-2 px-3">Ocorrência</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pacotesDesteLote.map((p) => (
-                        <tr key={p.id} className="border-b last:border-0">
-                          <td className="py-2 px-3 font-mono">{p.tracking_id}</td>
-                          <td className="py-2 px-3">{p.cluster ?? p.route_id ?? "—"}</td>
-                          <td className="py-2 px-3">{p.occurrence_code}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ScrollArea>
-              </div>
-
-              )}
             </CardContent>
           </Card>
         </div>
@@ -1088,12 +1048,8 @@ function MeliDevolucoesPage() {
                       key={r.id}
                       className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
                       onClick={() => {
-                        if (r.status === "concluido") {
-                          abrirRomaneioConcluido(r);
-                        } else {
-                          updateActiveRec(r.codigo, r.id);
-                          setPacotesDesteLote([]);
-                        }
+                        updateActiveRec(r.codigo, r.id);
+                        setPacotesDesteLote([]);
                       }}
                     >
                       <td className="py-2 pr-3 font-mono text-xs">{r.codigo}</td>
@@ -1114,49 +1070,6 @@ function MeliDevolucoesPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={!!romaneioDetalhe || carregandoRomaneio} onOpenChange={(o) => !o && setRomaneioDetalhe(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between gap-3 pr-8">
-              <span className="font-mono">{romaneioDetalhe?.codigo ?? "Carregando romaneio..."}</span>
-              {romaneioDetalhe && (
-                <Button size="sm" onClick={imprimirRomaneioSelecionado}>
-                  <Printer className="h-4 w-4 mr-2" /> Imprimir romaneio
-                </Button>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          {carregandoRomaneio ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" /> Carregando detalhes...
-            </div>
-          ) : romaneioDetalhe && (
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-4 text-sm">
-                <div><span className="block text-xs text-muted-foreground">Base</span>{romaneioDetalhe.base_codigo ?? (basesQuery.data ?? []).find((b) => b.id === romaneioDetalhe.base_id)?.codigo ?? "—"}</div>
-                <div><span className="block text-xs text-muted-foreground">Status</span><Badge variant="outline">Concluído</Badge></div>
-                <div><span className="block text-xs text-muted-foreground">Concluído em</span>{fmt(romaneioDetalhe.concluido_em ?? romaneioDetalhe.finalizado_em)}</div>
-                <div><span className="block text-xs text-muted-foreground">Pacotes</span>{romaneioDetalhe.pacotes?.length ?? 0}</div>
-              </div>
-              <ScrollArea className="max-h-[55vh] rounded-md border">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-background text-xs uppercase text-muted-foreground">
-                    <tr className="border-b"><th className="p-3 text-left">ID / Tracking</th><th className="p-3 text-left">Ocorrência</th><th className="p-3 text-left">Recebido em</th></tr>
-                  </thead>
-                  <tbody>
-                    {(romaneioDetalhe.pacotes ?? []).map((p: any, indice: number) => (
-                      <tr key={p.id ?? `${p.tracking_id}-${indice}`} className="border-b last:border-0">
-                        <td className="p-3 font-mono text-xs">{p.tracking_id}</td><td className="p-3">{p.occurrence_code ?? "—"}</td><td className="p-3">{fmt(p.recebido_em)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
 
 
