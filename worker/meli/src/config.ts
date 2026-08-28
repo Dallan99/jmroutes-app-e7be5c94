@@ -1,13 +1,17 @@
-// Configuração do worker. Fase B1: aceita SOMENTE a base piloto ESP16/SSP15/MLB.
-export const WORKER_VERSAO = "0.1.0-b1";
+// Configuração fechada das bases JM. Mantida em um único ponto para evitar
+// divergência entre a extensão, o worker local e futuros deploys.
+export const WORKER_VERSAO = "0.2.0-local";
 export const STORAGE_STATE_AAD = "meli-storage-state:v1";
 
-export const PILOTO = {
-  BASE_CODE: "ESP16",
-  SERVICE_CENTER_ID: "SSP15",
-  SITE_ID: "MLB",
-  NOME: "Guarujá",
-} as const;
+export const BASES_JM = [
+  { baseCode: "ESP15", serviceCenterId: "SSP20", siteId: "MLB", nome: "Ibiúna" },
+  { baseCode: "ESP16", serviceCenterId: "SSP15", siteId: "MLB", nome: "Guarujá" },
+  { baseCode: "ESP17", serviceCenterId: "SSP56", siteId: "MLB", nome: "Embu-Guaçu" },
+  { baseCode: "ESP18", serviceCenterId: "SSP25", siteId: "MLB", nome: "Franco da Rocha" },
+] as const;
+
+export const PILOTO = { BASE_CODE: "ESP16", SERVICE_CENTER_ID: "SSP15", SITE_ID: "MLB", NOME: "Guarujá" } as const;
+export type BaseJm = (typeof BASES_JM)[number];
 
 export const ADMINML = {
   HOST: "envios.adminml.com",
@@ -21,6 +25,8 @@ export const ADMINML = {
 } as const;
 
 export type WorkerConfig = {
+  bases: readonly BaseJm[];
+  writeBaseCodes: string[];
   baseCode: string;
   serviceCenterId: string;
   siteId: string;
@@ -31,6 +37,7 @@ export type WorkerConfig = {
   workerPassword: string;
   sessionKeyBase64: string;
   sessionFilePath: string;
+  jmrSessionFilePath: string;
   syncIntervalSeconds: number;
   /** DRY_RUN=true: consulta o AdminML, mas NÃO envia ao JMRoutes e NÃO grava telemetria. */
   dryRun: boolean;
@@ -51,27 +58,18 @@ function req(env: Record<string, string | undefined>, name: string): string {
 }
 
 /**
- * Lê e valida a configuração. Recusa qualquer base diferente do piloto.
+ * Lê e valida a configuração. Recusa qualquer base fora da lista fechada.
  * Nunca registra senha/chave — apenas valida presença.
  */
 export function loadConfig(env: Record<string, string | undefined> = process.env): WorkerConfig {
-  const baseCode = (env["BASE_CODE"] ?? "").trim().toUpperCase();
-  const serviceCenterId = (env["SERVICE_CENTER_ID"] ?? "").trim().toUpperCase();
-  const siteId = (env["SITE_ID"] ?? "").trim().toUpperCase();
-
-  if (baseCode !== PILOTO.BASE_CODE) {
-    throw new ConfigError(
-      `Fase B1 restrita à base ${PILOTO.BASE_CODE}. BASE_CODE recebido: ${baseCode || "(vazio)"}`,
-    );
-  }
-  if (serviceCenterId !== PILOTO.SERVICE_CENTER_ID) {
-    throw new ConfigError(
-      `Fase B1 restrita ao service center ${PILOTO.SERVICE_CENTER_ID}. Recebido: ${serviceCenterId || "(vazio)"}`,
-    );
-  }
-  if (siteId !== PILOTO.SITE_ID) {
-    throw new ConfigError(`Fase B1 restrita ao site ${PILOTO.SITE_ID}. Recebido: ${siteId || "(vazio)"}`);
-  }
+  const codigos = (env["BASE_CODES"] ?? env["BASE_CODE"] ?? "ESP15,ESP16,ESP17,ESP18")
+    .toUpperCase().split(",").map((v) => v.trim()).filter(Boolean);
+  const bases = Array.from(new Set(codigos)).map((codigo) => BASES_JM.find((b) => b.baseCode === codigo));
+  const invalida = codigos.find((_, i) => !bases[i]);
+  if (invalida) throw new ConfigError(`Base Meli não permitida: ${invalida}`);
+  const selecionadas = bases as BaseJm[];
+  const primeira = selecionadas[0];
+  if (!primeira) throw new ConfigError("Nenhuma base configurada em BASE_CODES.");
 
   const sessionKeyBase64 = req(env, "WORKER_SESSION_KEY");
   const keyBytes = Buffer.from(sessionKeyBase64, "base64");
@@ -81,26 +79,43 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
 
   const dryRun = (env["DRY_RUN"] ?? "").trim().toLowerCase() === "true";
   const protocoloLotes = (env["SYNC_PROTOCOL_LOTES"] ?? "").trim().toLowerCase() === "true";
+  const passwordBase64 = (env["WORKER_PASSWORD_BASE64"] ?? "").trim();
+  const workerPassword = passwordBase64
+    ? Buffer.from(passwordBase64, "base64").toString("utf8")
+    : (env["WORKER_PASSWORD"] ?? "").trim();
+  const writeBaseCodes = dryRun
+    ? []
+    : (env["WRITE_BASE_CODES"] ?? selecionadas.map((b) => b.baseCode).join(","))
+        .toUpperCase().split(",").map((v) => v.trim()).filter(Boolean);
+  const escritaInvalida = writeBaseCodes.find((codigo) => !selecionadas.some((b) => b.baseCode === codigo));
+  if (escritaInvalida) throw new ConfigError(`WRITE_BASE_CODES contém base não selecionada: ${escritaInvalida}`);
 
   const intervalRaw = Number(env["SYNC_INTERVAL_SECONDS"] ?? 60);
   const syncIntervalSeconds =
     Number.isFinite(intervalRaw) && intervalRaw >= 15 ? Math.floor(intervalRaw) : 60;
 
   return {
-    baseCode,
-    serviceCenterId,
-    siteId,
+    bases: selecionadas,
+    writeBaseCodes,
+    baseCode: primeira.baseCode,
+    serviceCenterId: primeira.serviceCenterId,
+    siteId: primeira.siteId,
     jmrBaseUrl: req(env, "JMR_BASE_URL").replace(/\/+$/, ""),
     supabaseUrl: req(env, "SUPABASE_URL").replace(/\/+$/, ""),
     supabaseAnonKey: req(env, "SUPABASE_ANON_KEY"),
     // Em DRY_RUN não há chamada ao JMRoutes; credenciais do usuário técnico
     // deixam de ser obrigatórias justamente para permitir teste sem usuário criado.
     workerEmail: dryRun ? (env["WORKER_EMAIL"] ?? "").trim() : req(env, "WORKER_EMAIL"),
-    workerPassword: dryRun ? (env["WORKER_PASSWORD"] ?? "").trim() : req(env, "WORKER_PASSWORD"),
+    workerPassword,
     sessionKeyBase64,
     sessionFilePath: (env["SESSION_FILE_PATH"] ?? "/data/adminml-session.enc").trim(),
+    jmrSessionFilePath: (env["JMR_SESSION_FILE_PATH"] ?? "./data/jmr-session.enc").trim(),
     syncIntervalSeconds,
     dryRun,
     protocoloLotes,
   };
+}
+
+export function configParaBase(cfg: WorkerConfig, base: BaseJm): WorkerConfig {
+  return { ...cfg, bases: [base], baseCode: base.baseCode, serviceCenterId: base.serviceCenterId, siteId: base.siteId };
 }

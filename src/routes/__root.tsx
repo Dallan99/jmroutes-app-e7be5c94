@@ -19,7 +19,7 @@ import "@fontsource/space-grotesk/500.css";
 import "@fontsource/space-grotesk/700.css";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "sonner";
-import jmLogo from "@/assets/jm-logo.jpeg.asset.json";
+import { JM_LOGO_URL } from "@/components/jm-logo";
 
 function NotFoundComponent() {
   return (
@@ -104,8 +104,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: jmLogo.url, type: "image/jpeg" },
-      { rel: "apple-touch-icon", href: jmLogo.url },
+      { rel: "icon", href: JM_LOGO_URL, type: "image/png" },
+      { rel: "apple-touch-icon", href: JM_LOGO_URL },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -131,6 +132,14 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((error) => {
+        console.warn("Nao foi possivel registrar o app instalavel.", error);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {

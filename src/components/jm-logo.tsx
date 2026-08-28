@@ -1,4 +1,4 @@
-const LOGO_URL = "/__l5e/assets-v1/13f07280-903f-4674-bc0d-0b29af8f7a51/jm-logo.jpeg";
+export const JM_LOGO_URL = "/jm-logo-amarelo.png";
 
 export function JmLogo({
   size = 36,
@@ -9,7 +9,7 @@ export function JmLogo({
 }) {
   return (
     <img
-      src={LOGO_URL}
+      src={JM_LOGO_URL}
       alt="JM Transportes"
       width={size}
       height={size}

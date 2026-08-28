@@ -1,33 +1,24 @@
-// Loop principal do worker (Fase B1 — piloto ESP16/SSP15/MLB).
-// Sem setInterval: executa o ciclo, registra telemetria, aguarda o intervalo
-// e só então inicia o próximo ciclo (nunca há sobreposição).
-import { loadConfig, ConfigError, WORKER_VERSAO, type WorkerConfig } from "./config.js";
+// Worker local multibase. Executa sequencialmente para preservar a sessão do
+// AdminML e nunca sobrepor ciclos.
+import { randomUUID } from "node:crypto";
+import { ConfigError, configParaBase, loadConfig, WORKER_VERSAO, type WorkerConfig } from "./config.js";
 import { logger } from "./logger.js";
-import { sleep } from "./meli/list.js";
 import { novoEstadoIncremental } from "./meli/active-filter.js";
-import { CircuitBreaker } from "./state/breaker.js";
+import { sleep } from "./meli/list.js";
 import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pipeline/auth.js";
+import { autenticarManualmenteCoordenado } from "./session/login.js";
 import { executarCiclo } from "./pipeline/cycle.js";
 import { sincronizarDevolucoes } from "./pipeline/devolucoes.js";
+import { CircuitBreaker } from "./state/breaker.js";
 import { registrarExecucao, type Execucao } from "./telemetry/report.js";
-import {
-  abandonarCicloRemoto,
-  dataOperacionalBrt,
-  estadoParaFinalizacao,
-  finalizarCicloRemoto,
-  iniciarCicloRemoto,
-} from "./pipeline/ciclo-lote.js";
-import { randomUUID } from "node:crypto";
 
 let encerrando = false;
 
-function agendarEncerramento() {
-  for (const sinal of ["SIGINT", "SIGTERM"] as const) {
-    process.on(sinal, () => {
-      logger.info("Encerramento solicitado; finalizando após o ciclo atual.", { sinal });
-      encerrando = true;
-    });
-  }
+for (const sinal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sinal, () => {
+    encerrando = true;
+    logger.info("Encerramento solicitado; finalizando após o ciclo atual.", { sinal });
+  });
 }
 
 function execucaoVazia(cfg: WorkerConfig, status: Execucao["status"], msg: string): Execucao {
@@ -49,8 +40,6 @@ function execucaoVazia(cfg: WorkerConfig, status: Execucao["status"], msg: strin
 }
 
 async function main() {
-  agendarEncerramento();
-
   let cfg: WorkerConfig;
   try {
     cfg = loadConfig();
@@ -62,172 +51,126 @@ async function main() {
     throw err;
   }
 
-  logger.info("Worker Meli iniciado.", {
+  logger.info("Worker Meli local iniciado.", {
     versao: WORKER_VERSAO,
-    base: cfg.baseCode,
-    service_center: cfg.serviceCenterId,
-    site: cfg.siteId,
+    bases: cfg.bases.map((b) => b.baseCode),
+    bases_com_escrita: cfg.writeBaseCodes,
     intervalo_s: cfg.syncIntervalSeconds,
     dry_run: cfg.dryRun,
-    protocolo_lotes: cfg.protocoloLotes,
   });
 
-  if (!cfg.protocoloLotes) {
-    logger.info(
-      "Protocolo de lotes DESLIGADO (SYNC_PROTOCOL_LOTES != true): fluxo de ingestão atual preservado.",
-    );
-  }
-
-  if (cfg.dryRun) {
-    logger.info(
-      "DRY_RUN ativo: consulta o AdminML, NÃO envia ao JMRoutes e NÃO grava telemetria.",
-    );
-  }
-
-  const breaker = new CircuitBreaker();
-  const estado = novoEstadoIncremental();
+  const breakers = new Map(cfg.bases.map((b) => [b.baseCode, new CircuitBreaker()]));
+  const estados = new Map(cfg.bases.map((b) => [b.baseCode, novoEstadoIncremental()]));
   let jmr: JmrSessao | null = null;
 
   while (!encerrando) {
-    if (cfg.dryRun) {
-      // Sem sessão AdminML válida NÃO tentamos login automático: apenas aguarda.
-      const sessaoSeca = await abrirSessaoAdminML(cfg);
-      if (sessaoSeca.status !== "ok") {
-        logger.warn("DRY_RUN sem sessão AdminML; nenhuma ação executada.", {
-          motivo: sessaoSeca.motivo,
-        });
-        await sleep(Math.max(cfg.syncIntervalSeconds, 300) * 1000);
+    if (!cfg.dryRun) {
+      const auth = await garantirSessaoJmroutes(cfg, jmr);
+      if (auth.status !== "ok") {
+        jmr = null;
+        logger.warn("Sem sessão JMRoutes; ciclo não executado.", { motivo: auth.motivo });
+        await registrarExecucao(cfg, execucaoVazia(cfg, "jmroutes_sem_sessao", `sem sessão JMRoutes: ${auth.motivo}`), { accessToken: null });
+        await sleep(cfg.syncIntervalSeconds * 1000);
         continue;
       }
-      try {
-        const r = await executarCiclo({
-          cfg,
-          transport: sessaoSeca.transport,
-          accessToken: "",
-          breaker,
-          estado,
-        });
-        logger.info("DRY_RUN resumo do ciclo.", { ...r.resumo, status: r.execucao.status });
-      } finally {
-        await sessaoSeca.fechar();
-      }
-      if (encerrando) break;
-      await sleep(cfg.syncIntervalSeconds * 1000);
+      jmr = auth.sessao;
+    }
+
+    let sessao;
+    let precisaReautenticarAdminML = false;
+    try {
+      sessao = await abrirSessaoAdminML(cfg);
+    } catch (err) {
+      logger.warn("Não foi possível abrir o AdminML; nova tentativa será feita.", { erro: String((err as Error)?.message ?? err) });
+      await sleep(Math.max(cfg.syncIntervalSeconds, 60) * 1000);
       continue;
     }
 
-    const auth = await garantirSessaoJmroutes(cfg, jmr);
-    if (auth.status !== "ok") {
-      jmr = null;
-      logger.warn("Sem sessão JMRoutes; ciclo não executado.", { motivo: auth.motivo });
-      await registrarExecucao(
-        cfg,
-        execucaoVazia(cfg, "jmroutes_sem_sessao", `sem sessão JMRoutes: ${auth.motivo}`),
-        { accessToken: null },
-      );
-      await sleep(cfg.syncIntervalSeconds * 1000);
-      continue;
-    }
-    jmr = auth.sessao;
-
-    const sessao = await abrirSessaoAdminML(cfg);
     if (sessao.status !== "ok") {
-      // Não entra em crash loop nem repete chamadas em sequência.
       logger.warn("Aguardando autenticação manual do AdminML.", { motivo: sessao.motivo });
-      await registrarExecucao(
-        cfg,
-        execucaoVazia(cfg, "aguardando_autenticacao", `sessão AdminML indisponível: ${sessao.motivo}`),
-        { accessToken: jmr.accessToken },
-      );
-      await sleep(Math.max(cfg.syncIntervalSeconds, 300) * 1000);
+      if (!cfg.dryRun && jmr) {
+        await registrarExecucao(cfg, execucaoVazia(cfg, "aguardando_autenticacao", `sessão AdminML indisponível: ${sessao.motivo}`), { accessToken: jmr.accessToken });
+      }
+      try {
+        await autenticarManualmenteCoordenado({
+          sessionFilePath: cfg.sessionFilePath,
+          sessionKeyBase64: cfg.sessionKeyBase64,
+          timeoutMs: 10 * 60_000,
+        });
+        logger.info("Sessão AdminML recuperada; retomando os ciclos.");
+      } catch (err) {
+        logger.warn("Recuperação assistida do AdminML não foi concluída.", {
+          erro: String((err as Error)?.message ?? err),
+        });
+        await sleep(Math.max(cfg.syncIntervalSeconds, 300) * 1000);
+      }
       continue;
     }
 
     try {
-      // ── Protocolo de lotes (feature flag) ───────────────────────────────
-      // Off (default) => syncBatchId nulo => endpoint legado, comportamento atual.
-      const dataOperacional = dataOperacionalBrt();
-      let syncBatchId: string | null = null;
-      if (cfg.protocoloLotes) {
-        const candidato = randomUUID();
-        const abertura = await iniciarCicloRemoto(
-          cfg,
-          { syncBatchId: candidato, dataOperacional },
-          { accessToken: jmr.accessToken },
-        );
-        if (abertura.status === "ok") syncBatchId = candidato;
-      }
-
-      let resultado = await executarCiclo({
-        cfg,
-        transport: sessao.transport,
-        accessToken: jmr.accessToken,
-        breaker,
-        estado,
-        syncBatchId,
-      });
-
-      // Backend ainda sem a migration: abandona o ciclo e repete no fluxo legado.
-      if (resultado.protocoloLotesIndisponivel && syncBatchId) {
-        await abandonarCicloRemoto(
-          cfg,
-          { syncBatchId, mensagem: "protocolo_indisponivel" },
-          { accessToken: jmr.accessToken },
-        );
-        syncBatchId = null;
-        resultado = await executarCiclo({
-          cfg,
+      for (const base of cfg.bases) {
+        if (encerrando) break;
+        const cfgBase = configParaBase(cfg, base);
+        const somenteValidacao = cfg.dryRun || !cfg.writeBaseCodes.includes(base.baseCode);
+        const resultado = await executarCiclo({
+          cfg: cfgBase,
           transport: sessao.transport,
-          accessToken: jmr.accessToken,
-          breaker,
-          estado,
-          syncBatchId: null,
+          accessToken: jmr?.accessToken ?? "",
+          breaker: breakers.get(base.baseCode)!,
+          estado: estados.get(base.baseCode)!,
+          dryRun: somenteValidacao,
         });
-      }
 
-      if (syncBatchId) {
-        await finalizarCicloRemoto(
-          cfg,
-          {
-            syncBatchId,
-            dataOperacional,
-            rotas: resultado.execucao.rotas_processadas,
-            pacotes: null,
-            estado: estadoParaFinalizacao(resultado.execucao.status, resultado.execucao.erros),
-            mensagem: resultado.execucao.mensagem_segura,
-          },
-          { accessToken: jmr.accessToken },
-        );
-      }
+        logger.info(somenteValidacao ? "Validação da base concluída." : "Ciclo da base concluído.", {
+          base: base.baseCode,
+          status: resultado.execucao.status,
+          motivo: resultado.execucao.mensagem_segura,
+          ...resultado.resumo,
+        });
 
-      await registrarExecucao(cfg, resultado.execucao, { accessToken: jmr.accessToken });
-      if (resultado.execucao.status === "sucesso") {
-        const devolucoes = await sincronizarDevolucoes(cfg, jmr.accessToken);
-        if (devolucoes.status === "ok") {
-          logger.info("Devoluções sincronizadas no ciclo da base.", {
-            base: cfg.baseCode,
-            criadas: Number(devolucoes.resultado["criadas"] ?? devolucoes.resultado["criados"] ?? 0),
-            atualizadas: Number(devolucoes.resultado["atualizadas"] ?? devolucoes.resultado["atualizados"] ?? 0),
-            revisao: Number(devolucoes.resultado["revisao_necessaria"] ?? 0),
-          });
-        } else {
-          if (devolucoes.status === "sem_sessao") jmr = null;
-          logger.warn("Sincronização automática de Devoluções será repetida no próximo ciclo.", {
-            base: cfg.baseCode,
-            motivo: devolucoes.status === "erro" ? devolucoes.motivo : "sem_sessao",
-          });
+        if (!somenteValidacao && jmr) {
+          await registrarExecucao(cfgBase, resultado.execucao, { accessToken: jmr.accessToken });
+          if (resultado.execucao.status === "sucesso" || resultado.execucao.status === "sucesso_parcial") {
+            const devolucoes = await sincronizarDevolucoes(cfgBase, jmr.accessToken);
+            if (devolucoes.status !== "ok") {
+              logger.warn("Sincronização de devoluções será repetida.", {
+                base: base.baseCode,
+                motivo: devolucoes.status === "erro" ? devolucoes.motivo : "sem_sessao",
+              });
+            }
+          }
         }
+
+        if (resultado.jmroutesSemSessao) jmr = null;
+        if (resultado.sessaoAdminMLExpirada) {
+          precisaReautenticarAdminML = true;
+          break;
+        }
+        if (resultado.jmroutesSemSessao) break;
       }
-      if (resultado.jmroutesSemSessao) jmr = null;
     } finally {
       await sessao.fechar();
     }
 
-    if (encerrando) break;
-    await sleep(cfg.syncIntervalSeconds * 1000);
+    if (precisaReautenticarAdminML && !encerrando) {
+      try {
+        await autenticarManualmenteCoordenado({
+          sessionFilePath: cfg.sessionFilePath,
+          sessionKeyBase64: cfg.sessionKeyBase64,
+          timeoutMs: 10 * 60_000,
+        });
+        logger.info("Sessão AdminML recuperada; retomando os ciclos.");
+      } catch (err) {
+        logger.warn("Recuperação assistida do AdminML não foi concluída.", {
+          erro: String((err as Error)?.message ?? err),
+        });
+      }
+    }
+
+    if (!encerrando) await sleep(cfg.syncIntervalSeconds * 1000);
   }
 
-  logger.info("Worker Meli encerrado.");
+  logger.info("Worker Meli local encerrado.");
 }
 
 main().catch((err) => {
