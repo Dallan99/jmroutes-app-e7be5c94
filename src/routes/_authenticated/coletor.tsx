@@ -1,8 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { PackageSearch, RotateCcw, ScanBarcode } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, PackageSearch, RotateCcw, ScanBarcode, Share } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useCollectorMode } from "@/lib/collector-mode";
+import { toast } from "sonner";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 export const Route = createFileRoute("/_authenticated/coletor")({
   head: () => ({ meta: [{ title: "Modo Coletor — JM Transportes" }] }),
@@ -17,7 +24,41 @@ const funcoes = [
 
 function ModoColetorPage() {
   const { ativarModoColetor } = useCollectorMode();
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [instalado, setInstalado] = useState(false);
+  const [ios, setIos] = useState(false);
+
   useEffect(() => ativarModoColetor(), [ativarModoColetor]);
+
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+      || ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+    setInstalado(standalone);
+    setIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
+
+    const handleInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleInstalled = () => {
+      setInstalado(true);
+      setInstallPrompt(null);
+    };
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
+  async function instalarApp() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") toast.success("JMRoutes Coletor instalado.");
+    setInstallPrompt(null);
+  }
 
   return (
     <div className="mx-auto w-full max-w-lg p-3 sm:p-5">
@@ -25,6 +66,29 @@ function ModoColetorPage() {
         <h1 className="text-2xl font-bold">Modo Coletor</h1>
         <p className="text-sm text-muted-foreground">Escolha uma função para iniciar a operação.</p>
       </div>
+      {!instalado && (installPrompt || ios) && (
+        <Card className="mb-4 border-primary/25 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              {ios ? <Share className="h-5 w-5" /> : <Download className="h-5 w-5" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold">Instale no celular</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {ios
+                  ? "No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início."
+                  : "Abra o coletor pela tela inicial, como um aplicativo."}
+              </p>
+              {installPrompt && (
+                <Button className="mt-3 h-11 w-full sm:w-auto" onClick={instalarApp}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Baixar app no celular
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
       <div className="grid gap-3">
         {funcoes.map((item) => (
           <Link key={item.to} to={item.to} className="block">
