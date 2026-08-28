@@ -1,10 +1,6 @@
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-function arrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-}
-
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -12,9 +8,16 @@ function bytesToBase64Url(bytes: Uint8Array): string {
 }
 
 function base64UrlToBytes(value: string): Uint8Array {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const padded = value
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
   const binary = atob(padded);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function arrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return Uint8Array.from(bytes).buffer;
 }
 
 export function randomBase64Url(length = 32): string {
@@ -30,8 +33,18 @@ export async function sha256Base64Url(value: string): Promise<string> {
 async function encryptionKey(): Promise<CryptoKey> {
   const raw = process.env.MELI_TOKEN_ENCRYPTION_KEY;
   if (!raw) throw new Error("MELI_TOKEN_ENCRYPTION_KEY não configurada.");
-  const bytes = base64UrlToBytes(raw);
-  if (bytes.length !== 32) throw new Error("MELI_TOKEN_ENCRYPTION_KEY deve ter 32 bytes em base64url.");
+  let bytes: Uint8Array;
+  try {
+    const decoded = base64UrlToBytes(raw.trim());
+    bytes =
+      decoded.length === 32
+        ? decoded
+        : new Uint8Array(await crypto.subtle.digest("SHA-256", arrayBuffer(encoder.encode(raw))));
+  } catch {
+    // Alguns gerenciadores de secrets normalizam caracteres de base64url.
+    // Nesse caso, derivamos uma chave AES-256 estável a partir do segredo.
+    bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", arrayBuffer(encoder.encode(raw))));
+  }
   return crypto.subtle.importKey("raw", arrayBuffer(bytes), { name: "AES-GCM" }, false, [
     "encrypt",
     "decrypt",

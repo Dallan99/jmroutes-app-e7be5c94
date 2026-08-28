@@ -29,6 +29,7 @@ import {
   RotateCcw,
   ShieldAlert,
   ChartNoAxesCombined,
+  Smartphone,
   Truck,
 } from "lucide-react";
 import { JmLogo, JmWordmark } from "@/components/jm-logo";
@@ -41,6 +42,7 @@ import { toast } from "sonner";
 import { BaseOperacionalProvider, useBaseOperacional } from "@/lib/base-operacional-context";
 import { SeletorBaseDia } from "@/components/base-operacional-selector";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CollectorModeProvider, useCollectorMode } from "@/lib/collector-mode";
 
 const INACTIVITY_MS = 4 * 60 * 60 * 1000;
 
@@ -82,6 +84,7 @@ type NavItem = {
 type Role = "admin" | "supervisor" | "gerente" | "operador";
 
 const NAV_OPERACIONAL: NavItem[] = [
+  { title: "Modo coletor", to: "/coletor", icon: Smartphone },
   { title: "Bases", to: "/bases", icon: Boxes },
   {
     title: "Dashboard",
@@ -128,7 +131,23 @@ const NAV_ADMIN: NavItem[] = [
   { title: "Auditoria", to: "/auditoria", icon: ShieldCheck, roles: ["admin"] },
 ];
 
+const NAV_COLETOR: NavItem[] = [
+  { title: "Recebimento", to: "/triagem", icon: PackageSearch },
+  { title: "Expedição", to: "/expedicao", icon: Truck },
+  { title: "Devoluções", to: "/meli-devolucoes", icon: RotateCcw },
+];
+
 export function AppShell() {
+  return (
+    <CollectorModeProvider>
+      <AppShellContent />
+    </CollectorModeProvider>
+  );
+}
+
+function AppShellContent() {
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const fetchPerfil = useServerFn(meuPerfil);
   const perfilQuery = useQuery({
     queryKey: ["meu-perfil"],
@@ -137,18 +156,30 @@ export function AppShell() {
   });
   const rolesCarregadas = perfilQuery.isSuccess;
   const roles = (perfilQuery.data?.roles ?? []) as Array<Role>;
+  const { modoColetor } = useCollectorMode();
   useInactivityLogout();
+
+  useEffect(() => {
+    if (modoColetor && pathname === "/dashboard") {
+      navigate({ to: "/coletor", replace: true });
+    }
+  }, [modoColetor, navigate, pathname]);
 
   return (
     <BaseOperacionalProvider>
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} />
+          <AppSidebar roles={roles} rolesCarregadas={rolesCarregadas} modoColetor={modoColetor} />
           <div className="flex-1 flex flex-col min-w-0">
-            <TopBar nome={perfilQuery.data?.profile?.nome ?? null} roles={roles} rolesCarregadas={rolesCarregadas} />
-            <main className="flex-1 min-w-0">
+            <TopBar
+              nome={perfilQuery.data?.profile?.nome ?? null}
+              roles={roles}
+              rolesCarregadas={rolesCarregadas}
+            />
+            <main className={`flex-1 min-w-0 ${modoColetor ? "pb-20" : ""}`}>
               <Outlet />
             </main>
+            {modoColetor && <CollectorBottomNav />}
           </div>
         </div>
       </SidebarProvider>
@@ -156,9 +187,16 @@ export function AppShell() {
   );
 }
 
-function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarregadas: boolean }) {
-
-  const { state } = useSidebar();
+function AppSidebar({
+  roles,
+  rolesCarregadas,
+  modoColetor,
+}: {
+  roles: Array<Role>;
+  rolesCarregadas: boolean;
+  modoColetor: boolean;
+}) {
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const allow = (item: NavItem) => !item.roles || item.roles.some((r) => roles.includes(r));
@@ -199,7 +237,11 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
                         )}
                       </div>
                     ) : (
-                      <Link to={item.to} className="flex items-center gap-2">
+                      <Link
+                        to={item.to}
+                        className="flex items-center gap-2"
+                        onClick={() => isMobile && setOpenMobile(false)}
+                      >
                         <item.icon className="w-4 h-4 shrink-0" />
                         {!collapsed && <span className="truncate">{item.title}</span>}
                       </Link>
@@ -226,13 +268,16 @@ function AppSidebar({ roles, rolesCarregadas }: { roles: Array<Role>; rolesCarre
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        {rolesCarregadas && (
-          <>
-            {renderGroup("Operação", NAV_OPERACIONAL)}
-            {renderGroup("Gestão", NAV_GESTAO)}
-            {renderGroup("Administração", NAV_ADMIN)}
-          </>
-        )}
+        {rolesCarregadas &&
+          (modoColetor ? (
+            renderGroup("Coletor", NAV_COLETOR)
+          ) : (
+            <>
+              {renderGroup("Operação", NAV_OPERACIONAL)}
+              {renderGroup("Gestão", NAV_GESTAO)}
+              {renderGroup("Administração", NAV_ADMIN)}
+            </>
+          ))}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         {!collapsed && (
@@ -255,6 +300,7 @@ function TopBar({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { base, diaOperacional, limpar } = useBaseOperacional();
+  const { modoColetor, sairModoColetor } = useCollectorMode();
   const [trocarOpen, setTrocarOpen] = useState(false);
   const principal = roles.includes("admin")
     ? "Administrador"
@@ -278,11 +324,26 @@ function TopBar({
     navigate({ to: "/auth", replace: true });
   }
 
+  function sairDoColetor() {
+    sairModoColetor();
+    navigate({ to: "/dashboard" });
+  }
+
   return (
-    <header className="h-14 border-b bg-card flex items-center px-3 gap-3 sticky top-0 z-30">
-      <SidebarTrigger />
+    <header className="h-12 md:h-14 border-b bg-card flex items-center px-2 md:px-3 gap-2 md:gap-3 sticky top-0 z-30">
+      <SidebarTrigger className="h-10 w-10 md:h-7 md:w-7" />
+      <div className={`min-w-0 ${modoColetor ? "" : "md:hidden"}`}>
+        <p className="truncate text-sm font-semibold">
+          {modoColetor ? "JMRoutes Coletor" : "JMRoutes"}
+        </p>
+        {base && diaOperacional && (
+          <p className="truncate text-[10px] text-muted-foreground">
+            {base.codigo} · {new Date(diaOperacional + "T00:00:00").toLocaleDateString("pt-BR")}
+          </p>
+        )}
+      </div>
       <div className="ml-auto flex items-center gap-3">
-        <div className="text-right leading-tight">
+        <div className="hidden text-right leading-tight md:block">
           <div className="text-sm font-medium">{nome ?? "—"}</div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
             {rolesCarregadas ? principal : "—"}
@@ -297,8 +358,21 @@ function TopBar({
             )}
           </div>
         </div>
-        <div className="w-8 h-8 rounded-full brand-gradient text-white flex items-center justify-center text-xs font-bold uppercase">{(nome ?? "?").slice(0, 2)}</div>
-        <Button variant="ghost" size="icon" onClick={logout} title="Sair">
+        <div className="hidden w-8 h-8 rounded-full brand-gradient text-white md:flex items-center justify-center text-xs font-bold uppercase">
+          {(nome ?? "?").slice(0, 2)}
+        </div>
+        {modoColetor && (
+          <Button variant="outline" className="h-10 px-3 text-xs" onClick={sairDoColetor}>
+            Sair do modo coletor
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 md:h-9 md:w-9"
+          onClick={logout}
+          title="Sair"
+        >
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
@@ -327,5 +401,33 @@ function TopBar({
         </DialogContent>
       </Dialog>
     </header>
+  );
+}
+
+function CollectorBottomNav() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  return (
+    <nav
+      aria-label="Funções do coletor"
+      className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-3 border-t bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur"
+    >
+      {NAV_COLETOR.map((item) => {
+        const active = pathname.startsWith(item.to);
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium transition-colors ${
+              active ? "bg-primary/10 text-primary" : "text-muted-foreground active:bg-muted"
+            }`}
+          >
+            <item.icon className="h-5 w-5" />
+            <span className="truncate">{item.title}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

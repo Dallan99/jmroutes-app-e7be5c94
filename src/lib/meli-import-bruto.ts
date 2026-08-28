@@ -5,6 +5,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizarPayloadMeli } from "@/lib/meli-normalize";
 import type { MeliImportBrutoResult, MeliImportResult } from "@/lib/meli.functions";
 
+/** Código estável e não sensível para diagnóstico do worker. */
+export function codigoSeguroErroImportacao(erro: string | null | undefined): string {
+  const msg = (erro ?? "").toLowerCase();
+  if (msg.includes("payload sem 'id'")) return "payload_sem_id_rota";
+  if (msg.includes("payload sem 'stops'")) return "payload_sem_stops";
+  if (msg.includes("route_id vazio")) return "route_id_vazio";
+  if (msg.includes("nenhum pacote válido") || msg.includes("nenhum pacote vÃ¡lido")) {
+    return "nenhum_pacote_valido";
+  }
+  if (msg.includes("sem_permissao") || msg.includes("permission")) return "sem_permissao";
+  if (msg.includes("statement timeout") || msg.includes("timeout")) return "timeout_importacao";
+  if (msg.includes("duplicate key") || msg.includes("unique constraint")) return "conflito_unicidade";
+  if (msg.includes("violates check constraint")) return "restricao_dados";
+  return "erro_importacao";
+}
+
 export async function importarRotaBrutaComClient(
   supabase: SupabaseClient<never>,
   bruto: Record<string, unknown>,

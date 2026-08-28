@@ -9,8 +9,8 @@ const menu = ler("src/components/app-shell.tsx");
 const migracao = ler("supabase/migrations/20260827180610_expedicao_independente.sql");
 
 describe("Expedição independente", () => {
-  it("é acessível no menu operacional", () => {
-    expect(menu.match(/title: "Expedição", to: "\/expedicao"/g)).toHaveLength(1);
+  it("é acessível nos menus operacional e coletor", () => {
+    expect(menu.match(/title: "Expedição", to: "\/expedicao"/g)).toHaveLength(2);
     expect(pagina).toContain('createFileRoute("/_authenticated/expedicao")');
   });
 

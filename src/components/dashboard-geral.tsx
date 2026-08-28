@@ -6,6 +6,7 @@ import { hojeOperacional } from "@/lib/dia-operacional";
 import {
   meliDashboardOperacional,
   meliDashboardPacotesRota,
+  meliDashboardQueryKey,
   type MeliDashboardRota,
   type MeliDashboardPmProgramada,
 } from "@/lib/meli-dashboard.functions";
@@ -51,7 +52,7 @@ export function DashboardGeral({
   // Mas como dataRef tem fallback para hojeOperacional(), ele sempre terá um valor.
 
   const q = useQuery({
-    queryKey: ["dashboard-geral", filtros],
+    queryKey: meliDashboardQueryKey(filtros),
     queryFn: () => fetchDados({ data: filtros }),
     refetchInterval: 30_000,
     staleTime: 30_000,

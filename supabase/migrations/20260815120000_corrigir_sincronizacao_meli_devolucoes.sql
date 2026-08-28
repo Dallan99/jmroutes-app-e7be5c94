@@ -65,7 +65,6 @@ BEGIN
        AND (p_base_id IS NULL OR ro.base_id = p_base_id)
      ORDER BY ro.base_id
   LOOP
-    v_analisados := v_analisados + 1;
     PERFORM pg_catalog.pg_advisory_xact_lock(
       pg_catalog.hashtextextended('meli_devolucoes_sincronizar:' || v_base.base_id::text, 0)
     );
@@ -95,6 +94,7 @@ BEGIN
      WHERE status_normalizado IN ('delivered', 'picked_up') OR codigo_bruto <> ''
      ORDER BY base_id, tracking_id
   LOOP
+    v_analisados := v_analisados + 1;
     v_codigo := CASE v_item.codigo_bruto
       WHEN 'unvisited' THEN 'unvisited_address'
       WHEN 'blocked' THEN 'blocked_by_keyword'
@@ -261,7 +261,8 @@ BEGIN
   RETURN jsonb_build_object(
     'status', 'ok', 'analisados', v_analisados,
     'criadas', v_criadas, 'criados', v_criadas,
-    'atualizadas', v_atualizadas, 'sem_alteracao', v_sem_alteracao,
+    'atualizadas', v_atualizadas, 'atualizados', v_atualizadas,
+    'sem_alteracao', v_sem_alteracao,
     'aguardando', v_aguardando, 'investigacao', v_investigacao,
     'transferidos', v_transferidos, 'erros', 0,
     'reconciliadas', v_reconciliadas, 'revisao_necessaria', v_revisao,

@@ -14,9 +14,26 @@ export type RotaResumoTriagem = {
   status: "aberta" | "fechada";
 };
 
-/** Normaliza a leitura sem impor atraso artificial entre dois códigos distintos. */
+/**
+ * Aceita o shipment puro e o QR Code do Meli, cujo conteúdo inclui um campo
+ * `id`. Alguns leitores configurados com layout de teclado diferente trocam
+ * pontuação por caracteres como `^` e `Ç`; por isso o campo é reconhecido pela
+ * estrutura, sem depender de um JSON perfeitamente formado.
+ */
 export function normalizarCodigoTriagem(codigo: string): string {
-  return codigo.trim().replace(/[^0-9A-Za-z]/g, "");
+  const leitura = codigo.trim();
+  const idQr = leitura.match(/(?:^|[^0-9A-Za-z])id[^0-9A-Za-z]+([0-9]{6,})/i);
+  if (idQr?.[1]) return idQr[1];
+  return leitura.replace(/[^0-9A-Za-z]/g, "");
+}
+
+/** Indica que o leitor terminou de enviar um QR Meli, mesmo sem sufixo Enter. */
+export function leituraQrMeliCompleta(codigo: string): boolean {
+  return /(?:^|[^0-9A-Za-z])id[^0-9A-Za-z]+[0-9]{6,}/i.test(codigo) && /[{}]\s*$/.test(codigo);
+}
+
+export function mensagemRotaDivergente(rotaSelecionada: string, rotaCorreta: string): string {
+  return `Este pacote não pertence à rota ${rotaSelecionada}. Ele pertence à rota ${rotaCorreta}.`;
 }
 
 /** Regra canônica usada em toda a Triagem para determinar a rota operacional. */

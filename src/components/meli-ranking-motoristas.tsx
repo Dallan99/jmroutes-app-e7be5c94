@@ -11,6 +11,12 @@ function rotulo(codigo: string, descricao: string) {
   return descreverMotivo(codigo, descricao);
 }
 
+function dataBr(data?: string) {
+  if (!data) return "—";
+  const [ano, mes, dia] = data.split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
 export function RankingMotoristasSection({
   data,
   baseId,
@@ -33,13 +39,23 @@ export function RankingMotoristasSection({
     placeholderData: (prev) => prev,
   });
 
-  const motoristas = q.data?.status === "ok" ? (q.data.motoristas ?? []) : [];
+  const motoristas = q.data?.status === "ok"
+    ? (q.data.motoristas ?? []).filter((m) => {
+        const nome = m.motorista?.trim().toLocaleLowerCase("pt-BR");
+        return nome && nome !== "sem motorista informado" && nome !== "não identificado";
+      })
+    : [];
 
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b px-4 py-3">
         <h3 className="text-base font-semibold">Motoristas com mais falhas</h3>
-        <p className="text-xs text-muted-foreground">Posição atual</p>
+        <p className="text-xs text-muted-foreground">
+          Semana Meli · domingo a sábado
+          {q.data?.periodo_inicio && q.data?.periodo_fim
+            ? ` · ${dataBr(q.data.periodo_inicio)} a ${dataBr(q.data.periodo_fim)}`
+            : ""}
+        </p>
       </div>
 
       {q.isLoading && <p className="px-4 py-4 text-sm text-muted-foreground">Carregando…</p>}

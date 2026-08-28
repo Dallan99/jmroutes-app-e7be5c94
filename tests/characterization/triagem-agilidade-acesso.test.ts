@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { normalizarCodigoTriagem } from "../../src/lib/triagem-domain";
+import {
+  leituraQrMeliCompleta,
+  mensagemRotaDivergente,
+  normalizarCodigoTriagem,
+} from "../../src/lib/triagem-domain";
 
 const triagemPage = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/triagem.tsx"),
@@ -20,6 +24,27 @@ const appShell = readFileSync(resolve(process.cwd(), "src/components/app-shell.t
 describe("Triagem — agilidade entre bips", () => {
   it.each(["445255252", "44525353"])("reconhece o código %s sem alteração", (codigo) => {
     expect(normalizarCodigoTriagem(codigo)).toBe(codigo);
+  });
+
+  it.each([
+    "`^id^Ç^47686653148^,^t^Ç^lm^{",
+    '{"id":"47686653148","t":"lm"}',
+    "id=47686653148&t=lm",
+  ])("extrai o shipment do QR Code Meli: %s", (codigo) => {
+    expect(normalizarCodigoTriagem(codigo)).toBe("47686653148");
+  });
+
+  it("extrai e reconhece como completa a leitura real que termina sem Enter", () => {
+    const leitura = "`^id^Ç^47833550005^,^t^Ç^lm^{";
+    expect(normalizarCodigoTriagem(leitura)).toBe("47833550005");
+    expect(leituraQrMeliCompleta(leitura)).toBe(true);
+  });
+
+  it("informa a rota selecionada e a rota correta quando o pacote diverge", () => {
+    expect(mensagemRotaDivergente("L1_AM1", "L3_AM1")).toBe(
+      "Este pacote não pertence à rota L1_AM1. Ele pertence à rota L3_AM1.",
+    );
+    expect(triagemFunctions).toContain('log("rota_divergente"');
   });
 
   it("consolida atualizações pesadas após uma sequência de leituras", () => {
