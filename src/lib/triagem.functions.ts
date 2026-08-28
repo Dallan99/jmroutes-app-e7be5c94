@@ -14,12 +14,7 @@ import { nomeOperacionalRota } from "./meli-status";
 const ESCALAS_PAGE_SIZE = 1000;
 
 const bipSchema = z.object({
-  codigo: z
-    .string()
-    .trim()
-    .min(3)
-    .max(120)
-    .transform(normalizarCodigoTriagem),
+  codigo: z.string().trim().min(3).max(120).transform(normalizarCodigoTriagem),
   baseId: z.string().uuid(),
   dataOperacional: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   tempoDesdeUltimaMs: z.number().int().nonnegative().optional(),
@@ -67,16 +62,12 @@ export type LocalizacaoShipmentTriagem =
       triado: boolean;
     }
   | { encontrado: false; shipment: string; mensagem: string };
-  
-  const concluirRotaRessalvaSchema = z.object({
+
+const concluirRotaRessalvaSchema = z.object({
   baseId: z.string().uuid(),
   dataOperacional: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   rota: z.string().trim().min(1).max(120),
-  motivo: z
-    .string()
-    .trim()
-    .min(5, "Informe um motivo com pelo menos 5 caracteres.")
-    .max(1000),
+  motivo: z.string().trim().min(5, "Informe um motivo com pelo menos 5 caracteres.").max(1000),
 });
 
 export type ConclusaoRotaRessalva = {
@@ -87,162 +78,204 @@ export type ConclusaoRotaRessalva = {
   faltantes: number;
   concluidaEm: string;
   concluidaPor: string;
+  shipmentIdsNaoLocalizados: string[];
 };
 
 export const concluirRotaComRessalva = createServerFn({
   method: "POST",
 })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    concluirRotaRessalvaSchema.parse(data),
-  )
-  .handler(
-    async ({
-      data,
-      context,
-    }): Promise<ConclusaoRotaRessalva> => {
-      const { supabase, userId } = context;
+  .inputValidator((data: unknown) => concluirRotaRessalvaSchema.parse(data))
+  .handler(async ({ data, context }): Promise<ConclusaoRotaRessalva> => {
+    const { supabase, userId } = context;
 
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { auditRequestMeta } = await import("./audit.server");
+    const { auditRequestMeta } = await import("./audit.server");
 
-      const { data: importacao, error: importacaoErro } =
-        await supabase
-          .from("importacoes_escala")
-          .select("id")
-          .eq("base_id", data.baseId)
-          .eq("data_operacional", data.dataOperacional)
-          .eq("ativa", true)
-          .maybeSingle();
+    const { data: importacao, error: importacaoErro } = await supabase
+      .from("importacoes_escala")
+      .select("id")
+      .eq("base_id", data.baseId)
+      .eq("data_operacional", data.dataOperacional)
+      .eq("ativa", true)
+      .maybeSingle();
 
-      if (importacaoErro) {
-        throw new Error(importacaoErro.message);
-      }
+    if (importacaoErro) {
+      throw new Error(importacaoErro.message);
+    }
 
-      if (!importacao) {
-        throw new Error(
-          "Não existe importação ativa para esta base e dia operacional.",
-        );
-      }
+    if (!importacao) {
+      throw new Error("Não existe importação ativa para esta base e dia operacional.");
+    }
 
-      // Contagem via agregação no Postgres para evitar statement timeout.
-      // Rota efetiva = otimizada (se preenchida) senão planejada.
-      // Usamos queries separadas em vez de .or() com and() aninhado porque
-      // o PostgREST não otimiza esse filtro composto e cai em seq scan.
-      const rotaFiltro = data.rota;
-      const baseQ = () =>
-        supabaseAdmin
+    // Contagem via agregação no Postgres para evitar statement timeout.
+    // Rota efetiva = otimizada (se preenchida) senão planejada.
+    // Usamos queries separadas em vez de .or() com and() aninhado porque
+    // o PostgREST não otimiza esse filtro composto e cai em seq scan.
+    const rotaFiltro = data.rota;
+    const baseQ = () =>
+      supabaseAdmin
+        .from("escalas")
+        .select("id", { count: "exact", head: true })
+        .eq("importacao_id", importacao.id)
+        .not("shipment", "is", null)
+        .neq("shipment", "");
+
+    const [
+      { count: prevOtim, error: e1 },
+      { count: prevPlanNull, error: e2 },
+      { count: prevPlanEmpty, error: e3 },
+      { count: triOtim, error: e4 },
+      { count: triPlanNull, error: e5 },
+      { count: triPlanEmpty, error: e6 },
+    ] = await Promise.all([
+      baseQ().eq("otimizada", rotaFiltro),
+      baseQ().is("otimizada", null).eq("planejada", rotaFiltro),
+      baseQ().eq("otimizada", "").eq("planejada", rotaFiltro),
+      baseQ().eq("otimizada", rotaFiltro).eq("triado", true),
+      baseQ().is("otimizada", null).eq("planejada", rotaFiltro).eq("triado", true),
+      baseQ().eq("otimizada", "").eq("planejada", rotaFiltro).eq("triado", true),
+    ]);
+    const err = e1 || e2 || e3 || e4 || e5 || e6;
+    if (err) throw new Error(err.message);
+
+    const previstos = (prevOtim ?? 0) + (prevPlanNull ?? 0) + (prevPlanEmpty ?? 0);
+    const triados = (triOtim ?? 0) + (triPlanNull ?? 0) + (triPlanEmpty ?? 0);
+    const faltantes = Math.max(previstos - triados, 0);
+
+    if (previstos === 0) {
+      throw new Error("Rota não encontrada na importação ativa.");
+    }
+
+    if (faltantes === 0) {
+      throw new Error("Esta rota já está 100% concluída e não precisa de ressalva.");
+    }
+
+    // Congela os IDs ausentes no instante da conclusão. A Expedição poderá
+    // reconciliá-los depois sem apagar esta ocorrência original.
+    type LinhaFaltante = { id: string; shipment: string | null };
+    const carregarFaltantes = async (modo: "otimizada" | "planejadaNula" | "planejadaVazia") => {
+      const linhas: LinhaFaltante[] = [];
+      for (let inicio = 0; ; inicio += ESCALAS_PAGE_SIZE) {
+        let query = supabaseAdmin
           .from("escalas")
-          .select("id", { count: "exact", head: true })
+          .select("id, shipment")
           .eq("importacao_id", importacao.id)
+          .eq("triado", false)
           .not("shipment", "is", null)
-          .neq("shipment", "");
+          .neq("shipment", "")
+          .order("id", { ascending: true });
 
-      const [
-        { count: prevOtim, error: e1 },
-        { count: prevPlanNull, error: e2 },
-        { count: prevPlanEmpty, error: e3 },
-        { count: triOtim, error: e4 },
-        { count: triPlanNull, error: e5 },
-        { count: triPlanEmpty, error: e6 },
-      ] = await Promise.all([
-        baseQ().eq("otimizada", rotaFiltro),
-        baseQ().is("otimizada", null).eq("planejada", rotaFiltro),
-        baseQ().eq("otimizada", "").eq("planejada", rotaFiltro),
-        baseQ().eq("otimizada", rotaFiltro).eq("triado", true),
-        baseQ().is("otimizada", null).eq("planejada", rotaFiltro).eq("triado", true),
-        baseQ().eq("otimizada", "").eq("planejada", rotaFiltro).eq("triado", true),
+        if (modo === "otimizada") {
+          query = query.eq("otimizada", rotaFiltro);
+        } else if (modo === "planejadaNula") {
+          query = query.is("otimizada", null).eq("planejada", rotaFiltro);
+        } else {
+          query = query.eq("otimizada", "").eq("planejada", rotaFiltro);
+        }
+
+        const { data: pagina, error } = await query.range(inicio, inicio + ESCALAS_PAGE_SIZE - 1);
+        if (error) throw new Error(error.message);
+        if (!pagina || pagina.length === 0) break;
+        linhas.push(...pagina);
+        if (pagina.length < ESCALAS_PAGE_SIZE) break;
+      }
+      return linhas;
+    };
+
+    const [faltantesOtimizadas, faltantesPlanejadasNulas, faltantesPlanejadasVazias] =
+      await Promise.all([
+        carregarFaltantes("otimizada"),
+        carregarFaltantes("planejadaNula"),
+        carregarFaltantes("planejadaVazia"),
       ]);
-      const err = e1 || e2 || e3 || e4 || e5 || e6;
-      if (err) throw new Error(err.message);
+    const shipmentIdsNaoLocalizados = Array.from(
+      new Map(
+        [...faltantesOtimizadas, ...faltantesPlanejadasNulas, ...faltantesPlanejadasVazias].map(
+          (linha) => [linha.id, linha],
+        ),
+      ).values(),
+    )
+      .map((linha) => linha.shipment?.trim())
+      .filter((shipment): shipment is string => !!shipment)
+      .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
 
-      const previstos = (prevOtim ?? 0) + (prevPlanNull ?? 0) + (prevPlanEmpty ?? 0);
-      const triados = (triOtim ?? 0) + (triPlanNull ?? 0) + (triPlanEmpty ?? 0);
-      const faltantes = Math.max(previstos - triados, 0);
+    if (shipmentIdsNaoLocalizados.length !== faltantes) {
+      throw new Error(
+        "A relação de IDs faltantes mudou durante a conclusão. Atualize a rota e tente novamente.",
+      );
+    }
 
+    const { data: conclusaoExistente } = await supabaseAdmin
+      .from("audit_logs")
+      .select("user_id, created_at, detalhes")
+      .eq("acao", "triagem.rota_concluida_ressalva")
+      .eq("entidade", "importacao_escala")
+      .eq("entidade_id", importacao.id)
+      .contains("detalhes", {
+        rota: data.rota,
+      } as never)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (previstos === 0) {
-        throw new Error("Rota não encontrada na importação ativa.");
-      }
-
-      if (faltantes === 0) {
-        throw new Error(
-          "Esta rota já está 100% concluída e não precisa de ressalva.",
-        );
-      }
-
-      const { data: conclusaoExistente } = await supabaseAdmin
-        .from("audit_logs")
-        .select("user_id, created_at, detalhes")
-        .eq("acao", "triagem.rota_concluida_ressalva")
-        .eq("entidade", "importacao_escala")
-        .eq("entidade_id", importacao.id)
-        .contains("detalhes", {
-          rota: data.rota,
-        } as never)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (conclusaoExistente) {
-        const detalhes = (conclusaoExistente.detalhes ??
-          {}) as Record<string, unknown>;
-
-        return {
-          rota: data.rota,
-          motivo: String(detalhes.motivo ?? data.motivo),
-          previstos: Number(detalhes.previstos ?? previstos),
-          triados: Number(detalhes.triados ?? triados),
-          faltantes: Number(detalhes.faltantes ?? faltantes),
-          concluidaEm: conclusaoExistente.created_at,
-          concluidaPor: conclusaoExistente.user_id ?? userId,
-        };
-      }
-
-      const concluidaEm = new Date().toISOString();
-      const { ip, user_agent } = auditRequestMeta();
-
-      const { error: auditoriaErro } = await supabaseAdmin
-        .from("audit_logs")
-        .insert({
-          user_id: userId,
-          acao: "triagem.rota_concluida_ressalva",
-          entidade: "importacao_escala",
-          entidade_id: importacao.id,
-          detalhes: {
-            rota: data.rota,
-            motivo: data.motivo,
-            previstos,
-            triados,
-            faltantes,
-            base_id: data.baseId,
-            data_operacional: data.dataOperacional,
-            status: "concluida_ressalva",
-          } as never,
-          ip,
-          user_agent,
-        });
-
-      if (auditoriaErro) {
-        throw new Error(
-          `Não foi possível registrar a conclusão: ${auditoriaErro.message}`,
-        );
-      }
+    if (conclusaoExistente) {
+      const detalhes = (conclusaoExistente.detalhes ?? {}) as Record<string, unknown>;
 
       return {
+        rota: data.rota,
+        motivo: String(detalhes.motivo ?? data.motivo),
+        previstos: Number(detalhes.previstos ?? previstos),
+        triados: Number(detalhes.triados ?? triados),
+        faltantes: Number(detalhes.faltantes ?? faltantes),
+        concluidaEm: conclusaoExistente.created_at,
+        concluidaPor: conclusaoExistente.user_id ?? userId,
+        shipmentIdsNaoLocalizados: Array.isArray(detalhes.shipment_ids_nao_localizados)
+          ? detalhes.shipment_ids_nao_localizados.map(String)
+          : [],
+      };
+    }
+
+    const concluidaEm = new Date().toISOString();
+    const { ip, user_agent } = auditRequestMeta();
+
+    const { error: auditoriaErro } = await supabaseAdmin.from("audit_logs").insert({
+      user_id: userId,
+      acao: "triagem.rota_concluida_ressalva",
+      entidade: "importacao_escala",
+      entidade_id: importacao.id,
+      detalhes: {
         rota: data.rota,
         motivo: data.motivo,
         previstos,
         triados,
         faltantes,
-        concluidaEm,
-        concluidaPor: userId,
-      };
-    },
-  );
+        base_id: data.baseId,
+        data_operacional: data.dataOperacional,
+        status: "concluida_ressalva",
+        tipo_divergencia: "nao_localizado_no_recebimento",
+        shipment_ids_nao_localizados: shipmentIdsNaoLocalizados,
+      } as never,
+      ip,
+      user_agent,
+    });
+
+    if (auditoriaErro) {
+      throw new Error(`Não foi possível registrar a conclusão: ${auditoriaErro.message}`);
+    }
+
+    return {
+      rota: data.rota,
+      motivo: data.motivo,
+      previstos,
+      triados,
+      faltantes,
+      concluidaEm,
+      concluidaPor: userId,
+      shipmentIdsNaoLocalizados,
+    };
+  });
 
 /**
  * Bipagem de Triagem — trabalha em cima da PLANILHA importada (escala).
@@ -269,9 +302,9 @@ export const biparTriagem = createServerFn({ method: "POST" })
           ? "inexistente"
           : resultado === "outra_data" || resultado === "outra_expedicao"
             ? "inexistente"
-          : resultado === "rota_divergente"
-            ? "outra_rota"
-            : resultado;
+            : resultado === "rota_divergente"
+              ? "outra_rota"
+              : resultado;
       const registro = supabase.from("recebimentos").insert({
         codigo_bipado: data.codigo,
         rota_id: null,
@@ -320,20 +353,23 @@ export const biparTriagem = createServerFn({ method: "POST" })
     if (impAtiva) {
       const { data: row } = await supabase
         .from("escalas")
-        .select("id, shipment, planejada, otimizada, cidade, cep, triado, base_id, importacao_id, recebido, meli_pacote_id")
+        .select(
+          "id, shipment, planejada, otimizada, cidade, cep, triado, base_id, importacao_id, recebido, meli_pacote_id",
+        )
         .eq("importacao_id", impAtiva.id)
         .eq("shipment", data.codigo)
         .maybeSingle();
       escala = row ?? null;
     }
 
-
     // 3) Não achou na escala ativa do dia? Primeiro diferencia a mesma base
     // em outra data/versão. Só acusa "outra base" quando a base é realmente outra.
     if (!escala) {
       const { data: encontrados } = await supabase
         .from("escalas")
-        .select("id, base_id, triado, recebido, bases:base_id(codigo, nome), importacao:importacao_id!inner(id, data_operacional, ativa, arquivo_nome, versao, importado_em)")
+        .select(
+          "id, base_id, triado, recebido, bases:base_id(codigo, nome), importacao:importacao_id!inner(id, data_operacional, ativa, arquivo_nome, versao, importado_em)",
+        )
         .eq("shipment", data.codigo)
         .limit(100);
 
@@ -367,15 +403,15 @@ export const biparTriagem = createServerFn({ method: "POST" })
 
       if (mesmaBase?.importacao) {
         const imp = mesmaBase.importacao;
-        const dataEncontrada = new Date(`${imp.data_operacional}T00:00:00`).toLocaleDateString("pt-BR");
+        const dataEncontrada = new Date(`${imp.data_operacional}T00:00:00`).toLocaleDateString(
+          "pt-BR",
+        );
         const status = mesmaBase.triado
           ? "já triado nessa operação"
           : mesmaBase.recebido
             ? "recebido e aguardando triagem"
             : "aguardando recebimento/triagem";
-        const exp = imp.arquivo_nome
-          ? `, expedição ${imp.arquivo_nome}`
-          : `, versão ${imp.versao}`;
+        const exp = imp.arquivo_nome ? `, expedição ${imp.arquivo_nome}` : `, versão ${imp.versao}`;
 
         if (imp.data_operacional !== data.dataOperacional) {
           const msg = `Pedido pertence à mesma base ${mesmaBase.bases?.codigo ?? ""} ${mesmaBase.bases?.nome ?? ""}, mas ao dia operacional ${dataEncontrada}${exp}. Status: ${status}.`;
@@ -408,38 +444,26 @@ export const biparTriagem = createServerFn({ method: "POST" })
      * Uma falha isolada na auditoria não deve derrubar toda a bipagem.
      */
     try {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { data: rotaEncerradaComRessalva, error: ressalvaErro } =
-        await supabaseAdmin
-          .from("audit_logs")
-          .select("id")
-          .eq("acao", "triagem.rota_concluida_ressalva")
-          .eq("entidade", "importacao_escala")
-          .eq("entidade_id", escala.importacao_id!)
-          .contains("detalhes", {
-            rota: rotaCodigo,
-          } as never)
-          .limit(1)
-          .maybeSingle();
+      const { data: rotaEncerradaComRessalva, error: ressalvaErro } = await supabaseAdmin
+        .from("audit_logs")
+        .select("id")
+        .eq("acao", "triagem.rota_concluida_ressalva")
+        .eq("entidade", "importacao_escala")
+        .eq("entidade_id", escala.importacao_id!)
+        .contains("detalhes", {
+          rota: rotaCodigo,
+        } as never)
+        .limit(1)
+        .maybeSingle();
 
       if (ressalvaErro) {
-        console.error(
-          "Falha ao verificar conclusão de rota com ressalva:",
-          ressalvaErro.message,
-        );
+        console.error("Falha ao verificar conclusão de rota com ressalva:", ressalvaErro.message);
       } else if (rotaEncerradaComRessalva) {
-        const mensagem =
-          `A rota ${rotaCodigo} foi concluída com ressalva e está bloqueada para novas bipagens.`;
+        const mensagem = `A rota ${rotaCodigo} foi concluída com ressalva e está bloqueada para novas bipagens.`;
 
-        await log(
-          "encerrada",
-          mensagem,
-          escala.base_id,
-          escala.id,
-        );
+        await log("encerrada", mensagem, escala.base_id, escala.id);
 
         return {
           resultado: "encerrada",
@@ -448,10 +472,7 @@ export const biparTriagem = createServerFn({ method: "POST" })
         };
       }
     } catch (erro) {
-      console.error(
-        "Não foi possível verificar a conclusão da rota com ressalva:",
-        erro,
-      );
+      console.error("Não foi possível verificar a conclusão da rota com ressalva:", erro);
     }
 
     // 4.a) Se o operador escolheu uma rota, o shipment tem que pertencer a ela
@@ -462,9 +483,7 @@ export const biparTriagem = createServerFn({ method: "POST" })
     }
 
     const countRota = async () => {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       let previstosQuery = supabaseAdmin
         .from("escalas")
         .select("id", { count: "exact", head: true })
@@ -512,11 +531,10 @@ export const biparTriagem = createServerFn({ method: "POST" })
     // 4.b) Trava de recebimento físico removida: a triagem pode ser feita
     // direto na bipagem das rotas, mesmo sem passar pelo Recebimento.
 
-
     // 5) Duplicado
 
     if (escala.triado) {
-      const msg = `Shipment ${escala.shipment} já foi triado.`;
+      const msg = `Shipment ${escala.shipment} já foi recebido.`;
       await log("duplicado", msg, escala.base_id, escala.id);
       return {
         resultado: "duplicado",
@@ -551,7 +569,7 @@ export const biparTriagem = createServerFn({ method: "POST" })
     // Outra leitura pode ter vencido a corrida entre o SELECT e o UPDATE.
     // Nesse caso a segunda tentativa é duplicada, nunca um segundo "ok".
     if (!atualizado) {
-      const msg = `Shipment ${escala.shipment} já foi triado.`;
+      const msg = `Shipment ${escala.shipment} já foi recebido.`;
       await log("duplicado", msg, escala.base_id, escala.id);
       return {
         resultado: "duplicado",
@@ -565,8 +583,8 @@ export const biparTriagem = createServerFn({ method: "POST" })
     const rotaInfo = await build();
     const mensagem =
       rotaInfo.quantidade_triada >= rotaInfo.quantidade_prevista
-        ? `Triagem COMPLETA da rota ${rotaCodigo}.`
-        : `Shipment triado — rota ${rotaCodigo} (${rotaInfo.quantidade_triada}/${rotaInfo.quantidade_prevista}).`;
+        ? `Recebimento COMPLETO da rota ${rotaCodigo}.`
+        : `Shipment recebido — rota ${rotaCodigo} (${rotaInfo.quantidade_triada}/${rotaInfo.quantidade_prevista}).`;
     await log("ok", mensagem, escala.base_id, escala.id);
 
     return {
@@ -624,9 +642,7 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
       return [] as RotaTriagemDia[];
     }
 
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const PAGE_SIZE = ESCALAS_PAGE_SIZE;
 
@@ -682,18 +698,15 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
     }));
 
     try {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const { data: conclusoes, error: conclusoesErro } =
-        await supabaseAdmin
-          .from("audit_logs")
-          .select("user_id, created_at, detalhes")
-          .eq("acao", "triagem.rota_concluida_ressalva")
-          .eq("entidade", "importacao_escala")
-          .eq("entidade_id", impAtiva.id)
-          .order("created_at", { ascending: false });
+      const { data: conclusoes, error: conclusoesErro } = await supabaseAdmin
+        .from("audit_logs")
+        .select("user_id, created_at, detalhes")
+        .eq("acao", "triagem.rota_concluida_ressalva")
+        .eq("entidade", "importacao_escala")
+        .eq("entidade_id", impAtiva.id)
+        .order("created_at", { ascending: false });
 
       if (conclusoesErro) {
         console.error(
@@ -714,15 +727,9 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
       >();
 
       for (const registro of conclusoes ?? []) {
-        const detalhes = (registro.detalhes ?? {}) as Record<
-          string,
-          unknown
-        >;
+        const detalhes = (registro.detalhes ?? {}) as Record<string, unknown>;
 
-        const rota =
-          typeof detalhes.rota === "string"
-            ? detalhes.rota.trim()
-            : "";
+        const rota = typeof detalhes.rota === "string" ? detalhes.rota.trim() : "";
 
         if (!rota || conclusoesPorRota.has(rota)) {
           continue;
@@ -730,14 +737,11 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
 
         conclusoesPorRota.set(rota, {
           motivo:
-            typeof detalhes.motivo === "string" &&
-            detalhes.motivo.trim().length > 0
+            typeof detalhes.motivo === "string" && detalhes.motivo.trim().length > 0
               ? detalhes.motivo
               : "Motivo não informado",
-          concluidaEm:
-            registro.created_at ?? new Date().toISOString(),
-          concluidaPor:
-            registro.user_id ?? "Usuário não identificado",
+          concluidaEm: registro.created_at ?? new Date().toISOString(),
+          concluidaPor: registro.user_id ?? "Usuário não identificado",
           faltantes: Number(detalhes.faltantes ?? 0),
         });
       }
@@ -756,10 +760,7 @@ export const triagemRotasDoDia = createServerFn({ method: "GET" })
         };
       });
     } catch (erro) {
-      console.error(
-        "Não foi possível carregar as ressalvas das rotas:",
-        erro,
-      );
+      console.error("Não foi possível carregar as ressalvas das rotas:", erro);
       return resumo;
     }
   });
@@ -880,9 +881,7 @@ export const triagemResumoDia = createServerFn({ method: "GET" })
     let totalPrev = 0;
     let triados = 0;
     if (impAtiva) {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const [{ count: p }, { count: t }] = await Promise.all([
         supabaseAdmin
           .from("escalas")
@@ -946,9 +945,7 @@ export const triagemShipmentsPendentes = createServerFn({ method: "GET" })
         triados: [] as Array<{ shipment: string; cidade: string | null }>,
       };
 
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const PAGE = ESCALAS_PAGE_SIZE;
     type LinhaRota = {
@@ -989,10 +986,7 @@ export const triagemShipmentsPendentes = createServerFn({ method: "GET" })
     ]);
     const rows = Array.from(
       new Map(
-        [...otimizadas, ...planejadasNulas, ...planejadasVazias].map((linha) => [
-          linha.id,
-          linha,
-        ]),
+        [...otimizadas, ...planejadasNulas, ...planejadasVazias].map((linha) => [linha.id, linha]),
       ).values(),
     );
     const pendentes = rows

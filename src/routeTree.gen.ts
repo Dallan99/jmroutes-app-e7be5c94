@@ -26,6 +26,7 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedContagemRouteImport } from './routes/_authenticated/contagem'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDevolucoesRouteImport } from './routes/_authenticated/devolucoes'
+import { Route as AuthenticatedExpedicaoRouteImport } from './routes/_authenticated/expedicao'
 import { Route as AuthenticatedGerencialRouteImport } from './routes/_authenticated/gerencial'
 import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authenticated/historico'
 import { Route as AuthenticatedIntegracaoMeliRouteImport } from './routes/_authenticated/integracao-meli'
@@ -134,6 +135,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedDevolucoesRoute = AuthenticatedDevolucoesRouteImport.update({
   id: '/devolucoes',
   path: '/devolucoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedExpedicaoRoute = AuthenticatedExpedicaoRouteImport.update({
+  id: '/expedicao',
+  path: '/expedicao',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedGerencialRoute = AuthenticatedGerencialRouteImport.update({
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/contagem': typeof AuthenticatedContagemRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devolucoes': typeof AuthenticatedDevolucoesRoute
+  '/expedicao': typeof AuthenticatedExpedicaoRoute
   '/gerencial': typeof AuthenticatedGerencialRoute
   '/historico': typeof AuthenticatedHistoricoRoute
   '/integracao-meli': typeof AuthenticatedIntegracaoMeliRoute
@@ -314,6 +321,7 @@ export interface FileRoutesByTo {
   '/contagem': typeof AuthenticatedContagemRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devolucoes': typeof AuthenticatedDevolucoesRoute
+  '/expedicao': typeof AuthenticatedExpedicaoRoute
   '/gerencial': typeof AuthenticatedGerencialRoute
   '/historico': typeof AuthenticatedHistoricoRoute
   '/integracao-meli': typeof AuthenticatedIntegracaoMeliRoute
@@ -356,6 +364,7 @@ export interface FileRoutesById {
   '/_authenticated/contagem': typeof AuthenticatedContagemRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/devolucoes': typeof AuthenticatedDevolucoesRoute
+  '/_authenticated/expedicao': typeof AuthenticatedExpedicaoRoute
   '/_authenticated/gerencial': typeof AuthenticatedGerencialRoute
   '/_authenticated/historico': typeof AuthenticatedHistoricoRoute
   '/_authenticated/integracao-meli': typeof AuthenticatedIntegracaoMeliRoute
@@ -398,6 +407,7 @@ export interface FileRouteTypes {
     | '/contagem'
     | '/dashboard'
     | '/devolucoes'
+    | '/expedicao'
     | '/gerencial'
     | '/historico'
     | '/integracao-meli'
@@ -438,6 +448,7 @@ export interface FileRouteTypes {
     | '/contagem'
     | '/dashboard'
     | '/devolucoes'
+    | '/expedicao'
     | '/gerencial'
     | '/historico'
     | '/integracao-meli'
@@ -479,6 +490,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contagem'
     | '/_authenticated/dashboard'
     | '/_authenticated/devolucoes'
+    | '/_authenticated/expedicao'
     | '/_authenticated/gerencial'
     | '/_authenticated/historico'
     | '/_authenticated/integracao-meli'
@@ -640,6 +652,13 @@ declare module '@tanstack/react-router' {
       path: '/devolucoes'
       fullPath: '/devolucoes'
       preLoaderRoute: typeof AuthenticatedDevolucoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/expedicao': {
+      id: '/_authenticated/expedicao'
+      path: '/expedicao'
+      fullPath: '/expedicao'
+      preLoaderRoute: typeof AuthenticatedExpedicaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/gerencial': {
@@ -808,6 +827,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContagemRoute: typeof AuthenticatedContagemRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDevolucoesRoute: typeof AuthenticatedDevolucoesRoute
+  AuthenticatedExpedicaoRoute: typeof AuthenticatedExpedicaoRoute
   AuthenticatedGerencialRoute: typeof AuthenticatedGerencialRoute
   AuthenticatedHistoricoRoute: typeof AuthenticatedHistoricoRoute
   AuthenticatedIntegracaoMeliRoute: typeof AuthenticatedIntegracaoMeliRoute
@@ -832,6 +852,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContagemRoute: AuthenticatedContagemRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDevolucoesRoute: AuthenticatedDevolucoesRoute,
+  AuthenticatedExpedicaoRoute: AuthenticatedExpedicaoRoute,
   AuthenticatedGerencialRoute: AuthenticatedGerencialRoute,
   AuthenticatedHistoricoRoute: AuthenticatedHistoricoRoute,
   AuthenticatedIntegracaoMeliRoute: AuthenticatedIntegracaoMeliRoute,

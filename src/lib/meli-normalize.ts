@@ -201,7 +201,10 @@ function detectarRiscoRota(obj: AnyRec, camposDetectados: Set<string>): Classifi
   return detectarRisco(asRec(obj.driver), "rota", camposDetectados);
 }
 
-function riscoPorOcorrencia(codigo: string | null, camposDetectados: Set<string>): ClassificacaoRisco | null {
+function riscoPorOcorrencia(
+  codigo: string | null,
+  camposDetectados: Set<string>,
+): ClassificacaoRisco | null {
   const c = (codigo ?? "").trim().toLowerCase();
   if (!c || !CODIGOS_OCORRENCIA_RISCO.has(c)) return null;
   camposDetectados.add(`ocorrencia.${c}`);
@@ -282,6 +285,18 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
     const comRisco = finais.filter((x) => x.area_risco).length;
     const rotaIntegral = riscoRota.area_risco || (finais.length > 0 && comRisco === finais.length);
     const parcial = !rotaIntegral && comRisco > 0;
+    const driver = asRec(p.driver);
+    const vehicle = asRec(p.vehicle);
+    const driverName =
+      s(p.driver_name) ?? s(p.driverName) ?? s(driver.driverName) ?? s(driver.name);
+    const driverId = s(p.driver_id) ?? s(p.driverId) ?? s(driver.driverUserId) ?? s(driver.id);
+    const vehicleLicense =
+      s(p.vehicle_license) ??
+      s(p.license) ??
+      s(p.plate) ??
+      s(vehicle.license_plate) ??
+      s(vehicle.license) ??
+      s(vehicle.plate);
 
     return {
       payload: {
@@ -289,6 +304,9 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
         cluster: s(p.cluster),
         carrier: s(p.carrier),
         facility: s(p.facility),
+        driver_name: driverName,
+        driver_id: driverId,
+        vehicle_license: vehicleLicense?.trim().toUpperCase() ?? null,
         data_rota: s(p.data_rota),
         status: s(p.status),
         substatus: s(p.substatus),
@@ -332,7 +350,11 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
     const stopId = s(stop.id) ?? s(stop.stopId) ?? s(stop.stop_id);
     // Risco no nível da parada marca somente os pacotes daquela parada.
     const riscoParada = detectarRisco(stop, "parada", camposRisco);
-    const riscoParadaEndereco = detectarRisco(asRec(stop.address ?? stop.location), "parada", camposRisco);
+    const riscoParadaEndereco = detectarRisco(
+      asRec(stop.address ?? stop.location),
+      "parada",
+      camposRisco,
+    );
 
     for (const orderRaw of asArr(stop.orders)) {
       const order = asRec(orderRaw);
@@ -408,14 +430,24 @@ export function normalizarPayloadMeli(payloadInput: AnyRec): {
   const driver = asRec(payloadInput.driver);
   const vehicle = asRec(payloadInput.vehicle);
   const driverName =
-    s(payloadInput.driver_name) ?? s(payloadInput.driverName) ??
-    s(driver.driverName) ?? s(driver.name) ?? s(driver.nickname);
+    s(payloadInput.driver_name) ??
+    s(payloadInput.driverName) ??
+    s(driver.driverName) ??
+    s(driver.name) ??
+    s(driver.nickname);
   const driverId =
-    s(payloadInput.driver_id) ?? s(payloadInput.driverId) ??
-    s(driver.driverUserId) ?? s(driver.user_id) ?? s(driver.id);
+    s(payloadInput.driver_id) ??
+    s(payloadInput.driverId) ??
+    s(driver.driverUserId) ??
+    s(driver.user_id) ??
+    s(driver.id);
   const vehicleLicense =
-    s(payloadInput.vehicle_license) ?? s(payloadInput.license) ?? s(payloadInput.plate) ??
-    s(vehicle.license_plate) ?? s(vehicle.license) ?? s(vehicle.plate);
+    s(payloadInput.vehicle_license) ??
+    s(payloadInput.license) ??
+    s(payloadInput.plate) ??
+    s(vehicle.license_plate) ??
+    s(vehicle.license) ??
+    s(vehicle.plate);
 
   const comRisco = finais.filter((x) => x.area_risco).length;
   const rotaIntegral = riscoRota.area_risco || (finais.length > 0 && comRisco === finais.length);
