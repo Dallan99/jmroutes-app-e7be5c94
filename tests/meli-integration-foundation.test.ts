@@ -4,11 +4,11 @@ import {
   shouldRefreshMeliCarrierToken,
   type MeliCarrierCachedToken,
   type MeliCarrierTokenStore,
-} from "@/lib/meli-carrier-oauth.server";
+} from "../src/lib/meli-carrier-oauth.server";
 import {
   MELI_INTERNAL_TRACKING_EVENTS,
   isMeliInternalTrackingEvent,
-} from "@/lib/meli-integration.types";
+} from "../src/lib/meli-integration.types";
 
 class MemoryTokenStore implements MeliCarrierTokenStore {
   token: MeliCarrierCachedToken | null = null;
