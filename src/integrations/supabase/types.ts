@@ -1544,6 +1544,42 @@ export type Database = {
           },
         ]
       }
+      meli_motoristas_catalogo: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          meli_driver_id: string
+          nome: string
+          origem: string
+          service_center_id: string | null
+          sincronizado_em: string
+          ultima_rota_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          meli_driver_id: string
+          nome: string
+          origem?: string
+          service_center_id?: string | null
+          sincronizado_em?: string
+          ultima_rota_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          meli_driver_id?: string
+          nome?: string
+          origem?: string
+          service_center_id?: string | null
+          sincronizado_em?: string
+          ultima_rota_em?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meli_rotas: {
         Row: {
           area_risco_detectado_em: string | null

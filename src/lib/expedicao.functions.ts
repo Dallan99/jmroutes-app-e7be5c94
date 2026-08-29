@@ -16,7 +16,12 @@ const iniciarSchema = baseDiaSchema.extend({
   motorista: z.string().trim().min(2).max(160),
 });
 
-export type MotoristaMeli = { id: string; nome: string; ultimaRotaEm: string | null };
+export type MotoristaMeli = {
+  id: string;
+  nome: string;
+  ultimaRotaEm: string | null;
+  origem: "adminml" | "rota_observada";
+};
 
 export const listarMotoristasMeli = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -24,20 +29,17 @@ export const listarMotoristasMeli = createServerFn({ method: "GET" })
   .handler(async (): Promise<MotoristaMeli[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: linhas, error } = await supabaseAdmin
-      .from("meli_rotas")
-      .select("driver_id, driver_name, data_rota")
-      .not("driver_name", "is", null)
-      .order("data_rota", { ascending: false })
-      .limit(5000);
+      .from("meli_motoristas_catalogo")
+      .select("meli_driver_id, nome, ultima_rota_em, origem")
+      .eq("ativo", true)
+      .order("nome", { ascending: true });
     if (error) throw new Error(error.message);
-    const catalogo = new Map<string, MotoristaMeli>();
-    for (const linha of linhas ?? []) {
-      const nome = linha.driver_name?.trim();
-      if (!nome) continue;
-      const id = linha.driver_id?.trim() || `nome:${nome.toLocaleLowerCase("pt-BR")}`;
-      if (!catalogo.has(id)) catalogo.set(id, { id, nome, ultimaRotaEm: linha.data_rota ?? null });
-    }
-    return [...catalogo.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    return (linhas ?? []).map((linha) => ({
+      id: linha.meli_driver_id,
+      nome: linha.nome,
+      ultimaRotaEm: linha.ultima_rota_em ?? null,
+      origem: linha.origem as MotoristaMeli["origem"],
+    }));
   });
 
 const biparSchema = z.object({
