@@ -44,7 +44,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CollectorModeProvider, useCollectorMode } from "@/lib/collector-mode";
 import { isPwaStandalone } from "@/lib/pwa-install";
 
-const ROTAS_APP_COLETOR = new Set(["/coletor", "/recebimento", "/triagem", "/expedicao", "/meli-devolucoes"]);
+const ROTAS_APP_COLETOR = new Set(["/coletor", "/recebimento", "/triagem", "/expedicao", "/motorista", "/meli-devolucoes"]);
 
 const INACTIVITY_MS = 4 * 60 * 60 * 1000;
 
@@ -152,6 +152,8 @@ function AppShellContent() {
     }
     if (!appColetorInstalado && pathname === "/dashboard" && modoColetor) sairModoColetor();
   }, [appColetorInstalado, modoColetor, navigate, pathname, sairModoColetor]);
+
+  if (pathname.startsWith("/motorista")) return <Outlet />;
 
   return (
     <BaseOperacionalProvider>

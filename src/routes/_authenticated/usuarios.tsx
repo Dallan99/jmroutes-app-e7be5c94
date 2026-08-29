@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Pencil, KeyRound, Power, Trash2, ShieldAlert } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImportarUsuariosDialog } from "@/components/importar-usuarios-dialog";
+import { listarMotoristasMeli } from "@/lib/expedicao.functions";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
   ssr: false,
@@ -206,6 +207,7 @@ function UsuarioForm({
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [matricula, setMatricula] = useState("");
+  const [meliDriverId, setMeliDriverId] = useState<string>("__none");
   const [baseId, setBaseId] = useState<string>("__none");
   const [role, setRole] = useState<Role>("operador");
   const [supervisorBases, setSupervisorBases] = useState<string[]>([]);
@@ -214,6 +216,12 @@ function UsuarioForm({
   const fnAtualizar = useServerFn(atualizarUsuario);
   const fnListarUserBases = useServerFn(listarUserBases);
   const fnSetUserBases = useServerFn(setUserBases);
+  const fnListarMotoristas = useServerFn(listarMotoristasMeli);
+  const motoristasQuery = useQuery({
+    queryKey: ["motoristas-meli-usuario", baseId],
+    queryFn: () => fnListarMotoristas({ data: { baseId } }),
+    enabled: open && baseId !== "__none",
+  });
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -221,6 +229,7 @@ function UsuarioForm({
         await fnAtualizar({ data: {
           user_id: editing.id, matricula: matricula || null,
           base_id: baseId === "__none" ? null : baseId, role,
+          meli_driver_id: meliDriverId === "__none" ? null : meliDriverId,
         }});
         if (role === "supervisor") {
           await fnSetUserBases({ data: { user_id: editing.id, base_ids: supervisorBases } });
@@ -232,6 +241,7 @@ function UsuarioForm({
       const created = await fnCriar({ data: {
         email, nome, senha, role,
         matricula: matricula || null,
+        meli_driver_id: meliDriverId === "__none" ? null : meliDriverId,
         base_id: baseId === "__none" ? null : baseId,
       }});
       if (role === "supervisor" && supervisorBases.length > 0 && created.id) {
@@ -254,6 +264,7 @@ function UsuarioForm({
       setEmail(editing?.email ?? "");
       setSenha("");
       setMatricula(editing?.matricula ?? "");
+      setMeliDriverId(editing?.meli_driver_id ?? "__none");
       setBaseId(editing?.base_id ?? "__none");
       setRole((editing?.roles[0] as Role) ?? "operador");
       setSupervisorBases([]);
@@ -346,6 +357,19 @@ function UsuarioForm({
                 ? "Base principal do supervisor. Adicione bases extras abaixo para acesso multi-base."
                 : "Administradores e gerentes têm acesso a todas as bases quando nenhuma é selecionada."}
             </p>
+          </div>
+          <div className="space-y-1">
+            <Label>Identidade no app do motorista</Label>
+            <Select value={meliDriverId} onValueChange={setMeliDriverId} disabled={baseId === "__none"}>
+              <SelectTrigger><SelectValue placeholder="Selecione o motorista Meli" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Não é motorista</SelectItem>
+                {(motoristasQuery.data ?? []).map((motorista) => (
+                  <SelectItem key={motorista.id} value={motorista.id}>{motorista.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">Ao entrar em /motorista, este usuário verá somente as rotas atribuídas a esse ID Meli.</p>
           </div>
           {role === "supervisor" && (
             <div className="space-y-2 border rounded-md p-3 bg-muted/20">

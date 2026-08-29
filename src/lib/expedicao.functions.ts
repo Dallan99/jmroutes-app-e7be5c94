@@ -12,8 +12,34 @@ const baseDiaSchema = z.object({
 
 const iniciarSchema = baseDiaSchema.extend({
   rota: z.string().trim().min(1).max(120),
+  motoristaMeliId: z.string().trim().min(1).max(80),
   motorista: z.string().trim().min(2).max(160),
 });
+
+export type MotoristaMeli = { id: string; nome: string; ultimaRotaEm: string | null };
+
+export const listarMotoristasMeli = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((entrada: unknown) => z.object({ baseId: z.string().uuid() }).parse(entrada))
+  .handler(async ({ data }): Promise<MotoristaMeli[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: linhas, error } = await supabaseAdmin
+      .from("meli_rotas")
+      .select("driver_id, driver_name, data_rota")
+      .eq("base_id", data.baseId)
+      .not("driver_name", "is", null)
+      .order("data_rota", { ascending: false })
+      .limit(5000);
+    if (error) throw new Error(error.message);
+    const catalogo = new Map<string, MotoristaMeli>();
+    for (const linha of linhas ?? []) {
+      const nome = linha.driver_name?.trim();
+      if (!nome) continue;
+      const id = linha.driver_id?.trim() || `nome:${nome.toLocaleLowerCase("pt-BR")}`;
+      if (!catalogo.has(id)) catalogo.set(id, { id, nome, ultimaRotaEm: linha.data_rota ?? null });
+    }
+    return [...catalogo.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  });
 
 const biparSchema = z.object({
   expedicaoId: z.string().uuid(),
@@ -197,6 +223,13 @@ export const iniciarExpedicao = createServerFn({ method: "POST" })
       };
     }
 
+    const { data: usuarioMotorista } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("meli_driver_id", data.motoristaMeliId)
+      .eq("ativo", true)
+      .maybeSingle();
+
     const { data: criada, error } = await supabase
       .from("expedicoes")
       .insert({
@@ -207,6 +240,8 @@ export const iniciarExpedicao = createServerFn({ method: "POST" })
         quantidade_prevista: linhas.length,
         responsavel_expedicao_id: userId,
         motorista: data.motorista,
+        motorista_meli_id: data.motoristaMeliId,
+        motorista_usuario_id: usuarioMotorista?.id ?? null,
         iniciada_por: userId,
       })
       .select("id, status, motorista, quantidade_conferida")
@@ -218,6 +253,27 @@ export const iniciarExpedicao = createServerFn({ method: "POST" })
       motorista: criada.motorista,
       conferidos: criada.quantidade_conferida,
     };
+  });
+
+export const listarMinhasExpedicoesMotorista = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: perfil, error: perfilErro } = await supabaseAdmin
+      .from("profiles")
+      .select("meli_driver_id")
+      .eq("id", context.userId)
+      .single();
+    if (perfilErro) throw new Error(perfilErro.message);
+    if (!perfil.meli_driver_id) return [];
+    const { data, error } = await supabaseAdmin
+      .from("expedicoes")
+      .select("id, rota, motorista, status, quantidade_prevista, quantidade_conferida, data_operacional, bases(codigo, nome)")
+      .eq("motorista_meli_id", perfil.meli_driver_id)
+      .order("data_operacional", { ascending: false })
+      .limit(30);
+    if (error) throw new Error(error.message);
+    return data ?? [];
   });
 
 export const detalharExpedicao = createServerFn({ method: "GET" })

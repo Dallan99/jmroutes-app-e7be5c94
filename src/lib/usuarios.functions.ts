@@ -15,6 +15,7 @@ export type UsuarioRow = {
   email: string;
   nome: string;
   matricula: string | null;
+  meli_driver_id: string | null;
   base_id: string | null;
   base_nome: string | null;
   ativo: boolean;
@@ -31,7 +32,7 @@ export const listarUsuarios = createServerFn({ method: "GET" })
 
     const { data: profiles, error: pErr } = await supabaseAdmin
       .from("profiles")
-      .select("id, nome, email, matricula, base_id, ativo, created_at, bases(nome)")
+      .select("id, nome, email, matricula, meli_driver_id, base_id, ativo, created_at, bases(nome)")
       .order("created_at", { ascending: false });
     if (pErr) throw new Error(pErr.message);
 
@@ -76,6 +77,7 @@ export const listarUsuarios = createServerFn({ method: "GET" })
         email,
         nome: p?.nome ?? metadataNome ?? email.split("@")[0] ?? "Usuário",
         matricula: p?.matricula ?? null,
+        meli_driver_id: p?.meli_driver_id ?? null,
         base_id: p?.base_id ?? null,
         base_nome: p?.bases?.nome ?? null,
         ativo: p?.ativo ?? !u.banned_until,
@@ -92,6 +94,7 @@ export const listarUsuarios = createServerFn({ method: "GET" })
         email: p.email,
         nome: p.nome,
         matricula: p.matricula,
+        meli_driver_id: p.meli_driver_id,
         base_id: p.base_id,
         base_nome: p.bases?.nome ?? null,
         ativo: p.ativo,
@@ -110,6 +113,7 @@ const criarSchema = z.object({
   senha: z.string().min(8).max(72),
   role: z.enum(["admin", "gerente", "supervisor", "operador"]),
   matricula: z.string().trim().max(40).optional().nullable(),
+  meli_driver_id: z.string().trim().max(80).optional().nullable(),
   base_id: z.string().uuid().optional().nullable(),
 });
 
@@ -141,6 +145,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
       .update({
         nome: data.nome,
         matricula: data.matricula ?? null,
+        meli_driver_id: data.meli_driver_id ?? null,
         base_id: data.base_id ?? null,
       })
       .eq("id", uid);
@@ -163,6 +168,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
 const atualizarSchema = z.object({
   user_id: z.string().uuid(),
   matricula: z.string().trim().max(40).optional().nullable(),
+  meli_driver_id: z.string().trim().max(80).optional().nullable(),
   base_id: z.string().uuid().optional().nullable(),
   role: z.enum(["admin", "gerente", "supervisor", "operador"]),
 });
@@ -179,7 +185,7 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
 
     const { error: upErr } = await supabaseAdmin
       .from("profiles")
-      .update({ matricula: data.matricula ?? null, base_id: data.base_id ?? null })
+      .update({ matricula: data.matricula ?? null, meli_driver_id: data.meli_driver_id ?? null, base_id: data.base_id ?? null })
       .eq("id", data.user_id);
     if (upErr) throw new Error(upErr.message);
 

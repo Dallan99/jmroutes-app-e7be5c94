@@ -18,11 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   biparExpedicao,
   concluirExpedicao,
   detalharExpedicao,
   iniciarExpedicao,
+  listarMotoristasMeli,
   listarRotasExpedicao,
 } from "@/lib/expedicao.functions";
 
@@ -49,6 +51,7 @@ function ExpedicaoPage() {
   const qc = useQueryClient();
   const listarFn = useServerFn(listarRotasExpedicao);
   const iniciarFn = useServerFn(iniciarExpedicao);
+  const listarMotoristasFn = useServerFn(listarMotoristasMeli);
   const detalheFn = useServerFn(detalharExpedicao);
   const biparFn = useServerFn(biparExpedicao);
   const concluirFn = useServerFn(concluirExpedicao);
@@ -56,6 +59,7 @@ function ExpedicaoPage() {
   const [rotaSelecionada, setRotaSelecionada] = useState<string | null>(null);
   const [expedicaoId, setExpedicaoId] = useState<string | null>(null);
   const [motorista, setMotorista] = useState("");
+  const [motoristaMeliId, setMotoristaMeliId] = useState("");
   const [codigo, setCodigo] = useState("");
   const [responsavelMeli, setResponsavelMeli] = useState("");
   const [outro, setOutro] = useState("");
@@ -63,6 +67,10 @@ function ExpedicaoPage() {
   const rotas = useQuery({
     queryKey: ["expedicao-rotas", baseId, dataOperacional],
     queryFn: () => listarFn({ data: { baseId, dataOperacional } }),
+  });
+  const motoristas = useQuery({
+    queryKey: ["motoristas-meli", baseId],
+    queryFn: () => listarMotoristasFn({ data: { baseId } }),
   });
   const detalhe = useQuery({
     queryKey: ["expedicao", expedicaoId],
@@ -72,7 +80,7 @@ function ExpedicaoPage() {
 
   const iniciar = useMutation({
     mutationFn: () =>
-      iniciarFn({ data: { baseId, dataOperacional, rota: rotaSelecionada!, motorista } }),
+      iniciarFn({ data: { baseId, dataOperacional, rota: rotaSelecionada!, motorista, motoristaMeliId } }),
     onSuccess: (resultado) => {
       setExpedicaoId(resultado.id);
       void qc.invalidateQueries({ queryKey: ["expedicao-rotas"] });
@@ -174,6 +182,7 @@ function ExpedicaoPage() {
                   setRotaSelecionada(item.rota);
                   setExpedicaoId(item.expedicao?.id ?? null);
                   setMotorista(item.expedicao?.motorista ?? "");
+                  setMotoristaMeliId("");
                 }}
               >
                 {item.expedicao ? "Abrir conferência" : "Iniciar Expedição"}
@@ -198,14 +207,30 @@ function ExpedicaoPage() {
               A conferência usará os {rota?.previstos ?? 0} shipment IDs da relação original.
             </p>
           </div>
-          <Input
-            placeholder="Nome do motorista"
-            value={motorista}
-            onChange={(e) => setMotorista(e.target.value)}
-          />
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Motorista do catálogo Meli</div>
+            <Select
+              value={motoristaMeliId}
+              onValueChange={(id) => {
+                const selecionado = (motoristas.data ?? []).find((item) => item.id === id);
+                setMotoristaMeliId(id);
+                setMotorista(selecionado?.nome ?? "");
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Selecione o motorista" /></SelectTrigger>
+              <SelectContent>
+                {(motoristas.data ?? []).map((item) => (
+                  <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Lista sincronizada das rotas Meli desta base.
+            </p>
+          </div>
           <Button
             className="w-full"
-            disabled={motorista.trim().length < 2 || iniciar.isPending}
+            disabled={!motoristaMeliId || motorista.trim().length < 2 || iniciar.isPending}
             onClick={() => iniciar.mutate()}
           >
             <Truck className="w-4 h-4 mr-2" />

@@ -62,6 +62,8 @@ export type Database = {
           iniciada_em: string
           iniciada_por: string
           motorista: string | null
+          motorista_meli_id: string | null
+          motorista_usuario_id: string | null
           observacao: string | null
           outro_responsavel: string | null
           quantidade_conferida: number
@@ -83,6 +85,8 @@ export type Database = {
           iniciada_em?: string
           iniciada_por: string
           motorista?: string | null
+          motorista_meli_id?: string | null
+          motorista_usuario_id?: string | null
           observacao?: string | null
           outro_responsavel?: string | null
           quantidade_conferida?: number
@@ -104,6 +108,8 @@ export type Database = {
           iniciada_em?: string
           iniciada_por?: string
           motorista?: string | null
+          motorista_meli_id?: string | null
+          motorista_usuario_id?: string | null
           observacao?: string | null
           outro_responsavel?: string | null
           quantidade_conferida?: number
@@ -1953,6 +1959,7 @@ export type Database = {
           email: string
           id: string
           matricula: string | null
+          meli_driver_id: string | null
           nome: string
         }
         Insert: {
@@ -1962,6 +1969,7 @@ export type Database = {
           email: string
           id: string
           matricula?: string | null
+          meli_driver_id?: string | null
           nome: string
         }
         Update: {
@@ -1971,6 +1979,7 @@ export type Database = {
           email?: string
           id?: string
           matricula?: string | null
+          meli_driver_id?: string | null
           nome?: string
         }
         Relationships: [
