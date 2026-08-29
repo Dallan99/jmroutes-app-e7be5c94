@@ -147,6 +147,19 @@ function ExpedicaoPage() {
         </Button>
       </div>
 
+      <Card className="p-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+        <span>
+          Catálogo Meli: <b>{motoristas.data?.length ?? 0} motoristas</b>
+        </span>
+        {!motoristas.isLoading && (
+          <span className="text-muted-foreground">
+            {(motoristas.data ?? []).some((item) => item.origem === "adminml")
+              ? "Catálogo oficial sincronizado"
+              : "Sincronização oficial pendente; exibindo histórico de rotas"}
+          </span>
+        )}
+      </Card>
+
       {!rotaSelecionada ? (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
           {(rotas.data ?? []).map((item) => (
@@ -156,8 +169,8 @@ function ExpedicaoPage() {
                   <div className="text-xs text-muted-foreground">Rota</div>
                   <b className="font-mono text-xl">{item.rota}</b>
                 </div>
-                <Badge variant={item.expedicao ? "secondary" : "default"}>
-                  {item.expedicao?.status ?? "Pronta"}
+                <Badge variant={item.pronta ? (item.expedicao ? "secondary" : "default") : "outline"}>
+                  {item.expedicao?.status ?? (item.pronta ? "Pronta" : "Aguardando Recebimento")}
                 </Badge>
               </div>
               <div className="grid grid-cols-3 text-center text-sm">
@@ -178,6 +191,7 @@ function ExpedicaoPage() {
               </div>
               <Button
                 className="w-full"
+                disabled={!item.pronta}
                 onClick={() => {
                   setRotaSelecionada(item.rota);
                   setExpedicaoId(item.expedicao?.id ?? null);
@@ -185,13 +199,13 @@ function ExpedicaoPage() {
                   setMotoristaMeliId("");
                 }}
               >
-                {item.expedicao ? "Abrir conferência" : "Iniciar Expedição"}
+                {!item.pronta ? "Concluir no Recebimento primeiro" : item.expedicao ? "Abrir conferência" : "Iniciar Expedição"}
               </Button>
             </Card>
           ))}
           {!rotas.isLoading && !(rotas.data ?? []).length && (
             <Card className="p-8 text-center text-muted-foreground md:col-span-2">
-              Nenhuma rota concluída no Recebimento está pronta para Expedição.
+              Nenhuma rota foi encontrada para esta base e este dia operacional.
             </Card>
           )}
         </div>

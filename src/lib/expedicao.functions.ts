@@ -173,7 +173,6 @@ export const listarRotasExpedicao = createServerFn({ method: "GET" })
             : null,
         };
       })
-      .filter((rota) => rota.pronta)
       .sort((a, b) => a.rota.localeCompare(b.rota, "pt-BR", { numeric: true }));
   });
 
