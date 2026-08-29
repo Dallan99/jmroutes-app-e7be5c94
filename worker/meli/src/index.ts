@@ -9,6 +9,8 @@ import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pi
 import { autenticarManualmenteCoordenado } from "./session/login.js";
 import { executarCiclo } from "./pipeline/cycle.js";
 import { sincronizarDevolucoes } from "./pipeline/devolucoes.js";
+import { listarTodosMotoristas } from "./meli/drivers.js";
+import { enviarCatalogoMotoristas } from "./pipeline/drivers.js";
 import { CircuitBreaker } from "./state/breaker.js";
 import { registrarExecucao, type Execucao } from "./telemetry/report.js";
 
@@ -108,6 +110,17 @@ async function main() {
     }
 
     try {
+      if (!cfg.dryRun && jmr) {
+        const catalogo = await listarTodosMotoristas(sessao.transport);
+        if (catalogo.ok) {
+          const envio = await enviarCatalogoMotoristas(cfg, jmr.accessToken, catalogo.valor);
+          if (envio.status === "ok") logger.info("Catálogo de motoristas sincronizado.", { total: envio.total });
+          else logger.warn("Catálogo de motoristas será repetido.", { motivo: envio.motivo });
+        } else {
+          logger.warn("Não foi possível consultar o catálogo de motoristas.", { motivo: catalogo.motivo });
+          if (catalogo.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
+        }
+      }
       for (const base of cfg.bases) {
         if (encerrando) break;
         const cfgBase = configParaBase(cfg, base);

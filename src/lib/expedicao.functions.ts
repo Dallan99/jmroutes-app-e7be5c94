@@ -21,6 +21,7 @@ export type MotoristaMeli = {
   nome: string;
   ultimaRotaEm: string | null;
   origem: "adminml" | "rota_observada";
+  status: "active" | "inactive" | "blocked" | "unknown";
 };
 
 export const listarMotoristasMeli = createServerFn({ method: "GET" })
@@ -30,8 +31,7 @@ export const listarMotoristasMeli = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: linhas, error } = await supabaseAdmin
       .from("meli_motoristas_catalogo")
-      .select("meli_driver_id, nome, ultima_rota_em, origem")
-      .eq("ativo", true)
+      .select("meli_driver_id, nome, ultima_rota_em, origem, status")
       .order("nome", { ascending: true });
     if (error) throw new Error(error.message);
     return (linhas ?? []).map((linha) => ({
@@ -39,6 +39,7 @@ export const listarMotoristasMeli = createServerFn({ method: "GET" })
       nome: linha.nome,
       ultimaRotaEm: linha.ultima_rota_em ?? null,
       origem: linha.origem as MotoristaMeli["origem"],
+      status: linha.status as MotoristaMeli["status"],
     }));
   });
 

@@ -365,7 +365,9 @@ function UsuarioForm({
               <SelectContent>
                 <SelectItem value="__none">Não é motorista</SelectItem>
                 {(motoristasQuery.data ?? []).map((motorista) => (
-                  <SelectItem key={motorista.id} value={motorista.id}>{motorista.nome}</SelectItem>
+                  <SelectItem key={motorista.id} value={motorista.id} disabled={motorista.status !== "active"}>
+                    {motorista.nome}{motorista.status !== "active" ? ` — ${motorista.status === "blocked" ? "Bloqueado" : "Pausado"}` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

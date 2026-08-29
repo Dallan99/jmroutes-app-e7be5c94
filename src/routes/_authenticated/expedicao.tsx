@@ -220,12 +220,14 @@ function ExpedicaoPage() {
               <SelectTrigger><SelectValue placeholder="Selecione o motorista" /></SelectTrigger>
               <SelectContent>
                 {(motoristas.data ?? []).map((item) => (
-                  <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>
+                  <SelectItem key={item.id} value={item.id} disabled={item.status !== "active"}>
+                    {item.nome}{item.status !== "active" ? ` — ${item.status === "blocked" ? "Bloqueado" : "Pausado"}` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Catálogo completo sincronizado das rotas Meli.
+              Catálogo oficial do Meli. Motoristas pausados ou bloqueados aparecem identificados e não podem ser atribuídos.
             </p>
           </div>
           <Button

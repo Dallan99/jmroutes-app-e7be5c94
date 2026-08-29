@@ -1547,10 +1547,12 @@ export type Database = {
       meli_motoristas_catalogo: {
         Row: {
           ativo: boolean
+          carrier_id: string | null
           created_at: string
           meli_driver_id: string
           nome: string
           origem: string
+          status: string
           service_center_id: string | null
           sincronizado_em: string
           ultima_rota_em: string | null
@@ -1558,10 +1560,12 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          carrier_id?: string | null
           created_at?: string
           meli_driver_id: string
           nome: string
           origem?: string
+          status?: string
           service_center_id?: string | null
           sincronizado_em?: string
           ultima_rota_em?: string | null
@@ -1569,10 +1573,12 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          carrier_id?: string | null
           created_at?: string
           meli_driver_id?: string
           nome?: string
           origem?: string
+          status?: string
           service_center_id?: string | null
           sincronizado_em?: string
           ultima_rota_em?: string | null
