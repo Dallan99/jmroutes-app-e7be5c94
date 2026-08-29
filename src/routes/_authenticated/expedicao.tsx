@@ -225,7 +225,7 @@ function ExpedicaoPage() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Lista sincronizada das rotas Meli desta base.
+              Catálogo completo sincronizado das rotas Meli.
             </p>
           </div>
           <Button

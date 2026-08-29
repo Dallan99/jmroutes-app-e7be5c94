@@ -21,12 +21,11 @@ export type MotoristaMeli = { id: string; nome: string; ultimaRotaEm: string | n
 export const listarMotoristasMeli = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((entrada: unknown) => z.object({ baseId: z.string().uuid() }).parse(entrada))
-  .handler(async ({ data }): Promise<MotoristaMeli[]> => {
+  .handler(async (): Promise<MotoristaMeli[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: linhas, error } = await supabaseAdmin
       .from("meli_rotas")
       .select("driver_id, driver_name, data_rota")
-      .eq("base_id", data.baseId)
       .not("driver_name", "is", null)
       .order("data_rota", { ascending: false })
       .limit(5000);
