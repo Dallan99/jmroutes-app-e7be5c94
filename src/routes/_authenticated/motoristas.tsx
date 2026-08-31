@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ChevronsUpDown, KeyRound, Loader2, Plus, Power, Truck } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, KeyRound, Loader2, Plus, Power, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { listarMotoristasMeli } from "@/lib/expedicao.functions";
 import { criarAcessoMotorista, definirMotoristaAtivo, listarBasesParaMotorista, listarMotoristasCadastrados, type MotoristaCadastro } from "@/lib/motoristas.functions";
@@ -24,7 +24,9 @@ function MotoristasPage() {
   const qc = useQueryClient(); const listarFn = useServerFn(listarMotoristasCadastrados); const ativoFn = useServerFn(definirMotoristaAtivo);
   const motoristas = useQuery({ queryKey: ["motoristas-cadastrados"], queryFn: () => listarFn() }); const [novo, setNovo] = useState(false);
   const alterarAtivo = useMutation({ mutationFn: (m: MotoristaCadastro) => ativoFn({ data: { id: m.id, ativo: !m.ativo } }), onSuccess: () => void qc.invalidateQueries({ queryKey: ["motoristas-cadastrados"] }), onError: (erro: Error) => toast.error(erro.message) });
+  const voltar = () => window.history.length > 1 ? window.history.back() : window.location.assign("/dashboard");
   return <div className="space-y-4 p-6">
+    <Button variant="ghost" size="sm" className="-ml-2" onClick={voltar}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>
     <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="font-display text-2xl font-bold">Acessos de motoristas</h1><p className="text-sm text-muted-foreground">Cadastro separado dos funcionários, vinculado ao motorista existente no AdminML.</p></div><Button onClick={() => setNovo(true)}><Plus className="mr-2 h-4 w-4" />Criar acesso</Button></div>
     <Card className="overflow-hidden p-0"><Table><TableHeader><TableRow><TableHead>Motorista</TableHead><TableHead>Usuário</TableHead><TableHead>Estação</TableHead><TableHead>Vínculo AdminML</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>
       {(motoristas.data ?? []).map((m) => <TableRow key={m.id}><TableCell className="font-medium">{m.nome}<div className="text-xs text-muted-foreground">{m.placa || "Placa ainda não informada pelo Meli"}</div></TableCell><TableCell>{m.usuario ?? <span className="text-muted-foreground">Sem acesso</span>}</TableCell><TableCell>{m.baseNome ?? "Todas as estações"}</TableCell><TableCell><div>{m.meliNome ?? "Motorista Meli"}</div><div className="font-mono text-xs text-muted-foreground">ID {m.meliDriverId}</div></TableCell><TableCell><Badge variant={m.ativo ? "secondary" : "destructive"}>{m.ativo ? "Ativo" : "Inativo"}</Badge></TableCell><TableCell className="text-right"><Button size="icon" variant="ghost" title={m.ativo ? "Desativar acesso" : "Ativar acesso"} onClick={() => alterarAtivo.mutate(m)}><Power className="h-4 w-4" /></Button></TableCell></TableRow>)}
