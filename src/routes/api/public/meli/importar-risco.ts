@@ -46,11 +46,14 @@ export const Route = createFileRoute("/api/public/meli/importar-risco")({
         if (error) return json({ ok: false, codigo: "falha_consulta_rotas" }, 500, origin);
 
         const normalizar = (valor: string | null | undefined) => (valor ?? "").trim().toLocaleLowerCase("pt-BR");
-        const chave = (data: string, facility: string, cluster: string, carrier: string) =>
-          [data, normalizar(facility), normalizar(cluster), normalizar(carrier)].join("|");
+        // O Rostering pode devolver o nome jurídico da transportadora, enquanto
+        // route-detail usa o nome operacional. Data + facility + cluster é a
+        // identidade estável da rota planejada e evita perder esse vínculo.
+        const chave = (data: string, facility: string, cluster: string) =>
+          [data, normalizar(facility), normalizar(cluster)].join("|");
         const indice = new Map(
           (rotas ?? []).map((rota) => [
-            chave(rota.data_rota!, rota.facility ?? "", rota.cluster ?? "", rota.carrier ?? ""),
+            chave(rota.data_rota!, rota.facility ?? "", rota.cluster ?? ""),
             rota,
           ]),
         );
@@ -61,7 +64,7 @@ export const Route = createFileRoute("/api/public/meli/importar-risco")({
         const atualizacoes: PromiseLike<{ error: { message: string } | null }>[] = [];
 
         for (const linha of entrada.linhas) {
-          const rota = indice.get(chave(linha.data, linha.facility, linha.cluster, linha.transportadora));
+          const rota = indice.get(chave(linha.data, linha.facility, linha.cluster));
           if (!rota) continue;
           encontradas += 1;
           if (linha.altoRisco) {
