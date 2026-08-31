@@ -17,7 +17,7 @@ self.addEventListener("activate", () => { self.clients?.claim?.(); });
 const BASES_JM = [
   { facilityId: "ESP15", nome: "Ibiúna",          serviceCenterId: "SSP20" },
   { facilityId: "ESP16", nome: "Guarujá",         serviceCenterId: "SSP15" },
-  { facilityId: "ESP17", nome: "Embu-Guaçu",      serviceCenterId: "SSP34" },
+  { facilityId: "ESP17", nome: "Embu-Guaçu",      serviceCenterId: "SSP56" },
   { facilityId: "ESP18", nome: "Franco da Rocha", serviceCenterId: "SSP25" },
 ];
 const BASE_TODAS = "TODAS";

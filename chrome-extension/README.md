@@ -6,6 +6,9 @@ Importa **a rota aberta** no Mercado Livre e agora sincroniza **todas as rotas a
 Também consulta automaticamente, a cada 15 minutos, a classificação semanal de
 área de risco do Rostering. O CSV do AdminML fica apenas como contingência.
 
+Mapeamento operacional vigente: ESP15/SSP20, ESP16/SSP15, ESP17/SSP56 e
+ESP18/SSP25.
+
 ## 1. Requisitos
 
 - Chrome/Chromium recente (MV3).
