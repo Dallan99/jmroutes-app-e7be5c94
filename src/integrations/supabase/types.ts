@@ -2103,6 +2103,7 @@ export type Database = {
           cpf: string | null
           created_at: string
           id: string
+          meli_driver_id: string | null
           nome: string
           placa: string | null
           transportadora: string | null
@@ -2114,6 +2115,7 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           id?: string
+          meli_driver_id?: string | null
           nome: string
           placa?: string | null
           transportadora?: string | null
@@ -2125,6 +2127,7 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           id?: string
+          meli_driver_id?: string | null
           nome?: string
           placa?: string | null
           transportadora?: string | null

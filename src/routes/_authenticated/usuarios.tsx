@@ -40,7 +40,6 @@ import { toast } from "sonner";
 import { Loader2, Plus, Pencil, KeyRound, Power, Trash2, ShieldAlert } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImportarUsuariosDialog } from "@/components/importar-usuarios-dialog";
-import { listarMotoristasMeli } from "@/lib/expedicao.functions";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
   ssr: false,
@@ -126,7 +125,6 @@ function UsuariosPage() {
                 <TableHead>Perfil</TableHead>
                 <TableHead>Base</TableHead>
                 <TableHead>Matrícula</TableHead>
-                <TableHead>Placa</TableHead>
                 <TableHead>Último acesso</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -149,7 +147,6 @@ function UsuariosPage() {
                   </TableCell>
                   <TableCell>{u.base_nome ?? "—"}</TableCell>
                   <TableCell>{u.matricula ?? "—"}</TableCell>
-                  <TableCell className="font-mono">{u.placa ?? "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("pt-BR") : "Nunca"}
                   </TableCell>
@@ -174,7 +171,7 @@ function UsuariosPage() {
               ))}
               {usuarios.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado.</TableCell>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -209,8 +206,6 @@ function UsuarioForm({
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [matricula, setMatricula] = useState("");
-  const [placa, setPlaca] = useState("");
-  const [meliDriverId, setMeliDriverId] = useState<string>("__none");
   const [baseId, setBaseId] = useState<string>("__none");
   const [role, setRole] = useState<Role>("operador");
   const [supervisorBases, setSupervisorBases] = useState<string[]>([]);
@@ -219,21 +214,13 @@ function UsuarioForm({
   const fnAtualizar = useServerFn(atualizarUsuario);
   const fnListarUserBases = useServerFn(listarUserBases);
   const fnSetUserBases = useServerFn(setUserBases);
-  const fnListarMotoristas = useServerFn(listarMotoristasMeli);
-  const motoristasQuery = useQuery({
-    queryKey: ["motoristas-meli-usuario", baseId],
-    queryFn: () => fnListarMotoristas({ data: { baseId } }),
-    enabled: open && baseId !== "__none",
-  });
 
   const mut = useMutation({
     mutationFn: async () => {
       if (isEdit && editing) {
         await fnAtualizar({ data: {
           user_id: editing.id, matricula: matricula || null,
-          placa: placa || null,
           base_id: baseId === "__none" ? null : baseId, role,
-          meli_driver_id: meliDriverId === "__none" ? null : meliDriverId,
         }});
         if (role === "supervisor") {
           await fnSetUserBases({ data: { user_id: editing.id, base_ids: supervisorBases } });
@@ -245,8 +232,6 @@ function UsuarioForm({
       const created = await fnCriar({ data: {
         email, nome, senha, role,
         matricula: matricula || null,
-        placa: placa || null,
-        meli_driver_id: meliDriverId === "__none" ? null : meliDriverId,
         base_id: baseId === "__none" ? null : baseId,
       }});
       if (role === "supervisor" && supervisorBases.length > 0 && created.id) {
@@ -269,8 +254,6 @@ function UsuarioForm({
       setEmail(editing?.email ?? "");
       setSenha("");
       setMatricula(editing?.matricula ?? "");
-      setPlaca(editing?.placa ?? "");
-      setMeliDriverId(editing?.meli_driver_id ?? "__none");
       setBaseId(editing?.base_id ?? "__none");
       setRole((editing?.roles[0] as Role) ?? "operador");
       setSupervisorBases([]);
@@ -291,7 +274,7 @@ function UsuarioForm({
           <DialogDescription>
             {isEdit
               ? `${editing?.nome} · ${editing?.email}`
-              : "Para motoristas, o email será o acesso ao aplicativo e pode ser externo."}
+              : "Somente emails @jmdistribuicao.com.br são permitidos."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -363,30 +346,6 @@ function UsuarioForm({
                 ? "Base principal do supervisor. Adicione bases extras abaixo para acesso multi-base."
                 : "Administradores e gerentes têm acesso a todas as bases quando nenhuma é selecionada."}
             </p>
-          </div>
-          <div className="space-y-1">
-            <Label>Placa do motorista</Label>
-            <Input
-              value={placa}
-              maxLength={7}
-              onChange={(e) => setPlaca(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
-              placeholder="ABC1D23"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Identidade no app do motorista</Label>
-            <Select value={meliDriverId} onValueChange={setMeliDriverId} disabled={baseId === "__none"}>
-              <SelectTrigger><SelectValue placeholder="Selecione o motorista Meli" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">Não é motorista</SelectItem>
-                {(motoristasQuery.data ?? []).map((motorista) => (
-                  <SelectItem key={motorista.id} value={motorista.id} disabled={motorista.status !== "active"}>
-                    {motorista.nome}{motorista.status !== "active" ? ` — ${motorista.status === "blocked" ? "Bloqueado" : "Pausado"}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground">Ao entrar em /motorista, este usuário verá somente as rotas atribuídas a esse ID Meli.</p>
           </div>
           {role === "supervisor" && (
             <div className="space-y-2 border rounded-md p-3 bg-muted/20">

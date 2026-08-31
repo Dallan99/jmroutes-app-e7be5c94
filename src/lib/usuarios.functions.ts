@@ -124,8 +124,6 @@ const criarSchema = z.object({
   senha: z.string().min(8).max(72),
   role: z.enum(["admin", "gerente", "supervisor", "operador"]),
   matricula: z.string().trim().max(40).optional().nullable(),
-  placa: z.string().trim().regex(/^[A-Z0-9]{7}$/, "Informe uma placa válida com 7 caracteres.").optional().nullable(),
-  meli_driver_id: z.string().trim().max(80).optional().nullable(),
   base_id: z.string().uuid().optional().nullable(),
 });
 
@@ -134,10 +132,9 @@ export const criarUsuario = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => criarSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    if (!data.email.endsWith("@jmdistribuicao.com.br") && !data.meli_driver_id) {
-      throw new Error("Emails externos são permitidos apenas para contas vinculadas a um motorista Meli.");
+    if (!data.email.endsWith("@jmdistribuicao.com.br")) {
+      throw new Error("Apenas emails @jmdistribuicao.com.br são permitidos.");
     }
-    if (data.meli_driver_id && !data.placa) throw new Error("Informe a placa do motorista.");
     if (data.role === "operador" && !data.base_id) {
       throw new Error("Operadores devem estar vinculados a uma base.");
     }
@@ -158,8 +155,6 @@ export const criarUsuario = createServerFn({ method: "POST" })
       .update({
         nome: data.nome,
         matricula: data.matricula ?? null,
-        placa: data.placa ?? null,
-        meli_driver_id: data.meli_driver_id ?? null,
         base_id: data.base_id ?? null,
       })
       .eq("id", uid);
@@ -182,8 +177,6 @@ export const criarUsuario = createServerFn({ method: "POST" })
 const atualizarSchema = z.object({
   user_id: z.string().uuid(),
   matricula: z.string().trim().max(40).optional().nullable(),
-  placa: z.string().trim().regex(/^[A-Z0-9]{7}$/, "Informe uma placa válida com 7 caracteres.").optional().nullable(),
-  meli_driver_id: z.string().trim().max(80).optional().nullable(),
   base_id: z.string().uuid().optional().nullable(),
   role: z.enum(["admin", "gerente", "supervisor", "operador"]),
 });
@@ -196,12 +189,11 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     if (data.role === "operador" && !data.base_id) {
       throw new Error("Operadores devem estar vinculados a uma base.");
     }
-    if (data.meli_driver_id && !data.placa) throw new Error("Informe a placa do motorista.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error: upErr } = await supabaseAdmin
       .from("profiles")
-      .update({ matricula: data.matricula ?? null, placa: data.placa ?? null, meli_driver_id: data.meli_driver_id ?? null, base_id: data.base_id ?? null })
+      .update({ matricula: data.matricula ?? null, base_id: data.base_id ?? null })
       .eq("id", data.user_id);
     if (upErr) throw new Error(upErr.message);
 

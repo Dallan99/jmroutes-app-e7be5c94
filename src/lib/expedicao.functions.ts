@@ -26,7 +26,7 @@ export type MotoristaMeli = {
 
 export const listarMotoristasMeli = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((entrada: unknown) => z.object({ baseId: z.string().uuid() }).parse(entrada))
+  .inputValidator((entrada: unknown) => z.object({ baseId: z.string().uuid().optional() }).parse(entrada))
   .handler(async (): Promise<MotoristaMeli[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: linhas, error } = await supabaseAdmin
