@@ -1,6 +1,6 @@
 // Configuração fechada das bases JM. Mantida em um único ponto para evitar
 // divergência entre a extensão, o worker local e futuros deploys.
-export const WORKER_VERSAO = "0.3.0-risco-auto";
+export const WORKER_VERSAO = "0.3.1-risco-auto";
 export const STORAGE_STATE_AAD = "meli-storage-state:v1";
 
 export const BASES_JM = [

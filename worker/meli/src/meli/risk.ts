@@ -87,7 +87,7 @@ export async function listarRiscoSemanal(
   const params = new URLSearchParams({
     startDate: inicio,
     endDate: fim,
-    stepType: "last-mile",
+    stepType: "last_mile",
     channel: "mlp",
   });
   const resposta = await executarComRetry(

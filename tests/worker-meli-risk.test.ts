@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizarRiscoRostering, semanaAtual } from "../worker/meli/src/meli/risk";
+import { listarRiscoSemanal, normalizarRiscoRostering, semanaAtual } from "../worker/meli/src/meli/risk";
 
 describe("risco do Rostering", () => {
   it("normaliza atribuições com e sem alto risco", () => {
@@ -25,5 +25,31 @@ describe("risco do Rostering", () => {
 
   it("calcula a semana de segunda a domingo", () => {
     expect(semanaAtual(new Date("2026-09-02T12:00:00Z"))).toEqual({ inicio: "2026-08-31", fim: "2026-09-06" });
+  });
+
+  it("consulta o stepType aceito pelo Rostering", async () => {
+    let chamada = "";
+    let headers: Record<string, string> | undefined;
+    const resultado = await listarRiscoSemanal({
+      post: async () => ({ status: 200, headers: {}, body: {}, ok: true }),
+      get: async (url, recebidos) => {
+        chamada = url;
+        headers = recebidos;
+        return {
+          status: 200,
+          headers: {},
+          ok: true,
+          body: [{
+            startDate: "2026-08-31T10:00:00Z",
+            facility: "SSP15",
+            carrierName: "JM Transportes",
+            assignments: [{ ID: 1, planning_route: { metadata: { original_route_name: "U8_CHP", is_risky: true } } }],
+          }],
+        };
+      },
+    }, "2026-08-31", "2026-09-06");
+    expect(resultado.ok).toBe(true);
+    expect(chamada).toContain("stepType=last_mile");
+    expect(headers).toEqual({ loadType: "export" });
   });
 });
