@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Loader2, Plus, Power, Truck } from "lucide-react";
+import { Check, ChevronsUpDown, KeyRound, Loader2, Plus, Power, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { listarMotoristasMeli } from "@/lib/expedicao.functions";
 import { criarAcessoMotorista, definirMotoristaAtivo, listarBasesParaMotorista, listarMotoristasCadastrados, type MotoristaCadastro } from "@/lib/motoristas.functions";
@@ -14,6 +14,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/motoristas")({ ssr: false, head: () => ({ meta: [{ title: "Motoristas — JM Transportes" }] }), component: MotoristasPage });
 
@@ -33,12 +36,12 @@ function MotoristasPage() {
 function CriarAcesso({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
   const criarFn = useServerFn(criarAcessoMotorista); const catalogoFn = useServerFn(listarMotoristasMeli); const basesFn = useServerFn(listarBasesParaMotorista);
   const catalogo = useQuery({ queryKey: ["catalogo-motoristas-meli"], queryFn: () => catalogoFn({ data: {} }), enabled: open }); const bases = useQuery({ queryKey: ["bases-motoristas"], queryFn: () => basesFn(), enabled: open });
-  const [usuario, setUsuario] = useState(""); const [meliDriverId, setMeliDriverId] = useState(""); const [baseId, setBaseId] = useState("todas"); const [senha, setSenha] = useState(""); const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [usuario, setUsuario] = useState(""); const [meliDriverId, setMeliDriverId] = useState(""); const [motoristasOpen, setMotoristasOpen] = useState(false); const [baseId, setBaseId] = useState("todas"); const [senha, setSenha] = useState(""); const [confirmarSenha, setConfirmarSenha] = useState("");
   const selecionado = (catalogo.data ?? []).find((m) => m.id === meliDriverId);
   const criar = useMutation({ mutationFn: () => criarFn({ data: { usuario, meliDriverId, baseId: baseId === "todas" ? null : baseId, senha, confirmarSenha } }), onSuccess: () => { toast.success("Acesso do motorista criado."); onDone(); onClose(); setUsuario(""); setMeliDriverId(""); setBaseId("todas"); setSenha(""); setConfirmarSenha(""); }, onError: (erro: Error) => toast.error(erro.message) });
   return <Dialog open={open} onOpenChange={(v) => !v && onClose()}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5" />Criar acesso</DialogTitle><DialogDescription>Selecione o motorista e defina o acesso. O nome será preenchido automaticamente pelo AdminML.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={(e) => { e.preventDefault(); criar.mutate(); }}>
     <div className="space-y-1"><Label>Usuário</Label><Input required minLength={3} value={usuario} onChange={(e) => setUsuario(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ""))} placeholder="Ex.: dallan" /><p className="text-xs text-muted-foreground">Letras, números e os símbolos . _ -</p></div>
-    <div className="space-y-1"><Label>Motorista existente no AdminML</Label><Select required value={meliDriverId} onValueChange={setMeliDriverId}><SelectTrigger><SelectValue placeholder="Selecione o motorista..." /></SelectTrigger><SelectContent>{(catalogo.data ?? []).map((m) => <SelectItem key={m.id} value={m.id} disabled={m.status !== "active"}>{m.nome}{m.status !== "active" ? " — indisponível" : ""}</SelectItem>)}</SelectContent></Select>{selecionado && <p className="text-xs text-muted-foreground">Nome do acesso: {selecionado.nome}</p>}</div>
+    <div className="space-y-1"><Label>Motorista existente no AdminML</Label><Popover open={motoristasOpen} onOpenChange={setMotoristasOpen}><PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-expanded={motoristasOpen} className="w-full justify-between font-normal">{selecionado?.nome ?? "Selecione ou pesquise um motorista..."}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger><PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0"><Command><CommandInput placeholder="Buscar por nome ou ID..." /><CommandList><CommandEmpty>Nenhum motorista encontrado.</CommandEmpty><CommandGroup>{(catalogo.data ?? []).map((m) => <CommandItem key={m.id} value={`${m.nome} ${m.id}`} disabled={m.status !== "active"} onSelect={() => { setMeliDriverId(m.id); setMotoristasOpen(false); }}><Check className={cn("h-4 w-4", meliDriverId === m.id ? "opacity-100" : "opacity-0")} /><span className="min-w-0 flex-1 truncate">{m.nome}</span><span className="text-xs text-muted-foreground">{m.status !== "active" ? "Indisponível" : `ID ${m.id}`}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover>{selecionado && <p className="text-xs text-muted-foreground">Nome do acesso: {selecionado.nome}</p>}</div>
     <div className="space-y-1"><Label>Estação</Label><Select value={baseId} onValueChange={setBaseId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as estações</SelectItem>{(bases.data ?? []).map((b) => <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>)}</SelectContent></Select><p className="text-xs text-muted-foreground">“Todas” permite que o motorista receba rotas de qualquer base.</p></div>
     <div className="space-y-1"><Label>Senha inicial</Label><Input type="password" required minLength={8} value={senha} onChange={(e) => setSenha(e.target.value)} /></div><div className="space-y-1"><Label>Confirmar senha</Label><Input type="password" required minLength={8} value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} /></div>
     <DialogFooter><Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button><Button type="submit" disabled={criar.isPending || !meliDriverId}>{criar.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar acesso</Button></DialogFooter>
