@@ -50,6 +50,7 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as ApiMeliOauthCallbackRouteImport } from './routes/api/meli/oauth/callback'
 import { Route as ApiPublicMeliCicloRouteImport } from './routes/api/public/meli/ciclo'
 import { Route as ApiPublicMeliImportarMotoristasRouteImport } from './routes/api/public/meli/importar-motoristas'
+import { Route as ApiPublicMeliImportarRiscoRouteImport } from './routes/api/public/meli/importar-risco'
 import { Route as ApiPublicMeliImportarRotaBrutaRouteImport } from './routes/api/public/meli/importar-rota-bruta'
 import { Route as ApiPublicMeliNotificacoesRouteImport } from './routes/api/public/meli/notificacoes'
 
@@ -269,6 +270,12 @@ const ApiPublicMeliImportarMotoristasRoute =
     path: '/api/public/meli/importar-motoristas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicMeliImportarRiscoRoute =
+  ApiPublicMeliImportarRiscoRouteImport.update({
+    id: '/api/public/meli/importar-risco',
+    path: '/api/public/meli/importar-risco',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMeliImportarRotaBrutaRoute =
   ApiPublicMeliImportarRotaBrutaRouteImport.update({
     id: '/api/public/meli/importar-rota-bruta',
@@ -323,6 +330,7 @@ export interface FileRoutesByFullPath {
   '/api/meli/oauth/callback': typeof ApiMeliOauthCallbackRoute
   '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-motoristas': typeof ApiPublicMeliImportarMotoristasRoute
+  '/api/public/meli/importar-risco': typeof ApiPublicMeliImportarRiscoRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
   '/api/public/meli/notificacoes': typeof ApiPublicMeliNotificacoesRoute
 }
@@ -367,6 +375,7 @@ export interface FileRoutesByTo {
   '/api/meli/oauth/callback': typeof ApiMeliOauthCallbackRoute
   '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-motoristas': typeof ApiPublicMeliImportarMotoristasRoute
+  '/api/public/meli/importar-risco': typeof ApiPublicMeliImportarRiscoRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
   '/api/public/meli/notificacoes': typeof ApiPublicMeliNotificacoesRoute
 }
@@ -413,6 +422,7 @@ export interface FileRoutesById {
   '/api/meli/oauth/callback': typeof ApiMeliOauthCallbackRoute
   '/api/public/meli/ciclo': typeof ApiPublicMeliCicloRoute
   '/api/public/meli/importar-motoristas': typeof ApiPublicMeliImportarMotoristasRoute
+  '/api/public/meli/importar-risco': typeof ApiPublicMeliImportarRiscoRoute
   '/api/public/meli/importar-rota-bruta': typeof ApiPublicMeliImportarRotaBrutaRoute
   '/api/public/meli/notificacoes': typeof ApiPublicMeliNotificacoesRoute
 }
@@ -459,6 +469,7 @@ export interface FileRouteTypes {
     | '/api/meli/oauth/callback'
     | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-motoristas'
+    | '/api/public/meli/importar-risco'
     | '/api/public/meli/importar-rota-bruta'
     | '/api/public/meli/notificacoes'
   fileRoutesByTo: FileRoutesByTo
@@ -503,6 +514,7 @@ export interface FileRouteTypes {
     | '/api/meli/oauth/callback'
     | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-motoristas'
+    | '/api/public/meli/importar-risco'
     | '/api/public/meli/importar-rota-bruta'
     | '/api/public/meli/notificacoes'
   id:
@@ -548,6 +560,7 @@ export interface FileRouteTypes {
     | '/api/meli/oauth/callback'
     | '/api/public/meli/ciclo'
     | '/api/public/meli/importar-motoristas'
+    | '/api/public/meli/importar-risco'
     | '/api/public/meli/importar-rota-bruta'
     | '/api/public/meli/notificacoes'
   fileRoutesById: FileRoutesById
@@ -567,6 +580,7 @@ export interface RootRouteChildren {
   ApiMeliOauthCallbackRoute: typeof ApiMeliOauthCallbackRoute
   ApiPublicMeliCicloRoute: typeof ApiPublicMeliCicloRoute
   ApiPublicMeliImportarMotoristasRoute: typeof ApiPublicMeliImportarMotoristasRoute
+  ApiPublicMeliImportarRiscoRoute: typeof ApiPublicMeliImportarRiscoRoute
   ApiPublicMeliImportarRotaBrutaRoute: typeof ApiPublicMeliImportarRotaBrutaRoute
   ApiPublicMeliNotificacoesRoute: typeof ApiPublicMeliNotificacoesRoute
 }
@@ -860,6 +874,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMeliImportarMotoristasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/meli/importar-risco': {
+      id: '/api/public/meli/importar-risco'
+      path: '/api/public/meli/importar-risco'
+      fullPath: '/api/public/meli/importar-risco'
+      preLoaderRoute: typeof ApiPublicMeliImportarRiscoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/meli/importar-rota-bruta': {
       id: '/api/public/meli/importar-rota-bruta'
       path: '/api/public/meli/importar-rota-bruta'
@@ -964,6 +985,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMeliOauthCallbackRoute: ApiMeliOauthCallbackRoute,
   ApiPublicMeliCicloRoute: ApiPublicMeliCicloRoute,
   ApiPublicMeliImportarMotoristasRoute: ApiPublicMeliImportarMotoristasRoute,
+  ApiPublicMeliImportarRiscoRoute: ApiPublicMeliImportarRiscoRoute,
   ApiPublicMeliImportarRotaBrutaRoute: ApiPublicMeliImportarRotaBrutaRoute,
   ApiPublicMeliNotificacoesRoute: ApiPublicMeliNotificacoesRoute,
 }

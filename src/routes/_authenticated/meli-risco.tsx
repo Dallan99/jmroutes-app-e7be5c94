@@ -182,15 +182,15 @@ function SistemaRiscoPage() {
             Rotas em Área de Risco
           </h1>
           <p className="text-sm text-muted-foreground">
-            Somente indicadores reais informados pelo sistema. Insucesso, por si só, não classifica
-            área de risco.
+            Classificação atualizada automaticamente pelo Rostering do AdminML. Insucesso, por si
+            só, não classifica área de risco.
           </p>
 
         </div>
         <div className="flex gap-2">
           <input ref={arquivoRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const arquivo = e.target.files?.[0]; if (arquivo) importarCsv.mutate(arquivo); e.currentTarget.value = ""; }} />
           <Button variant="default" size="sm" onClick={() => arquivoRef.current?.click()} disabled={importarCsv.isPending}>
-            {importarCsv.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />} Importar CSV AdminML
+            {importarCsv.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />} Importar CSV (contingência)
           </Button>
           <Button variant="outline" size="sm" onClick={() => riscoQuery.refetch()}>
             <RefreshCcw className="h-4 w-4 mr-2" /> Atualizar

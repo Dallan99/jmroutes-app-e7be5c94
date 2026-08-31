@@ -14,7 +14,7 @@ export type MeliResposta = {
 
 export interface MeliTransport {
   post(url: string, body: unknown): Promise<MeliResposta>;
-  get(url: string): Promise<MeliResposta>;
+  get(url: string, headers?: Record<string, string>): Promise<MeliResposta>;
 }
 
 export type FalhaMotivo =

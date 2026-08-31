@@ -11,6 +11,8 @@ import { executarCiclo } from "./pipeline/cycle.js";
 import { sincronizarDevolucoes } from "./pipeline/devolucoes.js";
 import { listarTodosMotoristas } from "./meli/drivers.js";
 import { enviarCatalogoMotoristas } from "./pipeline/drivers.js";
+import { listarRiscoSemanal, semanaAtual } from "./meli/risk.js";
+import { enviarRiscoRostering } from "./pipeline/risk.js";
 import { CircuitBreaker } from "./state/breaker.js";
 import { registrarExecucao, type Execucao } from "./telemetry/report.js";
 
@@ -64,6 +66,7 @@ async function main() {
   const breakers = new Map(cfg.bases.map((b) => [b.baseCode, new CircuitBreaker()]));
   const estados = new Map(cfg.bases.map((b) => [b.baseCode, novoEstadoIncremental()]));
   let jmr: JmrSessao | null = null;
+  let proximaSincronizacaoRiscoEm = 0;
 
   while (!encerrando) {
     if (!cfg.dryRun) {
@@ -119,6 +122,26 @@ async function main() {
         } else {
           logger.warn("Não foi possível consultar o catálogo de motoristas.", { motivo: catalogo.motivo });
           if (catalogo.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
+        }
+        if (Date.now() >= proximaSincronizacaoRiscoEm) {
+          // O Rostering é semanal; 15 minutos mantém o painel atualizado sem
+          // repetir uma exportação pesada em cada ciclo de 60 segundos.
+          proximaSincronizacaoRiscoEm = Date.now() + 15 * 60_000;
+          const semana = semanaAtual();
+          const risco = await listarRiscoSemanal(sessao.transport, semana.inicio, semana.fim);
+          if (risco.ok) {
+            const envio = await enviarRiscoRostering(cfg, jmr.accessToken, risco.valor);
+            if (envio.status === "ok") {
+              logger.info("Classificação semanal de risco sincronizada.", {
+                periodo: `${semana.inicio}/${semana.fim}`,
+                recebidas: risco.valor.length,
+                encontradas: envio.encontradas,
+              });
+            } else logger.warn("Classificação de risco será repetida.", { motivo: envio.motivo });
+          } else {
+            logger.warn("Não foi possível consultar a classificação semanal de risco.", { motivo: risco.motivo });
+            if (risco.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
+          }
         }
       }
       for (const base of cfg.bases) {
