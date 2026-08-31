@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { meliRotasAreaRisco, type SistemaRiscoRota } from "@/lib/meli-risco.functions";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
+import { importarRiscoRostering, meliRotasAreaRisco, type ImportacaoRiscoRosteringResultado, type SistemaRiscoRota } from "@/lib/meli-risco.functions";
 import { meliDashboardPacotesRota } from "@/lib/meli-dashboard.functions";
 import { listarBasesSimples } from "@/lib/bases.functions";
 import { classificarRiscoRota } from "@/lib/meli-devolucoes-domain";
@@ -18,8 +18,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertTriangle, Download, Loader2, RefreshCcw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Download, Loader2, RefreshCcw, ShieldAlert, Upload } from "lucide-react";
 import { hojeOperacional } from "@/lib/dia-operacional";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/meli-risco")({
   head: () => ({
@@ -51,12 +52,15 @@ function SistemaRiscoPage() {
   const buscarRisco = useServerFn(meliRotasAreaRisco);
   const buscarPacotes = useServerFn(meliDashboardPacotesRota);
   const buscarBases = useServerFn(listarBasesSimples);
+  const importarRisco = useServerFn(importarRiscoRostering);
 
   const [data, setData] = useState<string>(() => hojeOperacional());
   const [baseId, setBaseId] = useState<string>("");
   const [risco, setRisco] = useState<"qualquer" | "integral" | "parcial">("qualquer");
   const [busca, setBusca] = useState("");
   const [rotaAberta, setRotaAberta] = useState<SistemaRiscoRota | null>(null);
+  const [resultadoImportacao, setResultadoImportacao] = useState<ImportacaoRiscoRosteringResultado | null>(null);
+  const arquivoRef = useRef<HTMLInputElement>(null);
 
   const basesQuery = useQuery({
     queryKey: ["bases-simples"],
@@ -91,6 +95,41 @@ function SistemaRiscoPage() {
   });
 
   const cards = riscoQuery.data?.cards;
+
+  const importarCsv = useMutation({
+    mutationFn: async (arquivo: File) => {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(await arquivo.arrayBuffer(), { type: "array", raw: false });
+      const linhas = XLSX.utils.sheet_to_json<(string | number)[]>(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "", raw: false });
+      const cabecalho = linhas[0]?.map((v) => String(v).trim()) ?? [];
+      const coluna = (nome: string) => cabecalho.indexOf(nome);
+      const obrigatorias = ["ID", "Transportadora", "Facility", "Data de início", "Nome Original da Rota Planejada", "É uma Zona de Alto Risco?"];
+      if (obrigatorias.some((nome) => coluna(nome) < 0)) throw new Error("O arquivo não possui as colunas esperadas do CSV semanal do AdminML.");
+      const brParaIso = (valor: unknown) => {
+        const partes = String(valor ?? "").trim().split("/");
+        return partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : String(valor ?? "").slice(0, 10);
+      };
+      const dados = linhas.slice(1).map((l) => ({
+        data: brParaIso(l[coluna("Data de início")]),
+        facility: String(l[coluna("Facility")] ?? "").trim(),
+        cluster: String(l[coluna("Nome Original da Rota Planejada")] ?? "").trim(),
+        transportadora: String(l[coluna("Transportadora")] ?? "").trim(),
+        altoRisco: String(l[coluna("É uma Zona de Alto Risco?")] ?? "").trim().toLocaleLowerCase("pt-BR") === "sim",
+        regiao: String(l[coluna("Região de Entrega da Rota")] ?? "").trim() || null,
+        idServico: String(l[coluna("ID")] ?? "").trim() || null,
+        classificacao: String(l[coluna("É uma Zona de Alto Risco?")] ?? "").trim(),
+      })).filter((l) => l.data && l.facility && l.cluster && (l.classificacao === "Sim" || l.classificacao === "Não"))
+        .map(({ classificacao: _classificacao, ...l }) => l);
+      if (!dados.length) throw new Error("Nenhuma rota classificada como Sim ou Não foi encontrada no arquivo.");
+      return importarRisco({ data: { linhas: dados, arquivoNome: arquivo.name } });
+    },
+    onSuccess: (resultado) => {
+      setResultadoImportacao(resultado);
+      toast.success(`${resultado.encontradas} rotas conciliadas com o CSV.`);
+      void riscoQuery.refetch();
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  });
 
   function exportarCsv() {
     const head = [
@@ -149,6 +188,10 @@ function SistemaRiscoPage() {
 
         </div>
         <div className="flex gap-2">
+          <input ref={arquivoRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const arquivo = e.target.files?.[0]; if (arquivo) importarCsv.mutate(arquivo); e.currentTarget.value = ""; }} />
+          <Button variant="default" size="sm" onClick={() => arquivoRef.current?.click()} disabled={importarCsv.isPending}>
+            {importarCsv.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />} Importar CSV AdminML
+          </Button>
           <Button variant="outline" size="sm" onClick={() => riscoQuery.refetch()}>
             <RefreshCcw className="h-4 w-4 mr-2" /> Atualizar
           </Button>
@@ -157,6 +200,8 @@ function SistemaRiscoPage() {
           </Button>
         </div>
       </header>
+
+      {resultadoImportacao && <Card><CardContent className="pt-4 text-sm"><div className="flex flex-wrap gap-x-6 gap-y-1"><span><b>{resultadoImportacao.processadas}</b> classificações lidas</span><span><b>{resultadoImportacao.encontradas}</b> rotas encontradas</span><span><b>{resultadoImportacao.marcadasRisco}</b> em alto risco</span><span><b>{resultadoImportacao.confirmadasSemRisco}</b> sem alto risco</span><span className={resultadoImportacao.naoEncontradas.length ? "text-amber-600" : "text-emerald-600"}><b>{resultadoImportacao.naoEncontradas.length}</b> não encontradas</span></div>{resultadoImportacao.naoEncontradas.length > 0 && <p className="mt-2 text-xs text-muted-foreground">As rotas não encontradas podem ainda não ter sido sincronizadas no JMRoutes. Elas não foram criadas nem alteradas.</p>}</CardContent></Card>}
 
       <Card>
         <CardContent className="grid gap-3 md:grid-cols-4 pt-4">
