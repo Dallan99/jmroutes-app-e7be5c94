@@ -308,7 +308,7 @@ function fetchRiskInPage(inicio, fim) {
       startDate: inicio,
       endDate: fim,
       stepType: "last_mile",
-      channel: "mlp",
+      channel: "logistics",
     });
     fetch("https://envios.adminml.com/logistics/rostering/api/services/details?" + params.toString(), {
       method: "GET",

@@ -50,6 +50,7 @@ describe("risco do Rostering", () => {
     }, "2026-08-31", "2026-09-06");
     expect(resultado.ok).toBe(true);
     expect(chamada).toContain("stepType=last_mile");
+    expect(chamada).toContain("channel=logistics");
     expect(headers).toEqual({ loadType: "export" });
   });
 });

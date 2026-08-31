@@ -65,6 +65,7 @@ async function main() {
 
   const breakers = new Map(cfg.bases.map((b) => [b.baseCode, new CircuitBreaker()]));
   const estados = new Map(cfg.bases.map((b) => [b.baseCode, novoEstadoIncremental()]));
+  const liderGlobal = cfg.bases.some((base) => base.baseCode === "ESP15");
   let jmr: JmrSessao | null = null;
   let proximaSincronizacaoRiscoEm = 0;
 
@@ -113,7 +114,7 @@ async function main() {
     }
 
     try {
-      if (!cfg.dryRun && jmr) {
+      if (!cfg.dryRun && jmr && liderGlobal) {
         const catalogo = await listarTodosMotoristas(sessao.transport);
         if (catalogo.ok) {
           const envio = await enviarCatalogoMotoristas(cfg, jmr.accessToken, catalogo.valor);
@@ -139,7 +140,10 @@ async function main() {
               });
             } else logger.warn("Classificação de risco será repetida.", { motivo: envio.motivo });
           } else {
-            logger.warn("Não foi possível consultar a classificação semanal de risco.", { motivo: risco.motivo });
+            logger.warn("Não foi possível consultar a classificação semanal de risco.", {
+              motivo: risco.motivo,
+              status: risco.status ?? null,
+            });
             if (risco.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
           }
         }

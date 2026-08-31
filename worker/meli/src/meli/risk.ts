@@ -88,7 +88,7 @@ export async function listarRiscoSemanal(
     startDate: inicio,
     endDate: fim,
     stepType: "last_mile",
-    channel: "mlp",
+    channel: "logistics",
   });
   const resposta = await executarComRetry(
     () => transport.get(`${ROSTERING_DETAILS_URL}?${params}`, { loadType: "export" }),
