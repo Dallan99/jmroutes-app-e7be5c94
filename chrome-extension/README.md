@@ -1,7 +1,10 @@
-# JM Routes Importador — Extensão Chrome (v0.2.0)
+# JM Routes Importador — Extensão Chrome (v0.3.2)
 
 Importa **a rota aberta** no Mercado Livre e agora sincroniza **todas as rotas ativas da base**
 (com opção de repetir automaticamente a cada 30 s).
+
+Também consulta automaticamente, a cada 15 minutos, a classificação semanal de
+área de risco do Rostering. O CSV do AdminML fica apenas como contingência.
 
 ## 1. Requisitos
 

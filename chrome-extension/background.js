@@ -1,4 +1,4 @@
-// JM Routes Importador — service worker v0.3.0
+// JM Routes Importador — service worker v0.3.2
 // - Sincronização multi-base JM (ESP15..ESP18) via POST get-routes-list.
 // - Consulta cada base separadamente (o Meli mostra no máximo 3 estações na tela;
 //   respeitamos o limite operacional e nunca enviamos 4 SSPs juntos).
@@ -27,6 +27,7 @@ const BASE_TODAS = "TODAS";
 // ============================================================
 const JMROUTES_ORIGIN = "https://jmroutes.app";
 const IMPORT_ENDPOINT = JMROUTES_ORIGIN + "/api/public/meli/importar-rota-bruta";
+const RISK_IMPORT_ENDPOINT = JMROUTES_ORIGIN + "/api/public/meli/importar-risco";
 const SUPABASE_PROJECT_REF = "ieqvzndvkzozqvseubuc";
 const SB_STORAGE_KEY = "sb-" + SUPABASE_PROJECT_REF + "-auth-token";
 const MELI_HOST = "envios.adminml.com";
@@ -48,6 +49,7 @@ const MAX_RETRIES = RETRY_BACKOFF_MS.length;
 const RETRY_AFTER_MAX_MS = 60_000;
 const CIRCUIT_FAIL_RATIO = 0.3;
 const CIRCUIT_PAUSE_CICLOS = 2;
+const RISK_SYNC_INTERVAL_MS = 15 * 60_000;
 
 function randomInt(max) {
   return Math.floor(Math.random() * (max + 1));
@@ -131,11 +133,12 @@ function novoSyncBatchId() {
 // ============================================================
 async function loadConfig() {
   try {
-    const c = await chrome.storage.local.get(["continuous", "concurrency", "baseSelecionada", "ultimaSync"]);
+    const c = await chrome.storage.local.get(["continuous", "concurrency", "baseSelecionada", "ultimaSync", "ultimaSyncRisco"]);
     if (typeof c.continuous === "boolean") state.continuous = c.continuous;
     if ([1, 2, 4, 6].includes(c.concurrency)) state.concurrency = c.concurrency;
     if (typeof c.baseSelecionada === "string") state.baseSelecionada = c.baseSelecionada;
     if (typeof c.ultimaSync === "number") state.progress.ultimaSync = c.ultimaSync;
+    if (typeof c.ultimaSyncRisco === "number") state.ultimaSyncRisco = c.ultimaSyncRisco;
   } catch { /* ignore */ }
 }
 async function saveConfig() {
@@ -145,6 +148,7 @@ async function saveConfig() {
       concurrency: state.concurrency,
       baseSelecionada: state.baseSelecionada,
       ultimaSync: state.progress.ultimaSync,
+      ultimaSyncRisco: state.ultimaSyncRisco || null,
     });
   } catch { /* ignore */ }
 }
@@ -289,6 +293,123 @@ function fetchRouteDetailInPage(routeId) {
       resolve({ ok: false, reason: e && e.name === "AbortError" ? "timeout" : "network" });
     });
   });
+}
+
+// ============================================================
+// Classificação semanal de risco do Rostering
+// Executada na página autenticada e devolve somente os campos necessários;
+// nomes de motoristas e demais dados da exportação não saem do AdminML.
+// ============================================================
+function fetchRiskInPage(inicio, fim) {
+  return new Promise((resolve) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 30000);
+    const params = new URLSearchParams({
+      startDate: inicio,
+      endDate: fim,
+      stepType: "last-mile",
+      channel: "mlp",
+    });
+    fetch("https://envios.adminml.com/logistics/rostering/api/services/details?" + params.toString(), {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json, text/plain, */*", loadType: "export" },
+      signal: ctrl.signal,
+    }).then(async (r) => {
+      clearTimeout(t);
+      if (!r.ok) {
+        resolve({ ok: false, status: r.status, reason: (r.status === 401 || r.status === 403) ? "sessao_expirada" : "http" });
+        return;
+      }
+      let body;
+      try { body = await r.json(); }
+      catch { resolve({ ok: false, reason: "parse" }); return; }
+
+      const fila = [body];
+      let servicos = [];
+      let guarda = 0;
+      while (fila.length && guarda < 100) {
+        guarda += 1;
+        const atual = fila.shift();
+        if (Array.isArray(atual)) {
+          if (atual.some((v) => v && typeof v === "object" && Array.isArray(v.assignments) && v.startDate)) {
+            servicos = atual;
+            break;
+          }
+          fila.push(...atual);
+        } else if (atual && typeof atual === "object") fila.push(...Object.values(atual));
+      }
+
+      const bool = (v) => {
+        if (typeof v === "boolean") return v;
+        const s = String(v ?? "").trim().toLowerCase();
+        if (["true", "1", "yes", "sim", "sí"].includes(s)) return true;
+        if (["false", "0", "no", "não", "nao"].includes(s)) return false;
+        return null;
+      };
+      const unicas = new Map();
+      for (const servico of servicos) {
+        const data = String(servico.startDate || "").slice(0, 10);
+        const facility = String(servico.facility || "").trim();
+        const transportadora = String(servico.carrierName || "").trim();
+        for (const assignment of (Array.isArray(servico.assignments) ? servico.assignments : [])) {
+          const metadata = assignment?.planning_route?.metadata;
+          const cluster = String(metadata?.original_route_name || "").trim();
+          const altoRisco = bool(metadata?.is_risky);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !facility || !transportadora || !cluster || altoRisco === null) continue;
+          const linha = {
+            data,
+            facility,
+            cluster,
+            transportadora,
+            altoRisco,
+            regiao: String(metadata?.region || "").trim() || null,
+            idServico: String(assignment?.ID || "").trim() || null,
+          };
+          unicas.set([data, facility.toLowerCase(), cluster.toLowerCase(), transportadora.toLowerCase()].join("|"), linha);
+        }
+      }
+      const linhas = Array.from(unicas.values());
+      resolve(linhas.length ? { ok: true, linhas } : { ok: false, reason: "payload_shape" });
+    }).catch((e) => {
+      clearTimeout(t);
+      resolve({ ok: false, reason: e && e.name === "AbortError" ? "timeout" : "network" });
+    });
+  });
+}
+
+function semanaAtual() {
+  const agora = new Date();
+  const inicio = new Date(Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate()));
+  inicio.setUTCDate(inicio.getUTCDate() - ((inicio.getUTCDay() + 6) % 7));
+  const fim = new Date(inicio);
+  fim.setUTCDate(fim.getUTCDate() + 6);
+  return { inicio: inicio.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) };
+}
+
+async function sincronizarRiscoAutomatico(tabId, token) {
+  if (state.ultimaSyncRisco && Date.now() - state.ultimaSyncRisco < RISK_SYNC_INTERVAL_MS) return { ok: true, pulado: true };
+  const semana = semanaAtual();
+  const coleta = await runInMeliTab(tabId, fetchRiskInPage, [semana.inicio, semana.fim]);
+  if (!coleta || !coleta.ok) return { ok: false, origem: "meli", reason: coleta?.reason || "risco_indisponivel" };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), SEND_TIMEOUT_MS);
+  try {
+    const resposta = await fetch(RISK_IMPORT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ linhas: coleta.linhas }),
+      signal: ctrl.signal,
+    });
+    let body = null;
+    try { body = await resposta.json(); } catch { /* ignore */ }
+    if (!resposta.ok || !body?.ok) return { ok: false, origem: "jmroutes", status: resposta.status, reason: body?.codigo || "falha_importacao_risco" };
+    state.ultimaSyncRisco = Date.now();
+    await saveConfig();
+    return { ok: true, processadas: body.processadas || coleta.linhas.length, encontradas: body.encontradas || 0 };
+  } catch (e) {
+    return { ok: false, origem: "jmroutes", reason: e && e.name === "AbortError" ? "timeout" : "network" };
+  } finally { clearTimeout(timer); }
 }
 
 // ============================================================
@@ -737,6 +858,15 @@ async function executarCiclo() {
       if (r.sessaoMeliCaida) { sessaoMeliCaida = true; break; }
       if (r.sessaoJmroutesCaida) { sessaoJmroutesCaida = true; break; }
       // r.erroBase: registrado no resumo da base, continua para as próximas
+    }
+
+    // Executa depois das rotas: assim até rotas novas deste mesmo ciclo já
+    // existem no JMRoutes quando a classificação é conciliada.
+    if (!isCancelled() && !sessaoMeliCaida && !sessaoJmroutesCaida) {
+      const risco = await sincronizarRiscoAutomatico(tab.id, token);
+      if (!risco.ok) {
+        prog.mensagem = "Rotas atualizadas, mas a classificação de risco será tentada novamente: " + (risco.reason || "erro");
+      }
     }
 
 
