@@ -137,6 +137,14 @@ async function main() {
                 periodo: `${semana.inicio}/${semana.fim}`,
                 recebidas: risco.valor.length,
                 encontradas: envio.encontradas,
+                amostra: risco.valor[0]
+                  ? {
+                      data: risco.valor[0].data,
+                      facility: risco.valor[0].facility,
+                      cluster: risco.valor[0].cluster,
+                      transportadora: risco.valor[0].transportadora,
+                    }
+                  : null,
               });
             } else logger.warn("Classificação de risco será repetida.", { motivo: envio.motivo });
           } else {

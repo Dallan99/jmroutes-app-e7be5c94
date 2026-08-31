@@ -11,14 +11,14 @@ describe("risco do Rostering", () => {
           facility: "SSP56",
           carrierName: "JM TRANSPORTES",
           assignments: [
-            { ID: 10, planning_route: { metadata: { original_route_name: "431065713", region: "Sul", is_risky: true } } },
+            { ID: 10, planning_route: { metadata: { name: "U23_CHP", original_route_name: "CHP_54", region: "Sul", is_risky: true } } },
             { ID: 11, planning_route: { metadata: { original_route_name: "431065714", region: "Norte", is_risky: "false" } } },
           ],
         },
       ],
     });
     expect(linhas).toEqual([
-      { data: "2026-08-31", facility: "SSP56", cluster: "431065713", transportadora: "JM TRANSPORTES", altoRisco: true, regiao: "Sul", idServico: "10" },
+      { data: "2026-08-31", facility: "SSP56", cluster: "U23_CHP", transportadora: "JM TRANSPORTES", altoRisco: true, regiao: "Sul", idServico: "10" },
       { data: "2026-08-31", facility: "SSP56", cluster: "431065714", transportadora: "JM TRANSPORTES", altoRisco: false, regiao: "Norte", idServico: "11" },
     ]);
   });

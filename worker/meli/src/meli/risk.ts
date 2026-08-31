@@ -61,7 +61,7 @@ export function normalizarRiscoRostering(body: unknown): LinhaRiscoRostering[] {
       const assignment = objeto(valor);
       const planningRoute = objeto(assignment?.["planning_route"]);
       const metadata = objeto(planningRoute?.["metadata"]);
-      const cluster = texto(metadata?.["original_route_name"]);
+      const cluster = texto(metadata?.["name"]) || texto(metadata?.["original_route_name"]);
       const altoRisco = booleano(metadata?.["is_risky"]);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !facility || !transportadora || !cluster || altoRisco === null) continue;
       const linha: LinhaRiscoRostering = {

@@ -354,7 +354,7 @@ function fetchRiskInPage(inicio, fim) {
         const transportadora = String(servico.carrierName || "").trim();
         for (const assignment of (Array.isArray(servico.assignments) ? servico.assignments : [])) {
           const metadata = assignment?.planning_route?.metadata;
-          const cluster = String(metadata?.original_route_name || "").trim();
+          const cluster = String(metadata?.name || metadata?.original_route_name || "").trim();
           const altoRisco = bool(metadata?.is_risky);
           if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !facility || !transportadora || !cluster || altoRisco === null) continue;
           const linha = {
