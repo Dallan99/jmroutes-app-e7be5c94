@@ -10,178 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      expedicao_leituras: {
-        Row: {
-          created_at: string
-          escala_id: string
-          expedicao_id: string
-          id: string
-          localizado_posteriormente_na_expedicao: boolean
-          nao_localizado_no_recebimento: boolean
-          operador_id: string
-          resultado: string
-          shipment: string
-        }
-        Insert: {
-          created_at?: string
-          escala_id: string
-          expedicao_id: string
-          id?: string
-          localizado_posteriormente_na_expedicao?: boolean
-          nao_localizado_no_recebimento?: boolean
-          operador_id: string
-          resultado: string
-          shipment: string
-        }
-        Update: {
-          created_at?: string
-          escala_id?: string
-          expedicao_id?: string
-          id?: string
-          localizado_posteriormente_na_expedicao?: boolean
-          nao_localizado_no_recebimento?: boolean
-          operador_id?: string
-          resultado?: string
-          shipment?: string
-        }
-        Relationships: []
-      }
-      expedicoes: {
-        Row: {
-          base_id: string
-          concluida_em: string | null
-          concluida_por: string | null
-          created_at: string
-          data_operacional: string
-          id: string
-          importacao_id: string
-          iniciada_em: string
-          iniciada_por: string
-          motorista: string | null
-          motorista_meli_id: string | null
-          motorista_usuario_id: string | null
-          observacao: string | null
-          outro_responsavel: string | null
-          quantidade_conferida: number
-          quantidade_prevista: number
-          responsavel_expedicao_id: string | null
-          responsavel_meli_svc: string | null
-          rota: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          base_id: string
-          concluida_em?: string | null
-          concluida_por?: string | null
-          created_at?: string
-          data_operacional: string
-          id?: string
-          importacao_id: string
-          iniciada_em?: string
-          iniciada_por: string
-          motorista?: string | null
-          motorista_meli_id?: string | null
-          motorista_usuario_id?: string | null
-          observacao?: string | null
-          outro_responsavel?: string | null
-          quantidade_conferida?: number
-          quantidade_prevista: number
-          responsavel_expedicao_id?: string | null
-          responsavel_meli_svc?: string | null
-          rota: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          base_id?: string
-          concluida_em?: string | null
-          concluida_por?: string | null
-          created_at?: string
-          data_operacional?: string
-          id?: string
-          importacao_id?: string
-          iniciada_em?: string
-          iniciada_por?: string
-          motorista?: string | null
-          motorista_meli_id?: string | null
-          motorista_usuario_id?: string | null
-          observacao?: string | null
-          outro_responsavel?: string | null
-          quantidade_conferida?: number
-          quantidade_prevista?: number
-          responsavel_expedicao_id?: string | null
-          responsavel_meli_svc?: string | null
-          rota?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      fechamentos_operacionais: {
-        Row: {
-          base_id: string
-          created_at: string
-          criado_por: string
-          data_operacional: string
-          email_destinatario: string | null
-          email_message_id: string | null
-          enviado_em: string | null
-          enviado_por: string | null
-          evidencia_envio: Json | null
-          faltantes_finais: number
-          faltantes_recebimento: number
-          id: string
-          pdf_path: string | null
-          recuperados_expedicao: number
-          shipment_ids_finais: Json
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          base_id: string
-          created_at?: string
-          criado_por: string
-          data_operacional: string
-          email_destinatario?: string | null
-          email_message_id?: string | null
-          enviado_em?: string | null
-          enviado_por?: string | null
-          evidencia_envio?: Json | null
-          faltantes_finais?: number
-          faltantes_recebimento?: number
-          id?: string
-          pdf_path?: string | null
-          recuperados_expedicao?: number
-          shipment_ids_finais?: Json
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          base_id?: string
-          created_at?: string
-          criado_por?: string
-          data_operacional?: string
-          email_destinatario?: string | null
-          email_message_id?: string | null
-          enviado_em?: string | null
-          enviado_por?: string | null
-          evidencia_envio?: Json | null
-          faltantes_finais?: number
-          faltantes_recebimento?: number
-          id?: string
-          pdf_path?: string | null
-          recuperados_expedicao?: number
-          shipment_ids_finais?: Json
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       audit_logs: {
         Row: {
           acao: string
@@ -816,6 +648,212 @@ export type Database = {
           },
         ]
       }
+      expedicao_leituras: {
+        Row: {
+          created_at: string
+          escala_id: string
+          expedicao_id: string
+          id: string
+          localizado_posteriormente_na_expedicao: boolean
+          nao_localizado_no_recebimento: boolean
+          operador_id: string
+          resultado: string
+          shipment: string
+        }
+        Insert: {
+          created_at?: string
+          escala_id: string
+          expedicao_id: string
+          id?: string
+          localizado_posteriormente_na_expedicao?: boolean
+          nao_localizado_no_recebimento?: boolean
+          operador_id: string
+          resultado: string
+          shipment: string
+        }
+        Update: {
+          created_at?: string
+          escala_id?: string
+          expedicao_id?: string
+          id?: string
+          localizado_posteriormente_na_expedicao?: boolean
+          nao_localizado_no_recebimento?: boolean
+          operador_id?: string
+          resultado?: string
+          shipment?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedicao_leituras_escala_id_fkey"
+            columns: ["escala_id"]
+            isOneToOne: false
+            referencedRelation: "escalas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expedicao_leituras_expedicao_id_fkey"
+            columns: ["expedicao_id"]
+            isOneToOne: false
+            referencedRelation: "expedicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expedicoes: {
+        Row: {
+          base_id: string
+          concluida_em: string | null
+          concluida_por: string | null
+          created_at: string
+          data_operacional: string
+          id: string
+          importacao_id: string
+          iniciada_em: string
+          iniciada_por: string
+          motorista: string | null
+          motorista_meli_id: string | null
+          motorista_usuario_id: string | null
+          observacao: string | null
+          outro_responsavel: string | null
+          quantidade_conferida: number
+          quantidade_prevista: number
+          responsavel_expedicao_id: string | null
+          responsavel_meli_svc: string | null
+          rota: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          data_operacional: string
+          id?: string
+          importacao_id: string
+          iniciada_em?: string
+          iniciada_por: string
+          motorista?: string | null
+          motorista_meli_id?: string | null
+          motorista_usuario_id?: string | null
+          observacao?: string | null
+          outro_responsavel?: string | null
+          quantidade_conferida?: number
+          quantidade_prevista: number
+          responsavel_expedicao_id?: string | null
+          responsavel_meli_svc?: string | null
+          rota: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          data_operacional?: string
+          id?: string
+          importacao_id?: string
+          iniciada_em?: string
+          iniciada_por?: string
+          motorista?: string | null
+          motorista_meli_id?: string | null
+          motorista_usuario_id?: string | null
+          observacao?: string | null
+          outro_responsavel?: string | null
+          quantidade_conferida?: number
+          quantidade_prevista?: number
+          responsavel_expedicao_id?: string | null
+          responsavel_meli_svc?: string | null
+          rota?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedicoes_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expedicoes_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes_escala"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fechamentos_operacionais: {
+        Row: {
+          base_id: string
+          created_at: string
+          criado_por: string
+          data_operacional: string
+          email_destinatario: string | null
+          email_message_id: string | null
+          enviado_em: string | null
+          enviado_por: string | null
+          evidencia_envio: Json | null
+          faltantes_finais: number
+          faltantes_recebimento: number
+          id: string
+          pdf_path: string | null
+          recuperados_expedicao: number
+          shipment_ids_finais: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          created_at?: string
+          criado_por: string
+          data_operacional: string
+          email_destinatario?: string | null
+          email_message_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          evidencia_envio?: Json | null
+          faltantes_finais?: number
+          faltantes_recebimento?: number
+          id?: string
+          pdf_path?: string | null
+          recuperados_expedicao?: number
+          shipment_ids_finais?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          created_at?: string
+          criado_por?: string
+          data_operacional?: string
+          email_destinatario?: string | null
+          email_message_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          evidencia_envio?: Json | null
+          faltantes_finais?: number
+          faltantes_recebimento?: number
+          id?: string
+          pdf_path?: string | null
+          recuperados_expedicao?: number
+          shipment_ids_finais?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamentos_operacionais_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       importacoes_escala: {
         Row: {
           arquivada_em: string | null
@@ -1388,6 +1426,48 @@ export type Database = {
         }
         Relationships: []
       }
+      meli_motoristas_catalogo: {
+        Row: {
+          ativo: boolean
+          carrier_id: string | null
+          created_at: string
+          meli_driver_id: string
+          nome: string
+          origem: string
+          service_center_id: string | null
+          sincronizado_em: string
+          status: string
+          ultima_rota_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          carrier_id?: string | null
+          created_at?: string
+          meli_driver_id: string
+          nome: string
+          origem?: string
+          service_center_id?: string | null
+          sincronizado_em?: string
+          status?: string
+          ultima_rota_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          carrier_id?: string | null
+          created_at?: string
+          meli_driver_id?: string
+          nome?: string
+          origem?: string
+          service_center_id?: string | null
+          sincronizado_em?: string
+          status?: string
+          ultima_rota_em?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meli_oauth_states: {
         Row: {
           code_verifier: string
@@ -1455,7 +1535,9 @@ export type Database = {
           created_at: string
           destinatario: string | null
           endereco: string | null
+          facility: string | null
           id: string
+          integration_source: string
           last_synced_at: string | null
           motivo_area_risco: string | null
           occurrence_code: string | null
@@ -1464,11 +1546,13 @@ export type Database = {
           pacote_area_risco: boolean
           printed_label: string | null
           rota_id: string
+          service_center_id: string | null
           shipment_id: string | null
           status: string | null
           stop_id: string | null
           substatus: string | null
           tracking_id: string
+          tracking_number: string | null
           uf: string | null
           updated_at: string
           valor_original_area_risco: Json | null
@@ -1482,7 +1566,9 @@ export type Database = {
           created_at?: string
           destinatario?: string | null
           endereco?: string | null
+          facility?: string | null
           id?: string
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
           occurrence_code?: string | null
@@ -1491,11 +1577,13 @@ export type Database = {
           pacote_area_risco?: boolean
           printed_label?: string | null
           rota_id: string
+          service_center_id?: string | null
           shipment_id?: string | null
           status?: string | null
           stop_id?: string | null
           substatus?: string | null
           tracking_id: string
+          tracking_number?: string | null
           uf?: string | null
           updated_at?: string
           valor_original_area_risco?: Json | null
@@ -1509,7 +1597,9 @@ export type Database = {
           created_at?: string
           destinatario?: string | null
           endereco?: string | null
+          facility?: string | null
           id?: string
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
           occurrence_code?: string | null
@@ -1518,11 +1608,13 @@ export type Database = {
           pacote_area_risco?: boolean
           printed_label?: string | null
           rota_id?: string
+          service_center_id?: string | null
           shipment_id?: string | null
           status?: string | null
           stop_id?: string | null
           substatus?: string | null
           tracking_id?: string
+          tracking_number?: string | null
           uf?: string | null
           updated_at?: string
           valor_original_area_risco?: Json | null
@@ -1544,48 +1636,6 @@ export type Database = {
           },
         ]
       }
-      meli_motoristas_catalogo: {
-        Row: {
-          ativo: boolean
-          carrier_id: string | null
-          created_at: string
-          meli_driver_id: string
-          nome: string
-          origem: string
-          status: string
-          service_center_id: string | null
-          sincronizado_em: string
-          ultima_rota_em: string | null
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          carrier_id?: string | null
-          created_at?: string
-          meli_driver_id: string
-          nome: string
-          origem?: string
-          status?: string
-          service_center_id?: string | null
-          sincronizado_em?: string
-          ultima_rota_em?: string | null
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          carrier_id?: string | null
-          created_at?: string
-          meli_driver_id?: string
-          nome?: string
-          origem?: string
-          status?: string
-          service_center_id?: string | null
-          sincronizado_em?: string
-          ultima_rota_em?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       meli_rotas: {
         Row: {
           area_risco_detectado_em: string | null
@@ -1604,8 +1654,10 @@ export type Database = {
           finish_date: string | null
           id: string
           init_date: string | null
+          integration_source: string
           last_synced_at: string | null
           motivo_area_risco: string | null
+          motorista_id: string | null
           occurrence_total: number | null
           origem_area_risco: string | null
           origem_importacao: string | null
@@ -1614,6 +1666,7 @@ export type Database = {
           route_id: string
           route_status: string | null
           route_substatus: string | null
+          service_center_id: string | null
           stops_total: number | null
           sync_batch_id: string | null
           total_impressos: number
@@ -1639,8 +1692,10 @@ export type Database = {
           finish_date?: string | null
           id?: string
           init_date?: string | null
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
+          motorista_id?: string | null
           occurrence_total?: number | null
           origem_area_risco?: string | null
           origem_importacao?: string | null
@@ -1649,6 +1704,7 @@ export type Database = {
           route_id: string
           route_status?: string | null
           route_substatus?: string | null
+          service_center_id?: string | null
           stops_total?: number | null
           sync_batch_id?: string | null
           total_impressos?: number
@@ -1674,8 +1730,10 @@ export type Database = {
           finish_date?: string | null
           id?: string
           init_date?: string | null
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
+          motorista_id?: string | null
           occurrence_total?: number | null
           origem_area_risco?: string | null
           origem_importacao?: string | null
@@ -1684,6 +1742,7 @@ export type Database = {
           route_id?: string
           route_status?: string | null
           route_substatus?: string | null
+          service_center_id?: string | null
           stops_total?: number | null
           sync_batch_id?: string | null
           total_impressos?: number
@@ -1698,6 +1757,20 @@ export type Database = {
             columns: ["base_id"]
             isOneToOne: false
             referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_rotas_motorista_id_fkey"
+            columns: ["motorista_id"]
+            isOneToOne: false
+            referencedRelation: "motoristas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_rotas_motorista_id_fkey"
+            columns: ["motorista_id"]
+            isOneToOne: false
+            referencedRelation: "motoristas_safe"
             referencedColumns: ["id"]
           },
           {
@@ -1881,6 +1954,79 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "meli_sync_ciclos"
             referencedColumns: ["sync_batch_id"]
+          },
+        ]
+      }
+      meli_tracking_eventos: {
+        Row: {
+          created_at: string
+          event_date: string
+          id: string
+          idempotency_key: string | null
+          meli_pacote_id: string | null
+          payload: Json
+          resposta_meli: Json | null
+          rota_id: string | null
+          sent_at: string | null
+          shipment_id: string | null
+          status_envio: string
+          tentativas: number
+          tipo_evento: string
+          tracking_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_date: string
+          id?: string
+          idempotency_key?: string | null
+          meli_pacote_id?: string | null
+          payload?: Json
+          resposta_meli?: Json | null
+          rota_id?: string | null
+          sent_at?: string | null
+          shipment_id?: string | null
+          status_envio?: string
+          tentativas?: number
+          tipo_evento: string
+          tracking_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_date?: string
+          id?: string
+          idempotency_key?: string | null
+          meli_pacote_id?: string | null
+          payload?: Json
+          resposta_meli?: Json | null
+          rota_id?: string | null
+          sent_at?: string | null
+          shipment_id?: string | null
+          status_envio?: string
+          tentativas?: number
+          tipo_evento?: string
+          tracking_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_tracking_eventos_meli_pacote_id_fkey"
+            columns: ["meli_pacote_id"]
+            isOneToOne: false
+            referencedRelation: "meli_pacotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_tracking_eventos_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_tracking_eventos_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas_ativas"
+            referencedColumns: ["id"]
           },
         ]
       }
