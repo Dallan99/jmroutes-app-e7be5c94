@@ -97,7 +97,9 @@ function AuthPage() {
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    const identificador = email.trim().toLowerCase();
+    const emailLogin = identificador.includes("@") ? identificador : `${identificador}@motoristas.jmroutes.local`;
+    const { error } = await supabase.auth.signInWithPassword({ email: emailLogin, password: senha });
     setLoading(false);
     if (error) return toast.error(error.message);
     try {
@@ -252,7 +254,7 @@ function AuthPage() {
                   <UserIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input
                     id="email"
-                    type="email"
+                    type="text"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

@@ -2097,6 +2097,7 @@ export type Database = {
       }
       motoristas: {
         Row: {
+          auth_user_id: string | null
           ativo: boolean
           base_id: string | null
           cnh: string | null
@@ -2107,8 +2108,10 @@ export type Database = {
           nome: string
           placa: string | null
           transportadora: string | null
+          usuario: string | null
         }
         Insert: {
+          auth_user_id?: string | null
           ativo?: boolean
           base_id?: string | null
           cnh?: string | null
@@ -2119,8 +2122,10 @@ export type Database = {
           nome: string
           placa?: string | null
           transportadora?: string | null
+          usuario?: string | null
         }
         Update: {
+          auth_user_id?: string | null
           ativo?: boolean
           base_id?: string | null
           cnh?: string | null
@@ -2131,6 +2136,7 @@ export type Database = {
           nome?: string
           placa?: string | null
           transportadora?: string | null
+          usuario?: string | null
         }
         Relationships: [
           {
@@ -2138,6 +2144,13 @@ export type Database = {
             columns: ["base_id"]
             isOneToOne: false
             referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motoristas_auth_user_id_fkey"
+            columns: ["auth_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

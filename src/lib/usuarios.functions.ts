@@ -77,6 +77,7 @@ export const listarUsuarios = createServerFn({ method: "GET" })
     const merged = new Map<string, UsuarioRow>();
     for (const u of authUsers) {
       const p = profilesById.get(u.id);
+      if (p?.meli_driver_id) continue;
       const metadataNome = typeof u.user_metadata?.nome === "string" ? u.user_metadata.nome : null;
       const email = p?.email ?? u.email ?? "";
       merged.set(u.id, {
@@ -97,7 +98,7 @@ export const listarUsuarios = createServerFn({ method: "GET" })
     }
 
     for (const p of profiles ?? []) {
-      if (merged.has(p.id)) continue;
+      if (merged.has(p.id) || p.meli_driver_id) continue;
       merged.set(p.id, {
         id: p.id,
         email: p.email,
