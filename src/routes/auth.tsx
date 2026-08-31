@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,18 @@ function safeNext(next: string | undefined): string | null {
   return next;
 }
 
+async function destinoAposLogin() {
+  const { data: usuario } = await supabase.auth.getUser();
+  if (!usuario.user) return "/dashboard";
+  const { data: perfil } = await supabase
+    .from("profiles")
+    .select("meli_driver_id")
+    .eq("id", usuario.user.id)
+    .maybeSingle();
+  return perfil?.meli_driver_id ? "/motorista" : "/dashboard";
+}
+
 function AuthPage() {
-  const navigate = useNavigate();
   const { next } = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,14 +82,14 @@ function AuthPage() {
 
   useEffect(() => {
     setHydrated(true);
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
         const target = safeNext(next);
         if (target) window.location.href = target;
-        else navigate({ to: "/dashboard", replace: true });
+        else window.location.href = await destinoAposLogin();
       }
     });
-  }, [navigate, next]);
+  }, [next]);
 
   if (!hydrated) return null;
 
@@ -99,7 +109,7 @@ function AuthPage() {
     toast.success("Bem-vindo!");
     const target = safeNext(next);
     if (target) window.location.href = target;
-    else navigate({ to: "/dashboard", replace: true });
+    else window.location.href = await destinoAposLogin();
   }
 
 

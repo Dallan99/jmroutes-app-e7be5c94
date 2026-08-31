@@ -12,7 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import {
   biparExpedicao,
   detalharExpedicao,
-  listarMinhasExpedicoesMotorista,
+  iniciarMinhaExpedicaoMotorista,
+  listarMinhasRotasMeliMotorista,
 } from "@/lib/expedicao.functions";
 
 export const Route = createFileRoute("/_authenticated/motorista")({
@@ -21,14 +22,24 @@ export const Route = createFileRoute("/_authenticated/motorista")({
 });
 
 function AppMotorista() {
-  const listarFn = useServerFn(listarMinhasExpedicoesMotorista);
+  const listarFn = useServerFn(listarMinhasRotasMeliMotorista);
+  const iniciarFn = useServerFn(iniciarMinhaExpedicaoMotorista);
   const detalheFn = useServerFn(detalharExpedicao);
   const biparFn = useServerFn(biparExpedicao);
   const inputRef = useRef<HTMLInputElement>(null);
   const [expedicaoId, setExpedicaoId] = useState<string | null>(null);
   const [codigo, setCodigo] = useState("");
 
-  const rotas = useQuery({ queryKey: ["minhas-expedicoes-motorista"], queryFn: () => listarFn() });
+  const rotas = useQuery({ queryKey: ["minhas-rotas-meli-motorista"], queryFn: () => listarFn() });
+  const iniciar = useMutation({
+    mutationFn: (rota: { baseId: string; dataOperacional: string; rota: string }) =>
+      iniciarFn({ data: rota }),
+    onSuccess: ({ id }) => {
+      setExpedicaoId(id);
+      void rotas.refetch();
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  });
   const detalhe = useQuery({
     queryKey: ["expedicao-motorista", expedicaoId],
     queryFn: () => detalheFn({ data: { expedicaoId: expedicaoId! } }),
@@ -61,19 +72,29 @@ function AppMotorista() {
       {!expedicaoId ? (
         <div className="space-y-3">
           {(rotas.data ?? []).map((rota) => (
-            <Card key={rota.id} className="space-y-3 p-4">
+            <Card key={rota.atribuicaoId} className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div><div className="text-xs text-muted-foreground">Rota</div><div className="font-mono text-2xl font-bold">{rota.rota}</div></div>
-                <Badge>{rota.status}</Badge>
+                <Badge variant={rota.pronta ? "default" : "outline"}>{rota.expedicao?.status ?? (rota.pronta ? "Liberada" : "Aguardando Recebimento")}</Badge>
               </div>
-              <div className="text-sm">{rota.quantidade_conferida} de {rota.quantidade_prevista} volumes conferidos</div>
-              <Progress value={rota.quantidade_prevista ? (rota.quantidade_conferida / rota.quantidade_prevista) * 100 : 0} />
-              <Button className="h-12 w-full" onClick={() => setExpedicaoId(rota.id)}><PackageCheck className="mr-2 h-5 w-5" />Entrar na rota</Button>
+              <div className="flex justify-between text-sm text-muted-foreground"><span>{rota.baseCodigo} · {new Date(`${rota.dataOperacional}T12:00:00`).toLocaleDateString("pt-BR")}</span><span className="font-mono">{rota.placa ?? "Sem placa"}</span></div>
+              <div className="text-sm">{rota.expedicao?.quantidadeConferida ?? 0} de {rota.quantidadePrevista} volumes conferidos</div>
+              <Progress value={rota.quantidadePrevista ? ((rota.expedicao?.quantidadeConferida ?? 0) / rota.quantidadePrevista) * 100 : 0} />
+              <Button
+                className="h-12 w-full"
+                disabled={!rota.pronta || iniciar.isPending}
+                onClick={() => rota.expedicao
+                  ? setExpedicaoId(rota.expedicao.id)
+                  : iniciar.mutate({ baseId: rota.baseId, dataOperacional: rota.dataOperacional, rota: rota.rota })}
+              >
+                <PackageCheck className="mr-2 h-5 w-5" />
+                {!rota.pronta ? "Aguardando Recebimento" : rota.expedicao ? "Entrar na rota" : "Iniciar conferência"}
+              </Button>
             </Card>
           ))}
           {!rotas.isLoading && !(rotas.data ?? []).length && (
             <Card className="p-8 text-center text-sm text-muted-foreground">
-              Nenhuma rota foi atribuída ao seu usuário. Peça à operação para conferir o vínculo com seu cadastro Meli.
+              Nenhuma rota atribuída pelo Meli foi encontrada para seu usuário. Peça à operação para conferir o vínculo do cadastro.
             </Card>
           )}
         </div>

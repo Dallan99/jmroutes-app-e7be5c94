@@ -35,6 +35,7 @@ import { Route as AuthenticatedInventarioCentralRouteImport } from './routes/_au
 import { Route as AuthenticatedMeliDevolucoesRouteImport } from './routes/_authenticated/meli-devolucoes'
 import { Route as AuthenticatedMeliRiscoRouteImport } from './routes/_authenticated/meli-risco'
 import { Route as AuthenticatedMotoristaRouteImport } from './routes/_authenticated/motorista'
+import { Route as AuthenticatedMotoristasRouteImport } from './routes/_authenticated/motoristas'
 import { Route as AuthenticatedPainelOperacionalRouteImport } from './routes/_authenticated/painel-operacional'
 import { Route as AuthenticatedRecebimentoRouteImport } from './routes/_authenticated/recebimento'
 import { Route as AuthenticatedTransferenciasRouteImport } from './routes/_authenticated/transferencias'
@@ -187,6 +188,11 @@ const AuthenticatedMotoristaRoute = AuthenticatedMotoristaRouteImport.update({
   path: '/motorista',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMotoristasRoute = AuthenticatedMotoristasRouteImport.update({
+  id: '/motoristas',
+  path: '/motoristas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPainelOperacionalRoute =
   AuthenticatedPainelOperacionalRouteImport.update({
     id: '/painel-operacional',
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/meli-devolucoes': typeof AuthenticatedMeliDevolucoesRoute
   '/meli-risco': typeof AuthenticatedMeliRiscoRoute
   '/motorista': typeof AuthenticatedMotoristaRoute
+  '/motoristas': typeof AuthenticatedMotoristasRoute
   '/painel-operacional': typeof AuthenticatedPainelOperacionalRoute
   '/recebimento': typeof AuthenticatedRecebimentoRoute
   '/transferencias': typeof AuthenticatedTransferenciasRoute
@@ -345,6 +352,7 @@ export interface FileRoutesByTo {
   '/meli-devolucoes': typeof AuthenticatedMeliDevolucoesRoute
   '/meli-risco': typeof AuthenticatedMeliRiscoRoute
   '/motorista': typeof AuthenticatedMotoristaRoute
+  '/motoristas': typeof AuthenticatedMotoristasRoute
   '/painel-operacional': typeof AuthenticatedPainelOperacionalRoute
   '/recebimento': typeof AuthenticatedRecebimentoRoute
   '/transferencias': typeof AuthenticatedTransferenciasRoute
@@ -390,6 +398,7 @@ export interface FileRoutesById {
   '/_authenticated/meli-devolucoes': typeof AuthenticatedMeliDevolucoesRoute
   '/_authenticated/meli-risco': typeof AuthenticatedMeliRiscoRoute
   '/_authenticated/motorista': typeof AuthenticatedMotoristaRoute
+  '/_authenticated/motoristas': typeof AuthenticatedMotoristasRoute
   '/_authenticated/painel-operacional': typeof AuthenticatedPainelOperacionalRoute
   '/_authenticated/recebimento': typeof AuthenticatedRecebimentoRoute
   '/_authenticated/transferencias': typeof AuthenticatedTransferenciasRoute
@@ -435,6 +444,7 @@ export interface FileRouteTypes {
     | '/meli-devolucoes'
     | '/meli-risco'
     | '/motorista'
+    | '/motoristas'
     | '/painel-operacional'
     | '/recebimento'
     | '/transferencias'
@@ -478,6 +488,7 @@ export interface FileRouteTypes {
     | '/meli-devolucoes'
     | '/meli-risco'
     | '/motorista'
+    | '/motoristas'
     | '/painel-operacional'
     | '/recebimento'
     | '/transferencias'
@@ -522,6 +533,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meli-devolucoes'
     | '/_authenticated/meli-risco'
     | '/_authenticated/motorista'
+    | '/_authenticated/motoristas'
     | '/_authenticated/painel-operacional'
     | '/_authenticated/recebimento'
     | '/_authenticated/transferencias'
@@ -743,6 +755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMotoristaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/motoristas': {
+      id: '/_authenticated/motoristas'
+      path: '/motoristas'
+      fullPath: '/motoristas'
+      preLoaderRoute: typeof AuthenticatedMotoristasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel-operacional': {
       id: '/_authenticated/painel-operacional'
       path: '/painel-operacional'
@@ -876,6 +895,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeliDevolucoesRoute: typeof AuthenticatedMeliDevolucoesRoute
   AuthenticatedMeliRiscoRoute: typeof AuthenticatedMeliRiscoRoute
   AuthenticatedMotoristaRoute: typeof AuthenticatedMotoristaRoute
+  AuthenticatedMotoristasRoute: typeof AuthenticatedMotoristasRoute
   AuthenticatedPainelOperacionalRoute: typeof AuthenticatedPainelOperacionalRoute
   AuthenticatedRecebimentoRoute: typeof AuthenticatedRecebimentoRoute
   AuthenticatedTransferenciasRoute: typeof AuthenticatedTransferenciasRoute
@@ -902,6 +922,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeliDevolucoesRoute: AuthenticatedMeliDevolucoesRoute,
   AuthenticatedMeliRiscoRoute: AuthenticatedMeliRiscoRoute,
   AuthenticatedMotoristaRoute: AuthenticatedMotoristaRoute,
+  AuthenticatedMotoristasRoute: AuthenticatedMotoristasRoute,
   AuthenticatedPainelOperacionalRoute: AuthenticatedPainelOperacionalRoute,
   AuthenticatedRecebimentoRoute: AuthenticatedRecebimentoRoute,
   AuthenticatedTransferenciasRoute: AuthenticatedTransferenciasRoute,

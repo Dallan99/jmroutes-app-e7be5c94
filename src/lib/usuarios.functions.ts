@@ -15,7 +15,9 @@ export type UsuarioRow = {
   email: string;
   nome: string;
   matricula: string | null;
+  placa: string | null;
   meli_driver_id: string | null;
+  meli_driver_nome: string | null;
   base_id: string | null;
   base_nome: string | null;
   ativo: boolean;
@@ -32,7 +34,7 @@ export const listarUsuarios = createServerFn({ method: "GET" })
 
     const { data: profiles, error: pErr } = await supabaseAdmin
       .from("profiles")
-      .select("id, nome, email, matricula, meli_driver_id, base_id, ativo, created_at, bases(nome)")
+      .select("id, nome, email, matricula, placa, meli_driver_id, base_id, ativo, created_at, bases(nome)")
       .order("created_at", { ascending: false });
     if (pErr) throw new Error(pErr.message);
 
@@ -40,6 +42,11 @@ export const listarUsuarios = createServerFn({ method: "GET" })
       .from("user_roles")
       .select("user_id, role");
     if (rErr) throw new Error(rErr.message);
+
+    const { data: catalogo } = await supabaseAdmin
+      .from("meli_motoristas_catalogo")
+      .select("meli_driver_id, nome");
+    const nomeMeliPorId = new Map((catalogo ?? []).map((m) => [m.meli_driver_id, m.nome]));
 
     const rolesByUser = new Map<string, Role[]>();
     for (const r of roles ?? []) {
@@ -77,7 +84,9 @@ export const listarUsuarios = createServerFn({ method: "GET" })
         email,
         nome: p?.nome ?? metadataNome ?? email.split("@")[0] ?? "Usuário",
         matricula: p?.matricula ?? null,
+        placa: p?.placa ?? null,
         meli_driver_id: p?.meli_driver_id ?? null,
+        meli_driver_nome: p?.meli_driver_id ? nomeMeliPorId.get(p.meli_driver_id) ?? null : null,
         base_id: p?.base_id ?? null,
         base_nome: p?.bases?.nome ?? null,
         ativo: p?.ativo ?? !u.banned_until,
@@ -94,7 +103,9 @@ export const listarUsuarios = createServerFn({ method: "GET" })
         email: p.email,
         nome: p.nome,
         matricula: p.matricula,
+        placa: p.placa ?? null,
         meli_driver_id: p.meli_driver_id,
+        meli_driver_nome: p.meli_driver_id ? nomeMeliPorId.get(p.meli_driver_id) ?? null : null,
         base_id: p.base_id,
         base_nome: p.bases?.nome ?? null,
         ativo: p.ativo,
@@ -113,6 +124,7 @@ const criarSchema = z.object({
   senha: z.string().min(8).max(72),
   role: z.enum(["admin", "gerente", "supervisor", "operador"]),
   matricula: z.string().trim().max(40).optional().nullable(),
+  placa: z.string().trim().regex(/^[A-Z0-9]{7}$/, "Informe uma placa válida com 7 caracteres.").optional().nullable(),
   meli_driver_id: z.string().trim().max(80).optional().nullable(),
   base_id: z.string().uuid().optional().nullable(),
 });
@@ -122,9 +134,10 @@ export const criarUsuario = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => criarSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    if (!data.email.endsWith("@jmdistribuicao.com.br")) {
-      throw new Error("Apenas emails @jmdistribuicao.com.br são permitidos.");
+    if (!data.email.endsWith("@jmdistribuicao.com.br") && !data.meli_driver_id) {
+      throw new Error("Emails externos são permitidos apenas para contas vinculadas a um motorista Meli.");
     }
+    if (data.meli_driver_id && !data.placa) throw new Error("Informe a placa do motorista.");
     if (data.role === "operador" && !data.base_id) {
       throw new Error("Operadores devem estar vinculados a uma base.");
     }
@@ -145,6 +158,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
       .update({
         nome: data.nome,
         matricula: data.matricula ?? null,
+        placa: data.placa ?? null,
         meli_driver_id: data.meli_driver_id ?? null,
         base_id: data.base_id ?? null,
       })
@@ -168,6 +182,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
 const atualizarSchema = z.object({
   user_id: z.string().uuid(),
   matricula: z.string().trim().max(40).optional().nullable(),
+  placa: z.string().trim().regex(/^[A-Z0-9]{7}$/, "Informe uma placa válida com 7 caracteres.").optional().nullable(),
   meli_driver_id: z.string().trim().max(80).optional().nullable(),
   base_id: z.string().uuid().optional().nullable(),
   role: z.enum(["admin", "gerente", "supervisor", "operador"]),
@@ -181,11 +196,12 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     if (data.role === "operador" && !data.base_id) {
       throw new Error("Operadores devem estar vinculados a uma base.");
     }
+    if (data.meli_driver_id && !data.placa) throw new Error("Informe a placa do motorista.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error: upErr } = await supabaseAdmin
       .from("profiles")
-      .update({ matricula: data.matricula ?? null, meli_driver_id: data.meli_driver_id ?? null, base_id: data.base_id ?? null })
+      .update({ matricula: data.matricula ?? null, placa: data.placa ?? null, meli_driver_id: data.meli_driver_id ?? null, base_id: data.base_id ?? null })
       .eq("id", data.user_id);
     if (upErr) throw new Error(upErr.message);
 

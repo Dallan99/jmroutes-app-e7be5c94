@@ -2003,6 +2003,7 @@ export type Database = {
           matricula: string | null
           meli_driver_id: string | null
           nome: string
+          placa: string | null
         }
         Insert: {
           ativo?: boolean
@@ -2013,6 +2014,7 @@ export type Database = {
           matricula?: string | null
           meli_driver_id?: string | null
           nome: string
+          placa?: string | null
         }
         Update: {
           ativo?: boolean
@@ -2023,6 +2025,7 @@ export type Database = {
           matricula?: string | null
           meli_driver_id?: string | null
           nome?: string
+          placa?: string | null
         }
         Relationships: [
           {

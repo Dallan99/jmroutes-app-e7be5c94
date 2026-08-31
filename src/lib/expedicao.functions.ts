@@ -277,6 +277,194 @@ export const listarMinhasExpedicoesMotorista = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+export type MinhaRotaMotorista = {
+  atribuicaoId: string;
+  rota: string;
+  dataOperacional: string;
+  baseId: string;
+  baseCodigo: string;
+  motorista: string;
+  placa: string | null;
+  quantidadePrevista: number;
+  quantidadeRecebida: number;
+  pronta: boolean;
+  expedicao: null | {
+    id: string;
+    status: string;
+    quantidadeConferida: number;
+  };
+};
+
+/** Rotas que o próprio Meli atribuiu à identidade vinculada ao usuário logado. */
+export const listarMinhasRotasMeliMotorista = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<MinhaRotaMotorista[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: perfil, error: perfilErro } = await supabaseAdmin
+      .from("profiles")
+      .select("meli_driver_id, placa")
+      .eq("id", context.userId)
+      .eq("ativo", true)
+      .single();
+    if (perfilErro) throw new Error(perfilErro.message);
+    if (!perfil.meli_driver_id) return [];
+
+    const { data: atribuicoes, error: atribuicoesErro } = await supabaseAdmin
+      .from("meli_rotas")
+      .select("id, route_id, data_rota, base_id, driver_name, vehicle_license, total_pacotes, bases(codigo)")
+      .eq("driver_id", perfil.meli_driver_id)
+      .order("data_rota", { ascending: false })
+      .limit(30);
+    if (atribuicoesErro) throw new Error(atribuicoesErro.message);
+    if (!atribuicoes?.length) return [];
+    const rotasValidas = atribuicoes.filter(
+      (rota): rota is typeof rota & { base_id: string; data_rota: string } =>
+        !!rota.base_id && !!rota.data_rota,
+    );
+
+    const importacoesPorChave = new Map<string, { id: string; base_id: string; data_operacional: string }>();
+    const bases = Array.from(new Set(rotasValidas.map((r) => r.base_id)));
+    const datas = Array.from(new Set(rotasValidas.map((r) => r.data_rota)));
+    if (bases.length && datas.length) {
+      const { data: importacoes, error } = await supabaseAdmin
+        .from("importacoes_escala")
+        .select("id, base_id, data_operacional")
+        .eq("ativa", true)
+        .in("base_id", bases)
+        .in("data_operacional", datas);
+      if (error) throw new Error(error.message);
+      for (const item of importacoes ?? []) {
+        importacoesPorChave.set(`${item.base_id}|${item.data_operacional}`, item);
+      }
+    }
+
+    const importacaoIds = Array.from(new Set(Array.from(importacoesPorChave.values()).map((i) => i.id)));
+    const linhasPorImportacao = new Map<string, LinhaEscala[]>();
+    await Promise.all(importacaoIds.map(async (id) => linhasPorImportacao.set(id, await carregarEscalas(supabaseAdmin, id))));
+
+    const { data: conclusoes, error: conclusoesErro } = importacaoIds.length
+      ? await supabaseAdmin
+          .from("audit_logs")
+          .select("entidade_id, detalhes")
+          .eq("acao", "triagem.rota_concluida_ressalva")
+          .in("entidade_id", importacaoIds)
+      : { data: [], error: null };
+    if (conclusoesErro) throw new Error(conclusoesErro.message);
+    const ressalvas = new Set(
+      (conclusoes ?? []).map((c) => `${c.entidade_id}|${(c.detalhes as Record<string, unknown> | null)?.rota ?? ""}`),
+    );
+
+    const { data: expedicoes, error: expedicoesErro } = await supabaseAdmin
+      .from("expedicoes")
+      .select("id, importacao_id, rota, status, quantidade_conferida")
+      .eq("motorista_meli_id", perfil.meli_driver_id);
+    if (expedicoesErro) throw new Error(expedicoesErro.message);
+    const expedicaoPorChave = new Map((expedicoes ?? []).map((e) => [`${e.importacao_id}|${e.rota}`, e]));
+
+    return rotasValidas.map((atribuicao) => {
+      const importacao = importacoesPorChave.get(`${atribuicao.base_id}|${atribuicao.data_rota}`);
+      const linhas = importacao
+        ? (linhasPorImportacao.get(importacao.id) ?? []).filter((l) => rotaEfetiva(l) === atribuicao.route_id)
+        : [];
+      const recebidos = linhas.filter((l) => l.triado).length;
+      const pronta = !!importacao && linhas.length > 0 && (recebidos === linhas.length || ressalvas.has(`${importacao.id}|${atribuicao.route_id}`));
+      const expedicao = importacao ? expedicaoPorChave.get(`${importacao.id}|${atribuicao.route_id}`) : null;
+      return {
+        atribuicaoId: atribuicao.id,
+        rota: atribuicao.route_id,
+        dataOperacional: atribuicao.data_rota,
+        baseId: atribuicao.base_id,
+        baseCodigo: (atribuicao.bases as { codigo?: string } | null)?.codigo ?? "—",
+        motorista: atribuicao.driver_name ?? "Motorista",
+        placa: perfil.placa ?? atribuicao.vehicle_license ?? null,
+        quantidadePrevista: linhas.length || atribuicao.total_pacotes || 0,
+        quantidadeRecebida: recebidos,
+        pronta,
+        expedicao: expedicao ? { id: expedicao.id, status: expedicao.status, quantidadeConferida: expedicao.quantidade_conferida } : null,
+      };
+    });
+  });
+
+const iniciarMinhaSchema = baseDiaSchema.extend({ rota: z.string().trim().min(1).max(120) });
+
+/** O motorista inicia no celular somente uma rota que o Meli atribuiu ao seu ID. */
+export const iniciarMinhaExpedicaoMotorista = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((entrada: unknown) => iniciarMinhaSchema.parse(entrada))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: perfil, error: perfilErro } = await supabaseAdmin
+      .from("profiles")
+      .select("meli_driver_id")
+      .eq("id", context.userId)
+      .eq("ativo", true)
+      .single();
+    if (perfilErro || !perfil?.meli_driver_id) throw new Error("Seu usuário não está vinculado a um motorista Meli.");
+
+    const { data: atribuicao, error: atribuicaoErro } = await supabaseAdmin
+      .from("meli_rotas")
+      .select("driver_name")
+      .eq("driver_id", perfil.meli_driver_id)
+      .eq("base_id", data.baseId)
+      .eq("data_rota", data.dataOperacional)
+      .eq("route_id", data.rota)
+      .maybeSingle();
+    if (atribuicaoErro) throw new Error(atribuicaoErro.message);
+    if (!atribuicao) throw new Error("Esta rota não está atribuída a você no Meli.");
+
+    const { data: importacao, error: importacaoErro } = await supabaseAdmin
+      .from("importacoes_escala")
+      .select("id")
+      .eq("base_id", data.baseId)
+      .eq("data_operacional", data.dataOperacional)
+      .eq("ativa", true)
+      .single();
+    if (importacaoErro) throw new Error("A escala desta rota ainda não está disponível.");
+    const linhas = (await carregarEscalas(supabaseAdmin, importacao.id)).filter((l) => rotaEfetiva(l) === data.rota);
+    if (!linhas.length) throw new Error("Rota não encontrada na escala ativa.");
+    const recebidos = linhas.filter((l) => l.triado).length;
+    const { data: ressalva } = await supabaseAdmin
+      .from("audit_logs")
+      .select("id")
+      .eq("acao", "triagem.rota_concluida_ressalva")
+      .eq("entidade_id", importacao.id)
+      .contains("detalhes", { rota: data.rota } as never)
+      .limit(1)
+      .maybeSingle();
+    if (recebidos !== linhas.length && !ressalva) throw new Error("A operação ainda não concluiu o Recebimento desta rota.");
+
+    const { data: existente, error: existenteErro } = await supabaseAdmin
+      .from("expedicoes")
+      .select("id, motorista_meli_id")
+      .eq("importacao_id", importacao.id)
+      .eq("rota", data.rota)
+      .maybeSingle();
+    if (existenteErro) throw new Error(existenteErro.message);
+    if (existente) {
+      if (existente.motorista_meli_id !== perfil.meli_driver_id) throw new Error("Esta Expedição está vinculada a outro motorista.");
+      return { id: existente.id };
+    }
+
+    const { data: criada, error: criarErro } = await supabaseAdmin
+      .from("expedicoes")
+      .insert({
+        base_id: data.baseId,
+        importacao_id: importacao.id,
+        data_operacional: data.dataOperacional,
+        rota: data.rota,
+        quantidade_prevista: linhas.length,
+        responsavel_expedicao_id: context.userId,
+        motorista: atribuicao.driver_name ?? "Motorista",
+        motorista_meli_id: perfil.meli_driver_id,
+        motorista_usuario_id: context.userId,
+        iniciada_por: context.userId,
+      })
+      .select("id")
+      .single();
+    if (criarErro) throw new Error(criarErro.message);
+    return { id: criada.id };
+  });
+
 export const detalharExpedicao = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((entrada: unknown) => z.object({ expedicaoId: z.string().uuid() }).parse(entrada))

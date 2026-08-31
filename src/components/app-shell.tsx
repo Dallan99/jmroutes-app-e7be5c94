@@ -102,6 +102,7 @@ const NAV_GESTAO: NavItem[] = [
   { title: "Área de Risco", to: "/meli-risco", icon: ShieldAlert, roles: ["admin", "supervisor", "gerente"] },
 ];
 const NAV_ADMIN: NavItem[] = [
+  { title: "Motoristas", to: "/motoristas", icon: Truck, roles: ["admin"] },
   { title: "Usuários", to: "/usuarios", icon: Users, roles: ["admin"] },
   { title: "Configurações", to: "/configuracoes", icon: Settings, roles: ["admin"] },
   { title: "Auditoria", to: "/auditoria", icon: ShieldCheck, roles: ["admin"] },

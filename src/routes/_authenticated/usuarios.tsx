@@ -126,6 +126,7 @@ function UsuariosPage() {
                 <TableHead>Perfil</TableHead>
                 <TableHead>Base</TableHead>
                 <TableHead>Matrícula</TableHead>
+                <TableHead>Placa</TableHead>
                 <TableHead>Último acesso</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -148,6 +149,7 @@ function UsuariosPage() {
                   </TableCell>
                   <TableCell>{u.base_nome ?? "—"}</TableCell>
                   <TableCell>{u.matricula ?? "—"}</TableCell>
+                  <TableCell className="font-mono">{u.placa ?? "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("pt-BR") : "Nunca"}
                   </TableCell>
@@ -172,7 +174,7 @@ function UsuariosPage() {
               ))}
               {usuarios.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado.</TableCell>
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -207,6 +209,7 @@ function UsuarioForm({
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [matricula, setMatricula] = useState("");
+  const [placa, setPlaca] = useState("");
   const [meliDriverId, setMeliDriverId] = useState<string>("__none");
   const [baseId, setBaseId] = useState<string>("__none");
   const [role, setRole] = useState<Role>("operador");
@@ -228,6 +231,7 @@ function UsuarioForm({
       if (isEdit && editing) {
         await fnAtualizar({ data: {
           user_id: editing.id, matricula: matricula || null,
+          placa: placa || null,
           base_id: baseId === "__none" ? null : baseId, role,
           meli_driver_id: meliDriverId === "__none" ? null : meliDriverId,
         }});
@@ -241,6 +245,7 @@ function UsuarioForm({
       const created = await fnCriar({ data: {
         email, nome, senha, role,
         matricula: matricula || null,
+        placa: placa || null,
         meli_driver_id: meliDriverId === "__none" ? null : meliDriverId,
         base_id: baseId === "__none" ? null : baseId,
       }});
@@ -264,6 +269,7 @@ function UsuarioForm({
       setEmail(editing?.email ?? "");
       setSenha("");
       setMatricula(editing?.matricula ?? "");
+      setPlaca(editing?.placa ?? "");
       setMeliDriverId(editing?.meli_driver_id ?? "__none");
       setBaseId(editing?.base_id ?? "__none");
       setRole((editing?.roles[0] as Role) ?? "operador");
@@ -285,7 +291,7 @@ function UsuarioForm({
           <DialogDescription>
             {isEdit
               ? `${editing?.nome} · ${editing?.email}`
-              : "Somente emails @jmdistribuicao.com.br são permitidos."}
+              : "Para motoristas, o email será o acesso ao aplicativo e pode ser externo."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -357,6 +363,15 @@ function UsuarioForm({
                 ? "Base principal do supervisor. Adicione bases extras abaixo para acesso multi-base."
                 : "Administradores e gerentes têm acesso a todas as bases quando nenhuma é selecionada."}
             </p>
+          </div>
+          <div className="space-y-1">
+            <Label>Placa do motorista</Label>
+            <Input
+              value={placa}
+              maxLength={7}
+              onChange={(e) => setPlaca(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
+              placeholder="ABC1D23"
+            />
           </div>
           <div className="space-y-1">
             <Label>Identidade no app do motorista</Label>
