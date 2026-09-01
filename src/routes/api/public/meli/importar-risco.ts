@@ -41,31 +41,77 @@ export const Route = createFileRoute("/api/public/meli/importar-risco")({
         const datas = [...new Set(entrada.linhas.map((linha) => linha.data))];
         const { data: rotas, error } = await supabaseAdmin
           .from("meli_rotas")
-          .select("id, data_rota, facility, cluster, carrier, codigo_area_risco")
+          .select("id, route_id, data_rota, facility, cluster, carrier, codigo_area_risco")
           .in("data_rota", datas);
         if (error) return json({ ok: false, codigo: "falha_consulta_rotas" }, 500, origin);
 
         const normalizar = (valor: string | null | undefined) => (valor ?? "").trim().toLocaleLowerCase("pt-BR");
+        const facilities = [...new Set(entrada.linhas.map((linha) => linha.facility))];
+        const { data: bases, error: basesError } = await supabaseAdmin
+          .from("bases")
+          .select("id, meli_service_center_id")
+          .in("meli_service_center_id", facilities);
+        if (basesError) return json({ ok: false, codigo: "falha_consulta_bases" }, 500, origin);
+        const basePorFacility = new Map((bases ?? []).map((base) => [normalizar(base.meli_service_center_id), base.id]));
+
         // O Rostering pode devolver o nome jurídico da transportadora, enquanto
         // route-detail usa o nome operacional. Data + facility + cluster é a
         // identidade estável da rota planejada e evita perder esse vínculo.
         const chave = (data: string, facility: string, cluster: string) =>
           [data, normalizar(facility), normalizar(cluster)].join("|");
-        const indice = new Map(
-          (rotas ?? []).map((rota) => [
-            chave(rota.data_rota!, rota.facility ?? "", rota.cluster ?? ""),
-            rota,
-          ]),
-        );
+        const indice = new Map<string, NonNullable<typeof rotas>[number]>();
+        const placeholders = new Map<string, string>();
+        for (const rota of rotas ?? []) {
+          const k = chave(rota.data_rota!, rota.facility ?? "", rota.cluster ?? "");
+          const placeholder = rota.route_id.startsWith("rostering:");
+          if (placeholder) {
+            placeholders.set(k, rota.id);
+            if (!indice.has(k)) indice.set(k, rota);
+          } else {
+            indice.set(k, rota);
+          }
+        }
         const agora = new Date().toISOString();
         let encontradas = 0;
         let marcadasRisco = 0;
         let confirmadasSemRisco = 0;
+        let criadasRostering = 0;
         const atualizacoes: PromiseLike<{ error: { message: string } | null }>[] = [];
 
         for (const linha of entrada.linhas) {
-          const rota = indice.get(chave(linha.data, linha.facility, linha.cluster));
-          if (!rota) continue;
+          const k = chave(linha.data, linha.facility, linha.cluster);
+          const rota = indice.get(k);
+          const placeholderId = placeholders.get(k);
+          if (rota && !rota.route_id.startsWith("rostering:") && placeholderId) {
+            atualizacoes.push(supabaseAdmin.from("meli_rotas").delete().eq("id", placeholderId));
+            placeholders.delete(k);
+          }
+          if (!rota) {
+            if (!linha.altoRisco || !linha.idServico) continue;
+            const baseId = basePorFacility.get(normalizar(linha.facility));
+            if (!baseId) continue;
+            encontradas += 1;
+            marcadasRisco += 1;
+            criadasRostering += 1;
+            atualizacoes.push(supabaseAdmin.from("meli_rotas").upsert({
+              route_id: `rostering:${linha.data}:${linha.facility}:${linha.idServico}`,
+              data_rota: linha.data,
+              facility: linha.facility,
+              service_center_id: linha.facility,
+              cluster: linha.cluster,
+              carrier: linha.transportadora,
+              base_id: baseId,
+              rota_area_risco: true,
+              motivo_area_risco: linha.regiao ? `Zona de alto risco — ${linha.regiao}` : "Zona de alto risco",
+              codigo_area_risco: "rostering_api",
+              origem_area_risco: "rota",
+              integration_source: "rostering_api",
+              valor_original_area_risco: { fonte: "rostering_api", id_servico: linha.idServico, valor: true },
+              area_risco_detectado_em: agora,
+              last_synced_at: agora,
+            }, { onConflict: "route_id" }));
+            continue;
+          }
           encontradas += 1;
           if (linha.altoRisco) {
             marcadasRisco += 1;
@@ -104,9 +150,10 @@ export const Route = createFileRoute("/api/public/meli/importar-risco")({
             encontradas,
             marcadas_risco: marcadasRisco,
             confirmadas_sem_risco: confirmadasSemRisco,
+            criadas_rostering: criadasRostering,
           },
         });
-        return json({ ok: true, processadas: entrada.linhas.length, encontradas, marcadasRisco, confirmadasSemRisco }, 200, origin);
+        return json({ ok: true, processadas: entrada.linhas.length, encontradas, marcadasRisco, confirmadasSemRisco, criadasRostering }, 200, origin);
       },
     },
   },
