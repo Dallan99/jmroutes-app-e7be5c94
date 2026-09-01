@@ -124,37 +124,6 @@ async function main() {
           logger.warn("Não foi possível consultar o catálogo de motoristas.", { motivo: catalogo.motivo });
           if (catalogo.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
         }
-        if (Date.now() >= proximaSincronizacaoRiscoEm) {
-          // O Rostering é semanal; 15 minutos mantém o painel atualizado sem
-          // repetir uma exportação pesada em cada ciclo de 60 segundos.
-          proximaSincronizacaoRiscoEm = Date.now() + 15 * 60_000;
-          const semana = semanaAtual();
-          const risco = await listarRiscoSemanal(sessao.transport, semana.inicio, semana.fim);
-          if (risco.ok) {
-            const envio = await enviarRiscoRostering(cfg, jmr.accessToken, risco.valor);
-            if (envio.status === "ok") {
-              logger.info("Classificação semanal de risco sincronizada.", {
-                periodo: `${semana.inicio}/${semana.fim}`,
-                recebidas: risco.valor.length,
-                encontradas: envio.encontradas,
-                amostra: risco.valor[0]
-                  ? {
-                      data: risco.valor[0].data,
-                      facility: risco.valor[0].facility,
-                      cluster: risco.valor[0].cluster,
-                      transportadora: risco.valor[0].transportadora,
-                    }
-                  : null,
-              });
-            } else logger.warn("Classificação de risco será repetida.", { motivo: envio.motivo });
-          } else {
-            logger.warn("Não foi possível consultar a classificação semanal de risco.", {
-              motivo: risco.motivo,
-              status: risco.status ?? null,
-            });
-            if (risco.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
-          }
-        }
       }
       for (const base of cfg.bases) {
         if (encerrando) break;
@@ -195,6 +164,40 @@ async function main() {
           break;
         }
         if (resultado.jmroutesSemSessao) break;
+      }
+
+      // A classificação depende das rotas já gravadas no JMRoutes. Executá-la
+      // depois das bases evita o painel zerado após reinício ou novo login.
+      if (!cfg.dryRun && jmr && liderGlobal && !precisaReautenticarAdminML && Date.now() >= proximaSincronizacaoRiscoEm) {
+        // O Rostering é semanal; 15 minutos mantém o painel atualizado sem
+        // repetir uma exportação pesada em cada ciclo de 60 segundos.
+        proximaSincronizacaoRiscoEm = Date.now() + 15 * 60_000;
+        const semana = semanaAtual();
+        const risco = await listarRiscoSemanal(sessao.transport, semana.inicio, semana.fim);
+        if (risco.ok) {
+          const envio = await enviarRiscoRostering(cfg, jmr.accessToken, risco.valor);
+          if (envio.status === "ok") {
+            logger.info("Classificação semanal de risco sincronizada.", {
+              periodo: `${semana.inicio}/${semana.fim}`,
+              recebidas: risco.valor.length,
+              encontradas: envio.encontradas,
+              amostra: risco.valor[0]
+                ? {
+                    data: risco.valor[0].data,
+                    facility: risco.valor[0].facility,
+                    cluster: risco.valor[0].cluster,
+                    transportadora: risco.valor[0].transportadora,
+                  }
+                : null,
+            });
+          } else logger.warn("Classificação de risco será repetida.", { motivo: envio.motivo });
+        } else {
+          logger.warn("Não foi possível consultar a classificação semanal de risco.", {
+            motivo: risco.motivo,
+            status: risco.status ?? null,
+          });
+          if (risco.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
+        }
       }
     } finally {
       await sessao.fechar();
