@@ -105,7 +105,7 @@ export const Route = createFileRoute("/api/public/meli/importar-risco")({
               motivo_area_risco: linha.regiao ? `Zona de alto risco — ${linha.regiao}` : "Zona de alto risco",
               codigo_area_risco: "rostering_api",
               origem_area_risco: "rota",
-              integration_source: "rostering_api",
+              integration_source: "adminml",
               valor_original_area_risco: { fonte: "rostering_api", id_servico: linha.idServico, valor: true },
               area_risco_detectado_em: agora,
               last_synced_at: agora,
