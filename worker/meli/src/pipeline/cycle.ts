@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { ADMINML, type WorkerConfig } from "../config.js";
 import { logger, mensagemSegura } from "../logger.js";
-import { jitter, listarRotas, sleep, type MeliTransport } from "../meli/list.js";
+import { jitter, listarRotas, sleep, type MeliTransport, type RotaLista } from "../meli/list.js";
 import { obterDetalheRota } from "../meli/detail.js";
 import {
   novoEstadoIncremental,
@@ -32,6 +32,11 @@ export type CicloDeps = {
    */
   syncBatchId?: string | null;
 };
+
+export function filtrarRotasDaUnidade(rotas: RotaLista[], baseCode: string): RotaLista[] {
+  const codigo = baseCode.trim().toUpperCase();
+  return rotas.filter((rota) => !rota.facilityId || rota.facilityId.trim().toUpperCase() === codigo);
+}
 
 /** Resumo de auditoria do ciclo — usado principalmente em DRY_RUN. */
 export type CicloResumo = {
@@ -173,8 +178,11 @@ export async function executarCiclo(deps: CicloDeps): Promise<CicloResultado> {
     };
   }
 
-  const encontradas = lista.valor.rotas.length;
-  const selecionadas = selecionarRotas(lista.valor.rotas, estado).slice(
+  // Um Service Center pai pode conter a operação direta e um ou mais XPTs.
+  // facilityId identifica a unidade operacional real e impede duplicidade.
+  const rotasDaUnidade = filtrarRotasDaUnidade(lista.valor.rotas, cfg.baseCode);
+  const encontradas = rotasDaUnidade.length;
+  const selecionadas = selecionarRotas(rotasDaUnidade, estado).slice(
     0,
     deps.maxRotasPorCiclo ?? 500,
   );

@@ -339,11 +339,55 @@ export const meuPerfil = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [{ data: profile }, { data: roles }, { data: extras }] = await Promise.all([
-      supabase.from("profiles").select("id, nome, email, matricula, base_id, bases(codigo, nome)").eq("id", userId).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("user_bases").select("base_id, bases(id, codigo, nome, cidade)").eq("user_id", userId),
-    ]);
+
+    const carregar = async () =>
+      Promise.all([
+        supabase.from("profiles").select("id, nome, email, matricula, base_id, bases(codigo, nome)").eq("id", userId).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", userId),
+        supabase.from("user_bases").select("base_id, bases(id, codigo, nome, cidade)").eq("user_id", userId),
+      ]);
+
+    // "Could not query the database for the schema cache" é transitório (PostgREST
+    // recarregando o cache). Tentamos novamente antes de falhar.
+    const transitorio = (msg?: string) =>
+      !!msg &&
+      (msg.includes("schema cache") ||
+        msg.includes("Retrying") ||
+        msg.includes("Could not query the database") ||
+        msg.includes("fetch failed") ||
+        msg.includes("timeout"));
+
+    let profile: Awaited<ReturnType<typeof carregar>>[0]["data"] = null;
+    let roles: Awaited<ReturnType<typeof carregar>>[1]["data"] = null;
+    let extras: Awaited<ReturnType<typeof carregar>>[2]["data"] = null;
+    let primeiroErro: { message: string } | null = null;
+
+    for (let tentativa = 0; tentativa < 6; tentativa++) {
+      const [p, r, e] = await carregar();
+      profile = p.data;
+      roles = r.data;
+      extras = e.data;
+      primeiroErro = p.error ?? r.error ?? e.error ?? null;
+      if (!primeiroErro) break;
+      if (!transitorio(primeiroErro.message)) break;
+      await new Promise((resolve) => setTimeout(resolve, 500 * (tentativa + 1)));
+    }
+
+    // O PostgREST pode ficar temporariamente indisponível enquanto recompõe o
+    // cache do schema. Nesse caso, devolvemos um estado restrito e explícito em
+    // vez de derrubar toda a interface. O cliente consulta novamente até o
+    // serviço recuperar; nenhum papel ou base é liberado pelo fallback.
+    if (primeiroErro && transitorio(primeiroErro.message)) {
+      return {
+        profile: null,
+        roles: [],
+        acessoTotal: false,
+        basesPermitidas: [],
+        indisponivelTemporariamente: true,
+      };
+    }
+    if (primeiroErro) throw new Error(`Falha ao carregar perfil: ${primeiroErro.message}`);
+
     const rolesArr = (roles ?? []).map((r) => r.role);
     const acessoTotal = rolesArr.includes("admin") || rolesArr.includes("gerente");
     const basesPermitidasMap = new Map<string, { id: string; codigo: string; nome: string; cidade: string | null }>();
@@ -364,5 +408,6 @@ export const meuPerfil = createServerFn({ method: "GET" })
       roles: rolesArr,
       acessoTotal,
       basesPermitidas: Array.from(basesPermitidasMap.values()),
+      indisponivelTemporariamente: false,
     };
   });

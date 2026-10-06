@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import heroImg from "@/assets/jm-hero.png.asset.json";
 import { JM_LOGO_URL } from "@/components/jm-logo";
+import { obterUsuarioValidado, registrarUsuarioValidado } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -57,8 +58,28 @@ function safeNext(next: string | undefined): string | null {
   return next;
 }
 
+function traduzirErroAuth(mensagem: string): string {
+  const mensagemNormalizada = mensagem.toLowerCase();
+
+  if (mensagemNormalizada.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (mensagemNormalizada.includes("email not confirmed")) return "Confirme seu e-mail antes de entrar.";
+  if (mensagemNormalizada.includes("user already registered")) return "Este e-mail já está cadastrado.";
+  if (mensagemNormalizada.includes("password is known to be weak")) return "Essa senha é muito fraca. Escolha uma senha mais forte.";
+  if (mensagemNormalizada.includes("rate limit")) return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+
+  return "Não foi possível concluir a autenticação. Tente novamente.";
+}
+
+async function destinoAposLogin(userId: string) {
+  const { data: perfil } = await supabase
+    .from("profiles")
+    .select("meli_driver_id")
+    .eq("id", userId)
+    .maybeSingle();
+  return perfil?.meli_driver_id ? "/motorista" : "/dashboard";
+}
+
 function AuthPage() {
-  const navigate = useNavigate();
   const { next } = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -71,15 +92,37 @@ function AuthPage() {
   const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
-    setHydrated(true);
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
+    let ativo = true;
+
+    async function validarSessaoInicial() {
+      try {
+        const { data: sessao } = await supabase.auth.getSession();
+        if (!sessao.session) return;
+
+        // A sessão local é apenas um ponto de partida. O usuário precisa ser
+        // confirmado pelo Supabase antes de permitir qualquer navegação.
+        const { data: usuario, error } = await obterUsuarioValidado();
+        if (error || !usuario.user) {
+          await supabase.auth.signOut({ scope: "local" });
+          return;
+        }
+
+        if (!ativo) return;
         const target = safeNext(next);
-        if (target) window.location.href = target;
-        else navigate({ to: "/dashboard", replace: true });
+        window.location.href = target ?? await destinoAposLogin(usuario.user.id);
+      } catch {
+        // Falhas de sessão local não devem retirar o usuário da tela de acesso.
+        await supabase.auth.signOut({ scope: "local" });
+      } finally {
+        if (ativo) setHydrated(true);
       }
-    });
-  }, [navigate, next]);
+    }
+
+    void validarSessaoInicial();
+    return () => {
+      ativo = false;
+    };
+  }, [next]);
 
   if (!hydrated) return null;
 
@@ -87,19 +130,50 @@ function AuthPage() {
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-    setLoading(false);
-    if (error) return toast.error(error.message);
+
     try {
-      const { registrarAudit } = await import("@/lib/audit.functions");
-      await registrarAudit({ data: { acao: "login", entidade: "auth", detalhes: { email } } });
+      const identificador = email.trim().toLowerCase();
+      const emailLogin = identificador.includes("@")
+        ? identificador
+        : `${identificador}@motoristas.jmroutes.local`;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: emailLogin,
+        password: senha,
+      });
+
+      if (error) {
+        const mensagem = error.message?.trim();
+        return toast.error(
+          mensagem
+            ? traduzirErroAuth(mensagem)
+            : "Não foi possível realizar o login. Verifique e-mail, senha e conexão.",
+        );
+      }
+
+      if (!data.session || !data.user) {
+        return toast.error("Não foi possível realizar o login. Verifique e-mail, senha e conexão.");
+      }
+
+      // signInWithPassword acabou de validar as credenciais no Supabase. Guardamos
+      // esse mesmo usuário por poucos segundos para a abertura do Dashboard não
+      // repetir duas chamadas lentas ao Auth durante a mesma entrada.
+      registrarUsuarioValidado(data.user);
+
+      try {
+        const { registrarAudit } = await import("@/lib/audit.functions");
+        await registrarAudit({ data: { acao: "login", entidade: "auth", detalhes: { email } } });
+      } catch {
+        /* nunca bloqueia login por auditoria */
+      }
+
+      toast.success("Bem-vindo!");
+      const target = safeNext(next);
+      window.location.href = target ?? await destinoAposLogin(data.user.id);
     } catch {
-      /* nunca bloqueia login por auditoria */
+      toast.error("Não foi possível realizar o login. Verifique e-mail, senha e conexão.");
+    } finally {
+      setLoading(false);
     }
-    toast.success("Bem-vindo!");
-    const target = safeNext(next);
-    if (target) window.location.href = target;
-    else navigate({ to: "/dashboard", replace: true });
   }
 
 
@@ -114,8 +188,8 @@ function AuthPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setForgotLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Enviamos um link de redefinição para seu email.");
+    if (error) return toast.error(traduzirErroAuth(error.message));
+    toast.success("Enviamos um link de redefinição para seu e-mail.");
     setForgotOpen(false);
     setForgotEmail("");
   }
@@ -242,7 +316,7 @@ function AuthPage() {
                   <UserIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input
                     id="email"
-                    type="email"
+                    type="text"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

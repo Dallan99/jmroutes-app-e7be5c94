@@ -7,9 +7,11 @@ import {
   type MeliResposta,
   type MeliTransport,
 } from "../src/meli/list";
+import { filtrarRotasDaUnidade } from "../src/pipeline/cycle";
 import { obterDetalheRota } from "../src/meli/detail";
 import { CircuitBreaker } from "../src/state/breaker";
 import { novoEstadoIncremental, registrarColeta, selecionarRotas } from "../src/meli/active-filter";
+import { resumirMonitoramento, type MonitoramentoResumo } from "../src/meli/monitoring-summary";
 
 const semDormir = async () => undefined;
 
@@ -107,6 +109,17 @@ describe("paginação da lista", () => {
     });
     expect(rotas.map((r) => r.routeId).sort()).toEqual(["10", "11"]);
   });
+
+  it("separa a operação direta do XPT pelo facilityId", () => {
+    const rotas = extrairRotasDaLista({
+      routes: [
+        { id: "10", facilityId: "ESP15", serviceCenterId: "SSP20" },
+        { id: "11", facilityId: "SSP20", serviceCenterId: "SSP20" },
+      ],
+    });
+    expect(filtrarRotasDaUnidade(rotas, "ESP15").map((r) => r.routeId)).toEqual(["10"]);
+    expect(filtrarRotasDaUnidade(rotas, "SSP20").map((r) => r.routeId)).toEqual(["11"]);
+  });
 });
 
 describe("detalhe da rota", () => {
@@ -127,6 +140,62 @@ describe("detalhe da rota", () => {
   it("rejeita payload fora do formato", async () => {
     const res = await obterDetalheRota(transport({ id: "78" }), "77", "MLB", semDormir);
     expect(res).toMatchObject({ ok: false, motivo: "payload_shape" });
+  });
+});
+
+describe("resumo do Monitoramento Last Mile", () => {
+  it("separa XPT e Service pelo facilityId", () => {
+    const rotas = [
+      { routeId: "1", facilityId: "ESP15", serviceCenterId: "SSP20", status: "active", isDeliveryRoute: true, counters: { total: 100, delivered: 40, notDelivered: 1, pending: 59, totalBags: 2 } },
+      { routeId: "2", facilityId: "SSP20", serviceCenterId: "SSP20", status: "close", isDeliveryRoute: true, counters: { total: 50, delivered: 50, notDelivered: 0, pending: 0, totalBags: 0 } },
+    ];
+    expect(resumirMonitoramento(rotas, "ESP15", "SSP20", "2026-09-08T12:00:00.000Z")).toMatchObject({
+      base_codigo: "ESP15", rotas_totais: 1, rotas_em_andamento: 1, pacotes: 100, pendentes: 59, com_falhas: 1, bem_sucedidos: 40, sacas: 2,
+    });
+    expect(resumirMonitoramento(rotas, "SSP20", "SSP20", "2026-09-08T12:00:00.000Z")).toMatchObject({
+      base_codigo: "SSP20", rotas_totais: 1, pacotes: 50, bem_sucedidos: 50,
+    });
+  });
+
+  it("considera somente rotas AM nas quatro bases XPT", () => {
+    for (const base of ["ESP15", "ESP16", "ESP17", "ESP18"]) {
+      const resumo = resumirMonitoramento([
+        { routeId: "445035431", routeName: "VR3_AM1", facilityId: base, counters: { total: 99, delivered: 10, notDelivered: 1, pending: 88, totalBags: 0 } },
+        { routeId: "445035432", routeName: "N1_PM1", facilityId: base, counters: { total: 50, delivered: 50, notDelivered: 0, pending: 0, totalBags: 0 } },
+      ], base, "SSP20");
+      expect(resumo).toMatchObject({ rotas_totais: 1, pacotes: 99, bem_sucedidos: 10 });
+    }
+  });
+
+  it("não remove PM de bases que não são XPT", () => {
+    const resumo = resumirMonitoramento([
+      { routeId: "1", routeName: "N1_PM1", facilityId: "SSP20", counters: { total: 50, delivered: 0, notDelivered: 0, pending: 50, totalBags: 0 } },
+    ], "SSP20", "SSP20");
+    expect(resumo).toMatchObject({ rotas_totais: 1, pacotes: 50 });
+  });
+
+  it("considera resumo com rotas_totais 0 e pacotes 0 inválido para persistência", () => {
+    const resumoVazio: MonitoramentoResumo = {
+      base_codigo: "ESP15",
+      facility_id: "ESP15",
+      service_center_id: "SSP20",
+      rotas_totais: 0,
+      rotas_entrega: 0,
+      rotas_coleta: 0,
+      rotas_mistas: 0,
+      rotas_em_andamento: 0,
+      pacotes: 0,
+      sacas: 0,
+      pendentes: 0,
+      com_falhas: 0,
+      bem_sucedidos: 0,
+      coletado_em: "2026-09-08T12:00:00.000Z",
+    };
+
+    const ehValidoParaPersistencia = (resumo: MonitoramentoResumo) =>
+      !(resumo.rotas_totais === 0 && resumo.pacotes === 0);
+
+    expect(ehValidoParaPersistencia(resumoVazio)).toBe(false);
   });
 });
 

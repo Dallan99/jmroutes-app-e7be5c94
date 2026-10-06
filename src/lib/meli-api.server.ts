@@ -4,6 +4,16 @@ import { decryptSecret, encryptSecret } from "@/lib/meli-oauth-crypto.server";
 const CLIENT_ID = "4330561201844861";
 const TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
 
+export class MeliApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "MeliApiError";
+    this.status = status;
+  }
+}
+
 type Conexao = {
   id: string;
   meli_user_id: number;
@@ -31,7 +41,7 @@ export async function obterMeliAccessToken(forcarRenovacao = false): Promise<{ a
     return { accessToken: await decryptSecret(atual.access_token_criptografado), userId: atual.meli_user_id, renovado: false };
   }
 
-  const secret = process.env.MELI_CLIENT_SECRET;
+  const secret = process.env["MELI_CLIENT_SECRET"];
   if (!secret) throw new Error("MELI_CLIENT_SECRET não configurado.");
   const response = await fetch(TOKEN_URL, {
     method: "POST",
@@ -96,15 +106,15 @@ export async function meliGet(path: string): Promise<{ data: any; renovado: bool
 
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error("A conta conectada não está autorizada a acessar esse shipment. Confirme se o envio pertence à conta DALLANRICARDO2008.");
+      throw new MeliApiError(response.status, "A conta conectada não está autorizada a acessar esse shipment. Confirme se o envio pertence à conta DALLANRICARDO2008.");
     }
     if (response.status === 403) {
-      throw new Error("A conta conectada não tem permissão para acessar esse shipment.");
+      throw new MeliApiError(response.status, "A conta conectada não tem permissão para acessar esse shipment.");
     }
     if (response.status === 404) {
-      throw new Error("Shipment não encontrado ou não disponível para a conta conectada.");
+      throw new MeliApiError(response.status, "Shipment não encontrado ou não disponível para a conta conectada.");
     }
-    throw new Error(`A API do Mercado Livre respondeu ${response.status}.`);
+    throw new MeliApiError(response.status, `A API do Mercado Livre respondeu ${response.status}.`);
   }
   return { data: await response.json(), renovado: auth.renovado };
 }

@@ -9,8 +9,14 @@ import { abrirSessaoAdminML, garantirSessaoJmroutes, type JmrSessao } from "./pi
 import { autenticarManualmenteCoordenado } from "./session/login.js";
 import { executarCiclo } from "./pipeline/cycle.js";
 import { sincronizarDevolucoes } from "./pipeline/devolucoes.js";
+import { listarTodosMotoristas } from "./meli/drivers.js";
+import { enviarCatalogoMotoristas } from "./pipeline/drivers.js";
+import { listarRiscoSemanal, semanaAtual } from "./meli/risk.js";
+import { enviarRiscoRostering } from "./pipeline/risk.js";
 import { CircuitBreaker } from "./state/breaker.js";
 import { registrarExecucao, type Execucao } from "./telemetry/report.js";
+import { enviarHeartbeat, executarCicloPiloto, instanciaPadrao } from "./pipeline/piloto.js";
+import { descobrirIndicadoresMonitoramento } from "./meli/monitoring-discovery.js";
 
 let encerrando = false;
 
@@ -59,9 +65,49 @@ async function main() {
     dry_run: cfg.dryRun,
   });
 
+  if (cfg.discoveryOnly) {
+    const base = cfg.bases.find((item) => item.baseCode === cfg.discoveryBaseCode) ?? null;
+
+    if (!base) {
+      throw new ConfigError(`A base de descoberta ${cfg.discoveryBaseCode ?? "—"} não está disponível na configuração atual.`);
+    }
+
+    const sessao = await abrirSessaoAdminML(configParaBase(cfg, base));
+    if (sessao.status !== "ok") {
+      logger.warn("Descoberta não executada: sessão AdminML indisponível.", {
+        base: base.baseCode,
+        motivo: sessao.motivo,
+      });
+      return;
+    }
+
+    try {
+      await descobrirIndicadoresMonitoramento(sessao.page, {
+        baseCode: base.baseCode,
+        serviceCenterId: base.serviceCenterId,
+        siteId: base.siteId,
+      });
+    } finally {
+      await sessao.fechar();
+    }
+
+    logger.info("Descoberta do Monitoramento Last Mile concluída; worker encerrado sem persistência.", {
+      base: base.baseCode,
+      dry_run: true,
+    });
+    return;
+  }
+
+  if (cfg.pilotWrite) {
+    await loopPiloto(cfg);
+    return;
+  }
+
   const breakers = new Map(cfg.bases.map((b) => [b.baseCode, new CircuitBreaker()]));
   const estados = new Map(cfg.bases.map((b) => [b.baseCode, novoEstadoIncremental()]));
+  const liderGlobal = cfg.bases.some((base) => base.baseCode === "ESP15");
   let jmr: JmrSessao | null = null;
+  let proximaSincronizacaoRiscoEm = 0;
 
   while (!encerrando) {
     if (!cfg.dryRun) {
@@ -108,6 +154,17 @@ async function main() {
     }
 
     try {
+      if (!cfg.dryRun && jmr && liderGlobal) {
+        const catalogo = await listarTodosMotoristas(sessao.transport);
+        if (catalogo.ok) {
+          const envio = await enviarCatalogoMotoristas(cfg, jmr.accessToken, catalogo.valor);
+          if (envio.status === "ok") logger.info("Catálogo de motoristas sincronizado.", { total: envio.total });
+          else logger.warn("Catálogo de motoristas será repetido.", { motivo: envio.motivo });
+        } else {
+          logger.warn("Não foi possível consultar o catálogo de motoristas.", { motivo: catalogo.motivo });
+          if (catalogo.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
+        }
+      }
       for (const base of cfg.bases) {
         if (encerrando) break;
         const cfgBase = configParaBase(cfg, base);
@@ -148,6 +205,40 @@ async function main() {
         }
         if (resultado.jmroutesSemSessao) break;
       }
+
+      // A classificação depende das rotas já gravadas no JMRoutes. Executá-la
+      // depois das bases evita o painel zerado após reinício ou novo login.
+      if (!cfg.dryRun && jmr && liderGlobal && !precisaReautenticarAdminML && Date.now() >= proximaSincronizacaoRiscoEm) {
+        // O Rostering é semanal; 15 minutos mantém o painel atualizado sem
+        // repetir uma exportação pesada em cada ciclo de 60 segundos.
+        proximaSincronizacaoRiscoEm = Date.now() + 15 * 60_000;
+        const semana = semanaAtual();
+        const risco = await listarRiscoSemanal(sessao.transport, semana.inicio, semana.fim);
+        if (risco.ok) {
+          const envio = await enviarRiscoRostering(cfg, jmr.accessToken, risco.valor);
+          if (envio.status === "ok") {
+            logger.info("Classificação semanal de risco sincronizada.", {
+              periodo: `${semana.inicio}/${semana.fim}`,
+              recebidas: risco.valor.length,
+              encontradas: envio.encontradas,
+              amostra: risco.valor[0]
+                ? {
+                    data: risco.valor[0].data,
+                    facility: risco.valor[0].facility,
+                    cluster: risco.valor[0].cluster,
+                    transportadora: risco.valor[0].transportadora,
+                  }
+                : null,
+            });
+          } else logger.warn("Classificação de risco será repetida.", { motivo: envio.motivo });
+        } else {
+          logger.warn("Não foi possível consultar a classificação semanal de risco.", {
+            motivo: risco.motivo,
+            status: risco.status ?? null,
+          });
+          if (risco.motivo === "sessao_expirada") precisaReautenticarAdminML = true;
+        }
+      }
     } finally {
       await sessao.fechar();
     }
@@ -171,6 +262,42 @@ async function main() {
   }
 
   logger.info("Worker Meli local encerrado.");
+}
+
+/** Loop do piloto isolado: só AdminML -> /api/public/meli/piloto/*. */
+async function loopPiloto(cfg: WorkerConfig) {
+  const instancia = instanciaPadrao();
+  logger.info("Modo piloto ativo (DRY_RUN + PILOT_WRITE).", { instancia, bases: cfg.bases.map((b) => b.baseCode) });
+  while (!encerrando) {
+    let sessao;
+    try {
+      sessao = await abrirSessaoAdminML(cfg);
+    } catch (err) {
+      await enviarHeartbeat(cfg, { instancia, sessao: "desconhecida", detalhe: { erro: String((err as Error)?.message ?? err).slice(0, 300) } });
+      await sleep(Math.max(cfg.syncIntervalSeconds, 60) * 1000);
+      continue;
+    }
+    if (sessao.status !== "ok") {
+      await enviarHeartbeat(cfg, { instancia, sessao: "ausente", detalhe: { motivo: sessao.motivo } });
+      logger.warn("Piloto aguardando sessão AdminML válida em SESSION_FILE_PATH.", { motivo: sessao.motivo, arquivo: cfg.sessionFilePath });
+      await sleep(Math.max(cfg.syncIntervalSeconds, 300) * 1000);
+      continue;
+    }
+    await enviarHeartbeat(cfg, { instancia, sessao: "valida" });
+    let expirou = false;
+    try {
+      for (const base of cfg.bases) {
+        if (encerrando) break;
+        const r = await executarCicloPiloto({ cfg: configParaBase(cfg, base), transport: sessao.transport, instancia });
+        logger.info("Ciclo do piloto concluído.", { ...r });
+        await enviarHeartbeat(cfg, { instancia, sessao: r.sessao_expirada ? "expirada" : "valida", ultimoCicloId: r.ciclo_id });
+        if (r.sessao_expirada) { expirou = true; break; }
+      }
+    } finally {
+      await sessao.fechar();
+    }
+    await sleep((expirou ? Math.max(cfg.syncIntervalSeconds, 300) : cfg.syncIntervalSeconds) * 1000);
+  }
 }
 
 main().catch((err) => {

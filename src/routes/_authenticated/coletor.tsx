@@ -5,11 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCollectorMode } from "@/lib/collector-mode";
 import { toast } from "sonner";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import {
+  clearPwaInstallPrompt,
+  getPwaInstallPrompt,
+  subscribePwaInstallPrompt,
+  type PwaInstallPromptEvent,
+} from "@/lib/pwa-install";
 
 export const Route = createFileRoute("/_authenticated/coletor")({
   head: () => ({ meta: [{ title: "Modo Coletor — JM Transportes" }] }),
@@ -24,7 +25,7 @@ const funcoes = [
 
 function ModoColetorPage() {
   const { ativarModoColetor } = useCollectorMode();
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<PwaInstallPromptEvent | null>(() => getPwaInstallPrompt());
   const [instalado, setInstalado] = useState(false);
   const [ios, setIos] = useState(false);
 
@@ -36,28 +37,33 @@ function ModoColetorPage() {
     setInstalado(standalone);
     setIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
 
-    const handleInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
+    const unsubscribe = subscribePwaInstallPrompt(setInstallPrompt);
     const handleInstalled = () => {
       setInstalado(true);
-      setInstallPrompt(null);
     };
-    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
     window.addEventListener("appinstalled", handleInstalled);
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      unsubscribe();
       window.removeEventListener("appinstalled", handleInstalled);
     };
   }, []);
 
   async function instalarApp() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") toast.success("JMRoutes Coletor instalado.");
-    setInstallPrompt(null);
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") toast.success("JMRoutes Coletor instalado.");
+      clearPwaInstallPrompt();
+      return;
+    }
+
+    if (ios) {
+      toast.info("No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.", { duration: 7000 });
+      return;
+    }
+
+    const navegador = /Edg\//i.test(navigator.userAgent) ? "Edge" : "navegador";
+    toast.info(`No ${navegador}, abra o menu e toque em Instalar aplicativo ou Adicionar à tela inicial.`, { duration: 7000 });
   }
 
   return (
@@ -66,7 +72,7 @@ function ModoColetorPage() {
         <h1 className="text-2xl font-bold">Modo Coletor</h1>
         <p className="text-sm text-muted-foreground">Escolha uma função para iniciar a operação.</p>
       </div>
-      {!instalado && (installPrompt || ios) && (
+      {!instalado && (
         <Card className="mb-4 border-primary/25 bg-primary/5 p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
@@ -79,12 +85,10 @@ function ModoColetorPage() {
                   ? "No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início."
                   : "Abra o coletor pela tela inicial, como um aplicativo."}
               </p>
-              {installPrompt && (
-                <Button className="mt-3 h-11 w-full sm:w-auto" onClick={instalarApp}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Baixar app no celular
-                </Button>
-              )}
+              <Button className="mt-3 h-11 w-full sm:w-auto" onClick={instalarApp}>
+                {ios ? <Share className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                Baixar app no celular
+              </Button>
             </div>
           </div>
         </Card>

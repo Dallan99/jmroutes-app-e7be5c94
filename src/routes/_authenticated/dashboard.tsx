@@ -46,7 +46,7 @@ function fmtDuration(ms: number | null | undefined) {
   return `${h}h ${m % 60}m`;
 }
 
-function DashboardPage() {
+export function DashboardPage() {
   const qc = useQueryClient();
   const [verInternos, setVerInternos] = useState(false);
   const sync = useMeliSync();
@@ -115,7 +115,7 @@ function DashboardPage() {
       <header className="space-y-2">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="font-display text-2xl md:text-3xl font-bold">Dashboard Operacional</h1>
+            <h1 className="font-display text-2xl md:text-3xl font-bold">Dashboard</h1>
             <p className="text-sm text-muted-foreground">
               Dados Meli sincronizados em{" "}
               <span className="font-semibold tabular-nums">{fmtDataHora(sync.ultimoSucessoGeral)}</span>

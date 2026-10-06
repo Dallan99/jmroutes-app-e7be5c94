@@ -102,6 +102,17 @@ export type RotasPorBaseData = {
   rotas: RotaBaseRow[];
 };
 
+export type MeliSlaDiario = {
+  data_operacional: string;
+  bases_total: number;
+  rotas_total: number;
+  pacotes_total: number;
+  entregues_total: number;
+  insucessos_total: number;
+  sla_geral: number;
+  ultima_coleta: string | null;
+};
+
 function inicioPeriodo(p: "hoje" | "7d" | "30d") {
   const now = new Date();
   if (p === "hoje") {
@@ -111,6 +122,50 @@ function inicioPeriodo(p: "hoje" | "7d" | "30d") {
   }
   const dias = p === "7d" ? 7 : 30;
   return new Date(now.getTime() - dias * 24 * 3600 * 1000);
+}
+
+export const meliSlaHistorico = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => inputSchema.parse(d ?? {}))
+  .handler(async ({ data, context }): Promise<MeliSlaDiario[]> => {
+    const inicio = inicioPeriodo(data.periodo).toISOString().slice(0, 10);
+    const { data: linhas, error } = await context.supabase
+      .from("meli_sla_diario")
+      .select(
+        "data_operacional,bases_total,rotas_total,pacotes_total,entregues_total,insucessos_total,sla_geral,ultima_coleta",
+      )
+      .gte("data_operacional", inicio)
+      .order("data_operacional", { ascending: false })
+      .limit(data.periodo === "hoje" ? 1 : data.periodo === "7d" ? 7 : 30);
+    if (error) throw new Error(error.message);
+    return (linhas ?? []).map((linha) => ({
+      ...linha,
+      bases_total: Number(linha.bases_total ?? 0),
+      rotas_total: Number(linha.rotas_total ?? 0),
+      pacotes_total: Number(linha.pacotes_total ?? 0),
+      entregues_total: Number(linha.entregues_total ?? 0),
+      insucessos_total: Number(linha.insucessos_total ?? 0),
+      sla_geral: Number(linha.sla_geral ?? 0),
+    }));
+  });
+
+/** Lê todas as páginas respeitando o limite de linhas da Data API. */
+async function buscarPaginado<T>(
+  criarConsulta: (
+    inicio: number,
+    fim: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const tamanho = 1000;
+  const resultado: T[] = [];
+  for (let inicio = 0; ; inicio += tamanho) {
+    const { data, error } = await criarConsulta(inicio, inicio + tamanho - 1);
+    if (error) throw new Error(error.message);
+    const pagina = data ?? [];
+    resultado.push(...pagina);
+    if (pagina.length < tamanho) break;
+  }
+  return resultado;
 }
 
 export const gerencialData = createServerFn({ method: "POST" })
@@ -124,33 +179,33 @@ export const gerencialData = createServerFn({ method: "POST" })
     const inicioSemana = inicioPeriodo("7d");
     const inicioMes = inicioPeriodo("30d");
 
-    const { data: recebimentos, error } = await supabase
-      .from("recebimentos")
-      .select("created_at, resultado, tempo_desde_ultima_ms, operador_id, rota_id")
-      .gte("created_at", inicioMes.toISOString())
-      .order("created_at", { ascending: false })
-      .limit(20000);
-    if (error) throw new Error(error.message);
-
     type Rec = {
-      created_at: string;
-      resultado: string;
-      tempo_desde_ultima_ms: number | null;
+      dia: string;
       operador_id: string | null;
-      rota_id: string | null;
+      nome: string | null;
+      total: number;
+      ok: number;
+      erros: number;
+      rotas: number;
+      tempo_soma: number;
+      tempo_qtd: number;
     };
-    const all = (recebimentos ?? []) as Rec[];
-    const periodoRows = all.filter((r) => new Date(r.created_at) >= desde);
-
-    const operadorIds = Array.from(
-      new Set(all.map((r) => r.operador_id).filter(Boolean)),
-    ) as string[];
-    const { data: profs } = operadorIds.length
-      ? await supabase.from("profiles").select("id, nome, email").in("id", operadorIds)
-      : { data: [] as { id: string; nome: string; email: string }[] };
-    const perfilMap = new Map((profs ?? []).map((p) => [p.id, p.nome ?? p.email ?? "—"] as const));
-
-    const OK = new Set(["ok", "primeira_leitura", "concluiu_rota"]);
+    const { data: rpcRows, error: rpcErro } = await (supabase as any).rpc(
+      "gerencial_produtividade_agregada",
+      { p_inicio_mes: inicioMes.toISOString() },
+    );
+    if (rpcErro) throw new Error(rpcErro.message);
+    const all = ((rpcRows ?? []) as Rec[]).map((r) => ({
+      ...r,
+      total: Number(r.total ?? 0),
+      ok: Number(r.ok ?? 0),
+      erros: Number(r.erros ?? 0),
+      rotas: Number(r.rotas ?? 0),
+      tempo_soma: Number(r.tempo_soma ?? 0),
+      tempo_qtd: Number(r.tempo_qtd ?? 0),
+    }));
+    const desdeDia = desde.toISOString().slice(0, 10);
+    const periodoRows = all.filter((r) => r.dia >= desdeDia);
 
     // Agrupamento por operador no período
     const grupos = new Map<string, Rec[]>();
@@ -162,44 +217,45 @@ export const gerencialData = createServerFn({ method: "POST" })
     }
 
     const porOperador: OperadorProd[] = Array.from(grupos.entries()).map(([id, arr]) => {
-      const ok = arr.filter((r) => OK.has(r.resultado)).length;
-      const total = arr.length;
-      const erros = total - ok;
-      const rotas = new Set(arr.map((r) => r.rota_id).filter(Boolean)).size;
-      const tempos = arr.map((r) => r.tempo_desde_ultima_ms).filter((v): v is number => typeof v === "number" && v > 0 && v < 300000);
-      const tempoMedio = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : null;
+      const total = arr.reduce((s, r) => s + r.total, 0);
+      const ok = arr.reduce((s, r) => s + r.ok, 0);
+      const erros = arr.reduce((s, r) => s + r.erros, 0);
+      const rotas = arr.reduce((s, r) => s + r.rotas, 0);
+      const tempoSoma = arr.reduce((s, r) => s + r.tempo_soma, 0);
+      const tempoQtd = arr.reduce((s, r) => s + r.tempo_qtd, 0);
       return {
         operador_id: id,
-        nome: perfilMap.get(id) ?? "—",
+        nome: arr.find((r) => r.nome)?.nome ?? "—",
         total_leituras: total,
         ok,
         erros,
         rotas_atendidas: rotas,
-        tempo_medio_ms: tempoMedio,
+        tempo_medio_ms: tempoQtd ? tempoSoma / tempoQtd : null,
         taxa_acerto: total ? (ok / total) * 100 : 0,
       };
     });
     porOperador.sort((a, b) => b.total_leituras - a.total_leituras);
 
     const totais = {
-      total_leituras: periodoRows.length,
-      ok: periodoRows.filter((r) => OK.has(r.resultado)).length,
-      erros: periodoRows.filter((r) => !OK.has(r.resultado)).length,
+      total_leituras: periodoRows.reduce((s, r) => s + r.total, 0),
+      ok: periodoRows.reduce((s, r) => s + r.ok, 0),
+      erros: periodoRows.reduce((s, r) => s + r.erros, 0),
       operadores_ativos: porOperador.length,
       tempo_medio_ms: (() => {
-        const t = periodoRows.map((r) => r.tempo_desde_ultima_ms).filter((v): v is number => typeof v === "number" && v > 0 && v < 300000);
-        return t.length ? t.reduce((a, b) => a + b, 0) / t.length : null;
+        const soma = periodoRows.reduce((s, r) => s + r.tempo_soma, 0);
+        const qtd = periodoRows.reduce((s, r) => s + r.tempo_qtd, 0);
+        return qtd ? soma / qtd : null;
       })(),
     };
 
     // Série por dia
     const porDiaMap = new Map<string, { total: number; ok: number; erros: number }>();
     for (const r of periodoRows) {
-      const dia = r.created_at.slice(0, 10);
+      const dia = r.dia;
       const cur = porDiaMap.get(dia) ?? { total: 0, ok: 0, erros: 0 };
-      cur.total++;
-      if (OK.has(r.resultado)) cur.ok++;
-      else cur.erros++;
+      cur.total += r.total;
+      cur.ok += r.ok;
+      cur.erros += r.erros;
       porDiaMap.set(dia, cur);
     }
     const porDia = Array.from(porDiaMap.entries())
@@ -207,9 +263,10 @@ export const gerencialData = createServerFn({ method: "POST" })
       .sort((a, b) => a.dia.localeCompare(b.dia));
 
     // Comparativo hoje / semana / mês por operador (top 10)
-    const contar = (rows: Rec[], id: string) => rows.filter((r) => r.operador_id === id).length;
-    const rowsHoje = all.filter((r) => new Date(r.created_at) >= inicioHoje);
-    const rowsSem = all.filter((r) => new Date(r.created_at) >= inicioSemana);
+    const contar = (rows: Rec[], id: string) =>
+      rows.filter((r) => r.operador_id === id).reduce((s, r) => s + r.total, 0);
+    const rowsHoje = all.filter((r) => r.dia >= inicioHoje.toISOString().slice(0, 10));
+    const rowsSem = all.filter((r) => r.dia >= inicioSemana.toISOString().slice(0, 10));
     const rowsMes = all;
     const comparativo = porOperador.slice(0, 10).map((op) => ({
       operador: op.nome,
@@ -223,7 +280,10 @@ export const gerencialData = createServerFn({ method: "POST" })
       totais,
       porOperador,
       top3: porOperador.slice(0, 3),
-      bottom3: [...porOperador].filter((o) => o.total_leituras > 0).sort((a, b) => a.total_leituras - b.total_leituras).slice(0, 3),
+      bottom3: [...porOperador]
+        .filter((o) => o.total_leituras > 0)
+        .sort((a, b) => a.total_leituras - b.total_leituras)
+        .slice(0, 3),
       porDia,
       comparativo,
     };
@@ -234,14 +294,6 @@ export const transferenciasGerencial = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<TransferenciasGerencialData> => {
     const { supabase } = context;
     const desde = inicioPeriodo(data.periodo).toISOString().slice(0, 10);
-
-    const { data: transferencias, error } = await supabase
-      .from("transferencias")
-      .select("id, base_id, motorista, status")
-      .gte("data_operacional", desde)
-      .order("data_operacional", { ascending: false })
-      .limit(20000);
-    if (error) throw new Error(error.message);
 
     type TransferenciaRow = {
       id: string;
@@ -261,9 +313,16 @@ export const transferenciasGerencial = createServerFn({ method: "POST" })
       minutos_atraso: number;
     };
 
-    const rows = ((transferencias ?? []) as TransferenciaRow[]).filter(
-      (t) => t.status !== "cancelada",
+    const transferencias = await buscarPaginado<TransferenciaRow>(
+      (inicio, fim) =>
+        supabase
+          .from("transferencias")
+          .select("id, base_id, motorista, status")
+          .gte("data_operacional", desde)
+          .order("data_operacional", { ascending: false })
+          .range(inicio, fim) as any,
     );
+    const rows = transferencias.filter((t) => t.status !== "cancelada");
     if (!rows.length) {
       return {
         periodo: data.periodo,
@@ -375,11 +434,15 @@ export const transferenciasGerencial = createServerFn({ method: "POST" })
     });
 
     const service = contarService(metricas);
-    const permanencias = metricas.map((t) => t.permanencia).filter((valor): valor is number => valor !== null);
+    const permanencias = metricas
+      .map((t) => t.permanencia)
+      .filter((valor): valor is number => valor !== null);
     const totais: TransferenciasGerencialData["totais"] = {
       total: metricas.length,
       ...service,
-      taxa_disponibilizacao: metricas.length ? (service.disponibilizados_ate_7 / metricas.length) * 100 : 0,
+      taxa_disponibilizacao: metricas.length
+        ? (service.disponibilizados_ate_7 / metricas.length) * 100
+        : 0,
       media_service_min: media(permanencias),
       maior_service_min: permanencias.length ? Math.max(...permanencias) : null,
       media_deslocamento_min: media(metricas.map((t) => t.deslocamento)),
@@ -443,7 +506,10 @@ export const transferenciasGerencial = createServerFn({ method: "POST" })
   });
 
 const rotasInputSchema = z.object({
-  data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  data: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   baseId: z.string().uuid().optional(),
 });
 
@@ -483,7 +549,10 @@ export const rotasPorBase = createServerFn({ method: "POST" })
       .select("id, base_id")
       .eq("data_operacional", dia)
       .eq("ativa", true)
-      .in("base_id", allowedBases.map((b) => b.id));
+      .in(
+        "base_id",
+        allowedBases.map((b) => b.id),
+      );
     let imports = importacoesIniciais.data;
     if (importacoesIniciais.error) throw new Error(importacoesIniciais.error.message);
 
@@ -493,7 +562,10 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         .from("importacoes_escala")
         .select("data_operacional")
         .eq("ativa", true)
-        .in("base_id", allowedBases.map((b) => b.id))
+        .in(
+          "base_id",
+          allowedBases.map((b) => b.id),
+        )
         .order("data_operacional", { ascending: false })
         .limit(1);
       const nova = recente?.[0]?.data_operacional as string | undefined;
@@ -504,7 +576,10 @@ export const rotasPorBase = createServerFn({ method: "POST" })
           .select("id, base_id")
           .eq("data_operacional", dia)
           .eq("ativa", true)
-          .in("base_id", allowedBases.map((b) => b.id));
+          .in(
+            "base_id",
+            allowedBases.map((b) => b.id),
+          );
         imports = r2.data ?? [];
       }
     }
@@ -512,49 +587,31 @@ export const rotasPorBase = createServerFn({ method: "POST" })
     const importIds = (imports ?? []).map((i) => i.id);
     const importBaseMap = new Map((imports ?? []).map((i) => [i.id, i.base_id] as const));
 
-    type EscalaPainel = {
-      nro_rota: string | null;
-      driver: string | null;
-      placa: string | null;
-      triado: boolean | null;
-      devolvido: boolean | null;
+    // Agregação feita no banco: uma única passagem por importação/rota.
+    // Trazer dezenas de milhares de linhas paginadas estourava o statement_timeout.
+    type AgregadoRota = {
       importacao_id: string | null;
       base_operacional_id: string | null;
+      nro_rota: string | null;
+      motorista: string | null;
+      placa: string | null;
+      total: number;
+      triado: number;
+      devolvido: number;
     };
 
-    let escalas: EscalaPainel[] = [];
+    let agregados: AgregadoRota[] = [];
     if (importIds.length > 0) {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
-      const PAGE_SIZE = 1000;
-
-      // O PostgREST limita cada resposta a 1.000 registros. Uma consulta única
-      // fazia o painel exibir somente a primeira base encontrada. Carregamos
-      // cada importação em páginas e em paralelo para manter todas as bases.
-      const carregarImportacao = async (importacaoId: string) => {
-        const resultado: EscalaPainel[] = [];
-        for (let inicio = 0; ; inicio += PAGE_SIZE) {
-          const { data: pagina, error: paginaErro } = await supabaseAdmin
-            .from("escalas")
-            .select("nro_rota, driver, placa, triado, devolvido, importacao_id, base_operacional_id")
-            .eq("importacao_id", importacaoId)
-            .order("id", { ascending: true })
-            .range(inicio, inicio + PAGE_SIZE - 1);
-          if (paginaErro) throw new Error(paginaErro.message);
-          if (!pagina || pagina.length === 0) break;
-          resultado.push(...(pagina as EscalaPainel[]));
-          if (pagina.length < PAGE_SIZE) break;
-        }
-        return resultado;
-      };
-
-      escalas = (await Promise.all(importIds.map(carregarImportacao))).flat();
+      const { data: rpcData, error: rpcErro } = await supabase.rpc("gerencial_rotas_por_base", {
+        p_importacao_ids: importIds,
+      });
+      if (rpcErro) throw new Error(rpcErro.message);
+      agregados = (rpcData ?? []) as AgregadoRota[];
     }
 
     // Agrupamento por base+rota
     const grupos = new Map<string, RotaBaseRow>();
-    for (const e of escalas) {
+    for (const e of agregados) {
       const baseId = importBaseMap.get(e.importacao_id ?? "") ?? e.base_operacional_id;
       if (!baseId) continue;
       const b = baseMap.get(baseId);
@@ -566,7 +623,7 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         base_codigo: b.codigo,
         base_nome: b.nome,
         nro_rota: rota,
-        motorista: e.driver,
+        motorista: e.motorista,
         placa: e.placa,
         total: 0,
         recebido: 0,
@@ -575,10 +632,12 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         pct: 0,
         status: "vazia" as const,
       };
-      cur.total++;
+      cur.motorista = cur.motorista ?? e.motorista;
+      cur.placa = cur.placa ?? e.placa;
+      cur.total += Number(e.total ?? 0);
       // Neste painel, "bipado" representa a leitura feita na Triagem.
-      if (e.triado) cur.recebido++;
-      if (e.devolvido) cur.devolvido++;
+      cur.recebido += Number(e.triado ?? 0);
+      cur.devolvido += Number(e.devolvido ?? 0);
       grupos.set(key, cur);
     }
 
@@ -590,8 +649,10 @@ export const rotasPorBase = createServerFn({ method: "POST" })
         processados === 0 ? "vazia" : r.recebido >= r.total ? "completa" : "parcial";
       return { ...r, faltando, pct, status };
     });
-    rotas.sort((a, b) =>
-      a.base_nome.localeCompare(b.base_nome) || a.nro_rota.localeCompare(b.nro_rota, "pt-BR", { numeric: true }),
+    rotas.sort(
+      (a, b) =>
+        a.base_nome.localeCompare(b.base_nome) ||
+        a.nro_rota.localeCompare(b.nro_rota, "pt-BR", { numeric: true }),
     );
 
     const resumoBases = allowedBases.map((b) => {
@@ -629,8 +690,8 @@ export type ResumoBaseRow = {
   base_id: string;
   codigo: string;
   nome: string;
-  triados: number;          // recebimentos com resultado "ok" / "primeira_leitura"
-  recebimentos: number;     // total de leituras registradas
+  triados: number; // recebimentos com resultado "ok" / "primeira_leitura"
+  recebimentos: number; // total de leituras registradas
   devolucoes: number;
   inventario: number;
   transferencias: number;
@@ -647,7 +708,10 @@ export type ResumoPorBaseData = {
 };
 
 const resumoInputSchema = z.object({
-  dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dia: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   periodo: z.enum(["hoje", "7d", "30d"]).optional(),
 });
 
@@ -681,15 +745,6 @@ export const resumoOperacionalPorBase = createServerFn({ method: "POST" })
       fim = inicio;
     }
 
-    const iniISO = `${inicio}T00:00:00.000Z`;
-    const fimISO = `${fim}T23:59:59.999Z`;
-
-    const { data: bases, error: basesErr } = await supabase
-      .from("bases")
-      .select("id, codigo, nome")
-      .order("codigo");
-    if (basesErr) throw new Error(basesErr.message);
-
     const zeroRow = () => ({
       triados: 0,
       recebimentos: 0,
@@ -698,79 +753,22 @@ export const resumoOperacionalPorBase = createServerFn({ method: "POST" })
       transferencias: 0,
       contagens: 0,
     });
-    const map = new Map<string, ReturnType<typeof zeroRow>>();
-    for (const b of bases ?? []) map.set(b.id, zeroRow());
+    const { data: rpcRows, error: rpcErro } = await (supabase as any).rpc(
+      "gerencial_resumo_bases",
+      { p_inicio: inicio, p_fim: fim },
+    );
+    if (rpcErro) throw new Error(rpcErro.message);
 
-    const OK = new Set(["ok", "primeira_leitura", "concluiu_rota"]);
-
-    const [recRes, devRes, invRes, transfRes, cntRes] = await Promise.all([
-      supabase
-        .from("recebimentos")
-        .select("base_id, resultado, data_operacional")
-        .gte("data_operacional", inicio)
-        .lte("data_operacional", fim)
-        .limit(100000),
-      supabase
-        .from("devolucoes")
-        .select("base_id, devolvido_em, cancelado")
-        .gte("devolvido_em", iniISO)
-        .lte("devolvido_em", fimISO)
-        .limit(100000),
-      supabase
-        .from("inventario_leituras")
-        .select("base_id, dia_operacional")
-        .gte("dia_operacional", inicio)
-        .lte("dia_operacional", fim)
-        .limit(100000),
-      supabase
-        .from("transferencias")
-        .select("base_id, data_operacional, status")
-        .gte("data_operacional", inicio)
-        .lte("data_operacional", fim)
-        .limit(100000),
-      supabase
-        .from("contagens")
-        .select("base_id, data_operacional")
-        .gte("data_operacional", inicio)
-        .lte("data_operacional", fim)
-        .limit(100000),
-    ]);
-
-    for (const r of (recRes.data ?? []) as Array<{ base_id: string | null; resultado: string }>) {
-      if (!r.base_id) continue;
-      const cur = map.get(r.base_id);
-      if (!cur) continue;
-      cur.recebimentos++;
-      if (OK.has(r.resultado)) cur.triados++;
-    }
-    for (const d of (devRes.data ?? []) as Array<{ base_id: string | null; cancelado: boolean | null }>) {
-      if (!d.base_id || d.cancelado) continue;
-      const cur = map.get(d.base_id);
-      if (cur) cur.devolucoes++;
-    }
-    for (const r of (invRes.data ?? []) as Array<{ base_id: string | null }>) {
-      if (!r.base_id) continue;
-      const cur = map.get(r.base_id);
-      if (cur) cur.inventario++;
-    }
-    for (const r of (transfRes.data ?? []) as Array<{ base_id: string | null; status: string | null }>) {
-      if (!r.base_id) continue;
-      // Não conta transferências canceladas.
-      if (r.status === "cancelada") continue;
-      const cur = map.get(r.base_id);
-      if (cur) cur.transferencias++;
-    }
-    for (const r of (cntRes.data ?? []) as Array<{ base_id: string | null }>) {
-      if (!r.base_id) continue;
-      const cur = map.get(r.base_id);
-      if (cur) cur.contagens++;
-    }
-
-    const rows: ResumoBaseRow[] = (bases ?? []).map((b) => ({
-      base_id: b.id,
-      codigo: b.codigo,
-      nome: b.nome,
-      ...(map.get(b.id) ?? zeroRow()),
+    const rows: ResumoBaseRow[] = ((rpcRows ?? []) as any[]).map((r) => ({
+      base_id: r.base_id,
+      codigo: r.codigo,
+      nome: r.nome,
+      triados: Number(r.triados ?? 0),
+      recebimentos: Number(r.recebimentos ?? 0),
+      devolucoes: Number(r.devolucoes ?? 0),
+      inventario: Number(r.inventario ?? 0),
+      transferencias: Number(r.transferencias ?? 0),
+      contagens: Number(r.contagens ?? 0),
     }));
 
     const totais = rows.reduce(
@@ -793,19 +791,14 @@ export const resumoOperacionalPorBase = createServerFn({ method: "POST" })
 // ============================================================
 
 export type MetricaResumo =
-  | "recebimentos"
-  | "triados"
-  | "devolucoes"
-  | "inventario"
-  | "transferencias"
-  | "contagens";
+  "recebimentos" | "triados" | "devolucoes" | "inventario" | "transferencias" | "contagens";
 
 export type DetalheItem = {
   id: string;
   quando: string; // ISO
   base_codigo: string | null;
   base_nome: string | null;
-  titulo: string;   // linha principal
+  titulo: string; // linha principal
   subtitulo?: string | null;
   extra?: string | null;
   operador_nome?: string | null;
@@ -822,10 +815,20 @@ export type DetalhesMetricaData = {
 };
 
 const detalhesInput = z.object({
-  metrica: z.enum(["recebimentos", "triados", "devolucoes", "inventario", "transferencias", "contagens"]),
+  metrica: z.enum([
+    "recebimentos",
+    "triados",
+    "devolucoes",
+    "inventario",
+    "transferencias",
+    "contagens",
+  ]),
   periodo: z.enum(["hoje", "7d", "30d"]).default("hoje"),
   base_id: z.string().uuid().optional(),
-  dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dia: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   limit: z.number().int().min(1).max(1000).default(300),
 });
 
@@ -878,7 +881,9 @@ export const detalhesResumoPorBase = createServerFn({ method: "POST" })
     } else if (data.metrica === "devolucoes") {
       let q = supabase
         .from("devolucoes")
-        .select("id, shipment_codigo, rota, motorista, motivo, observacao, base_id, devolvido_em, cancelado, devolvido_por")
+        .select(
+          "id, shipment_codigo, rota, motorista, motivo, observacao, base_id, devolvido_em, cancelado, devolvido_por",
+        )
         .gte("devolvido_em", iniISO)
         .lte("devolvido_em", fimISO)
         .eq("cancelado", false)
@@ -892,7 +897,10 @@ export const detalhesResumoPorBase = createServerFn({ method: "POST" })
       ) as string[];
       const nomes = new Map<string, string>();
       if (userIds.length > 0) {
-        const { data: profs } = await supabase.from("profiles").select("id, nome").in("id", userIds);
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, nome")
+          .in("id", userIds);
         (profs ?? []).forEach((p) => nomes.set(p.id as string, p.nome as string));
       }
       for (const r of rows ?? []) {
@@ -935,7 +943,9 @@ export const detalhesResumoPorBase = createServerFn({ method: "POST" })
     } else if (data.metrica === "transferencias") {
       let q = supabase
         .from("transferencias")
-        .select("id, codigo, service, motorista, placa, status, base_id, data_operacional, created_at, finalizada_em")
+        .select(
+          "id, codigo, service, motorista, placa, status, base_id, data_operacional, created_at, finalizada_em",
+        )
         .gte("data_operacional", inicio)
         .lte("data_operacional", fim)
         .neq("status", "cancelada")
@@ -959,7 +969,9 @@ export const detalhesResumoPorBase = createServerFn({ method: "POST" })
     } else if (data.metrica === "contagens") {
       let q = supabase
         .from("contagens")
-        .select("id, base_id, data_operacional, iniciada_em, finalizada_em, total_esperado, total_contado, divergencia")
+        .select(
+          "id, base_id, data_operacional, iniciada_em, finalizada_em, total_esperado, total_contado, divergencia",
+        )
         .gte("data_operacional", inicio)
         .lte("data_operacional", fim)
         .order("iniciada_em", { ascending: false })

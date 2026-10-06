@@ -14,7 +14,7 @@ import type { MeliResposta, MeliTransport } from "../meli/list.js";
 // A) AdminML
 // ------------------------------------------------------------------
 export type AdminMLSessao =
-  | { status: "ok"; transport: MeliTransport; fechar: () => Promise<void> }
+  | { status: "ok"; transport: MeliTransport; page: Page; fechar: () => Promise<void> }
   | { status: "aguardando_autenticacao"; motivo: string };
 
 function toHeaders(res: { headers(): Record<string, string> }): Record<string, string> {
@@ -45,15 +45,15 @@ async function respostaDe(res: {
 }
 
 export function transportDePagina(page: Page): MeliTransport {
-  const chamar = async (url: string, method: "GET" | "POST", body?: unknown) =>
-    page.evaluate(async ({ url, method, body, timeoutMs }) => {
+  const chamar = async (url: string, method: "GET" | "POST", body?: unknown, extraHeaders?: Record<string, string>) =>
+    page.evaluate(async ({ url, method, body, timeoutMs, extraHeaders }) => {
       const ctrl = new AbortController();
       const timer = globalThis.setTimeout(() => ctrl.abort(), timeoutMs);
       try {
         const res = await fetch(url, {
           method,
           credentials: "include",
-          headers: { Accept: "application/json, text/plain, */*", ...(method === "POST" ? { "Content-Type": "application/json" } : {}) },
+          headers: { Accept: "application/json, text/plain, */*", ...(method === "POST" ? { "Content-Type": "application/json" } : {}), ...extraHeaders },
           body: method === "POST" ? JSON.stringify(body) : undefined,
           signal: ctrl.signal,
         });
@@ -65,10 +65,10 @@ export function transportDePagina(page: Page): MeliTransport {
         }
         return { status: res.status, headers, body: responseBody, ok: res.ok && responseBody !== null };
       } finally { globalThis.clearTimeout(timer); }
-    }, { url, method, body, timeoutMs: ADMINML.TIMEOUT_MS });
+    }, { url, method, body, timeoutMs: ADMINML.TIMEOUT_MS, extraHeaders });
   return {
     post: (url, body) => chamar(url, "POST", body),
-    get: (url) => chamar(url, "GET"),
+    get: (url, headers) => chamar(url, "GET", undefined, headers),
   };
 }
 
@@ -107,6 +107,7 @@ export async function abrirSessaoAdminML(cfg: WorkerConfig): Promise<AdminMLSess
   return {
     status: "ok",
     transport: transportDePagina(page),
+    page,
     fechar: async () => {
       await context.close().catch(() => undefined);
       await browser.close().catch(() => undefined);

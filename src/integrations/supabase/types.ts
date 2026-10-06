@@ -14,168 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      expedicao_leituras: {
-        Row: {
-          created_at: string
-          escala_id: string
-          expedicao_id: string
-          id: string
-          localizado_posteriormente_na_expedicao: boolean
-          nao_localizado_no_recebimento: boolean
-          operador_id: string
-          resultado: string
-          shipment: string
-        }
-        Insert: {
-          created_at?: string
-          escala_id: string
-          expedicao_id: string
-          id?: string
-          localizado_posteriormente_na_expedicao?: boolean
-          nao_localizado_no_recebimento?: boolean
-          operador_id: string
-          resultado: string
-          shipment: string
-        }
-        Update: {
-          created_at?: string
-          escala_id?: string
-          expedicao_id?: string
-          id?: string
-          localizado_posteriormente_na_expedicao?: boolean
-          nao_localizado_no_recebimento?: boolean
-          operador_id?: string
-          resultado?: string
-          shipment?: string
-        }
-        Relationships: []
-      }
-      expedicoes: {
-        Row: {
-          base_id: string
-          concluida_em: string | null
-          concluida_por: string | null
-          created_at: string
-          data_operacional: string
-          id: string
-          importacao_id: string
-          iniciada_em: string
-          iniciada_por: string
-          motorista: string | null
-          observacao: string | null
-          outro_responsavel: string | null
-          quantidade_conferida: number
-          quantidade_prevista: number
-          responsavel_expedicao_id: string | null
-          responsavel_meli_svc: string | null
-          rota: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          base_id: string
-          concluida_em?: string | null
-          concluida_por?: string | null
-          created_at?: string
-          data_operacional: string
-          id?: string
-          importacao_id: string
-          iniciada_em?: string
-          iniciada_por: string
-          motorista?: string | null
-          observacao?: string | null
-          outro_responsavel?: string | null
-          quantidade_conferida?: number
-          quantidade_prevista: number
-          responsavel_expedicao_id?: string | null
-          responsavel_meli_svc?: string | null
-          rota: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          base_id?: string
-          concluida_em?: string | null
-          concluida_por?: string | null
-          created_at?: string
-          data_operacional?: string
-          id?: string
-          importacao_id?: string
-          iniciada_em?: string
-          iniciada_por?: string
-          motorista?: string | null
-          observacao?: string | null
-          outro_responsavel?: string | null
-          quantidade_conferida?: number
-          quantidade_prevista?: number
-          responsavel_expedicao_id?: string | null
-          responsavel_meli_svc?: string | null
-          rota?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      fechamentos_operacionais: {
-        Row: {
-          base_id: string
-          created_at: string
-          criado_por: string
-          data_operacional: string
-          email_destinatario: string | null
-          email_message_id: string | null
-          enviado_em: string | null
-          enviado_por: string | null
-          evidencia_envio: Json | null
-          faltantes_finais: number
-          faltantes_recebimento: number
-          id: string
-          pdf_path: string | null
-          recuperados_expedicao: number
-          shipment_ids_finais: Json
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          base_id: string
-          created_at?: string
-          criado_por: string
-          data_operacional: string
-          email_destinatario?: string | null
-          email_message_id?: string | null
-          enviado_em?: string | null
-          enviado_por?: string | null
-          evidencia_envio?: Json | null
-          faltantes_finais?: number
-          faltantes_recebimento?: number
-          id?: string
-          pdf_path?: string | null
-          recuperados_expedicao?: number
-          shipment_ids_finais?: Json
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          base_id?: string
-          created_at?: string
-          criado_por?: string
-          data_operacional?: string
-          email_destinatario?: string | null
-          email_message_id?: string | null
-          enviado_em?: string | null
-          enviado_por?: string | null
-          evidencia_envio?: Json | null
-          faltantes_finais?: number
-          faltantes_recebimento?: number
-          id?: string
-          pdf_path?: string | null
-          recuperados_expedicao?: number
-          shipment_ids_finais?: Json
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       audit_logs: {
         Row: {
           acao: string
@@ -810,6 +648,212 @@ export type Database = {
           },
         ]
       }
+      expedicao_leituras: {
+        Row: {
+          created_at: string
+          escala_id: string
+          expedicao_id: string
+          id: string
+          localizado_posteriormente_na_expedicao: boolean
+          nao_localizado_no_recebimento: boolean
+          operador_id: string
+          resultado: string
+          shipment: string
+        }
+        Insert: {
+          created_at?: string
+          escala_id: string
+          expedicao_id: string
+          id?: string
+          localizado_posteriormente_na_expedicao?: boolean
+          nao_localizado_no_recebimento?: boolean
+          operador_id: string
+          resultado: string
+          shipment: string
+        }
+        Update: {
+          created_at?: string
+          escala_id?: string
+          expedicao_id?: string
+          id?: string
+          localizado_posteriormente_na_expedicao?: boolean
+          nao_localizado_no_recebimento?: boolean
+          operador_id?: string
+          resultado?: string
+          shipment?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedicao_leituras_escala_id_fkey"
+            columns: ["escala_id"]
+            isOneToOne: false
+            referencedRelation: "escalas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expedicao_leituras_expedicao_id_fkey"
+            columns: ["expedicao_id"]
+            isOneToOne: false
+            referencedRelation: "expedicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expedicoes: {
+        Row: {
+          base_id: string
+          concluida_em: string | null
+          concluida_por: string | null
+          created_at: string
+          data_operacional: string
+          id: string
+          importacao_id: string
+          iniciada_em: string
+          iniciada_por: string
+          motorista: string | null
+          motorista_meli_id: string | null
+          motorista_usuario_id: string | null
+          observacao: string | null
+          outro_responsavel: string | null
+          quantidade_conferida: number
+          quantidade_prevista: number
+          responsavel_expedicao_id: string | null
+          responsavel_meli_svc: string | null
+          rota: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          data_operacional: string
+          id?: string
+          importacao_id: string
+          iniciada_em?: string
+          iniciada_por: string
+          motorista?: string | null
+          motorista_meli_id?: string | null
+          motorista_usuario_id?: string | null
+          observacao?: string | null
+          outro_responsavel?: string | null
+          quantidade_conferida?: number
+          quantidade_prevista: number
+          responsavel_expedicao_id?: string | null
+          responsavel_meli_svc?: string | null
+          rota: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          concluida_em?: string | null
+          concluida_por?: string | null
+          created_at?: string
+          data_operacional?: string
+          id?: string
+          importacao_id?: string
+          iniciada_em?: string
+          iniciada_por?: string
+          motorista?: string | null
+          motorista_meli_id?: string | null
+          motorista_usuario_id?: string | null
+          observacao?: string | null
+          outro_responsavel?: string | null
+          quantidade_conferida?: number
+          quantidade_prevista?: number
+          responsavel_expedicao_id?: string | null
+          responsavel_meli_svc?: string | null
+          rota?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedicoes_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expedicoes_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes_escala"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fechamentos_operacionais: {
+        Row: {
+          base_id: string
+          created_at: string
+          criado_por: string
+          data_operacional: string
+          email_destinatario: string | null
+          email_message_id: string | null
+          enviado_em: string | null
+          enviado_por: string | null
+          evidencia_envio: Json | null
+          faltantes_finais: number
+          faltantes_recebimento: number
+          id: string
+          pdf_path: string | null
+          recuperados_expedicao: number
+          shipment_ids_finais: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_id: string
+          created_at?: string
+          criado_por: string
+          data_operacional: string
+          email_destinatario?: string | null
+          email_message_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          evidencia_envio?: Json | null
+          faltantes_finais?: number
+          faltantes_recebimento?: number
+          id?: string
+          pdf_path?: string | null
+          recuperados_expedicao?: number
+          shipment_ids_finais?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_id?: string
+          created_at?: string
+          criado_por?: string
+          data_operacional?: string
+          email_destinatario?: string | null
+          email_message_id?: string | null
+          enviado_em?: string | null
+          enviado_por?: string | null
+          evidencia_envio?: Json | null
+          faltantes_finais?: number
+          faltantes_recebimento?: number
+          id?: string
+          pdf_path?: string | null
+          recuperados_expedicao?: number
+          shipment_ids_finais?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamentos_operacionais_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       importacoes_escala: {
         Row: {
           arquivada_em: string | null
@@ -1007,6 +1051,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meli_api_conexoes: {
+        Row: {
+          access_token_criptografado: string
+          apelido: string | null
+          ativo: boolean
+          atualizado_em: string
+          conectado_em: string
+          conectado_por: string | null
+          id: string
+          meli_user_id: number
+          refresh_token_criptografado: string
+          scopes: string[]
+          token_expira_em: string
+        }
+        Insert: {
+          access_token_criptografado: string
+          apelido?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          conectado_em?: string
+          conectado_por?: string | null
+          id?: string
+          meli_user_id: number
+          refresh_token_criptografado: string
+          scopes?: string[]
+          token_expira_em: string
+        }
+        Update: {
+          access_token_criptografado?: string
+          apelido?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          conectado_em?: string
+          conectado_por?: string | null
+          id?: string
+          meli_user_id?: number
+          refresh_token_criptografado?: string
+          scopes?: string[]
+          token_expira_em?: string
+        }
+        Relationships: []
+      }
+      meli_api_notificacoes: {
+        Row: {
+          application_id: number | null
+          erro: string | null
+          id: string
+          meli_user_id: number | null
+          notification_id: string | null
+          payload: Json
+          processado_em: string | null
+          recebido_em: string
+          resource: string
+          topic: string
+        }
+        Insert: {
+          application_id?: number | null
+          erro?: string | null
+          id?: string
+          meli_user_id?: number | null
+          notification_id?: string | null
+          payload: Json
+          processado_em?: string | null
+          recebido_em?: string
+          resource: string
+          topic: string
+        }
+        Update: {
+          application_id?: number | null
+          erro?: string | null
+          id?: string
+          meli_user_id?: number | null
+          notification_id?: string | null
+          payload?: Json
+          processado_em?: string | null
+          recebido_em?: string
+          resource?: string
+          topic?: string
+        }
+        Relationships: []
       }
       meli_devolucao_romaneios: {
         Row: {
@@ -1301,6 +1426,206 @@ export type Database = {
         }
         Relationships: []
       }
+      meli_monitoramento_fechamentos: {
+        Row: {
+          base_codigo: string
+          created_at: string
+          data_operacional: string
+          facility_id: string
+          fechado_em: string
+          id: string
+          resumo_json: Json
+          service_center_id: string
+          snapshot_id: string | null
+        }
+        Insert: {
+          base_codigo: string
+          created_at?: string
+          data_operacional: string
+          facility_id: string
+          fechado_em?: string
+          id?: string
+          resumo_json: Json
+          service_center_id: string
+          snapshot_id?: string | null
+        }
+        Update: {
+          base_codigo?: string
+          created_at?: string
+          data_operacional?: string
+          facility_id?: string
+          fechado_em?: string
+          id?: string
+          resumo_json?: Json
+          service_center_id?: string
+          snapshot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_monitoramento_fechamentos_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "meli_monitoramento_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meli_monitoramento_snapshots: {
+        Row: {
+          base_codigo: string
+          bem_sucedidos: number | null
+          coletado_em: string
+          com_falhas: number | null
+          created_at: string
+          data_operacional: string
+          escopo_rotas: string | null
+          facility_id: string
+          id: string
+          pacotes: number | null
+          payload_json: Json
+          pendentes: number | null
+          percentual_bem_sucedidos: number | null
+          percentual_falhas: number | null
+          percentual_pendentes: number | null
+          performance_logistics_max: number | null
+          performance_sem_dc_max: number | null
+          performance_sem_dc_sinistro_max: number | null
+          rotas_coleta: number | null
+          rotas_em_andamento: number | null
+          rotas_entrega: number | null
+          rotas_mistas: number | null
+          rotas_totais: number | null
+          sacas: number | null
+          service_center_id: string
+          updated_at: string
+        }
+        Insert: {
+          base_codigo: string
+          bem_sucedidos?: number | null
+          coletado_em?: string
+          com_falhas?: number | null
+          created_at?: string
+          data_operacional: string
+          escopo_rotas?: string | null
+          facility_id: string
+          id?: string
+          pacotes?: number | null
+          payload_json?: Json
+          pendentes?: number | null
+          percentual_bem_sucedidos?: number | null
+          percentual_falhas?: number | null
+          percentual_pendentes?: number | null
+          performance_logistics_max?: number | null
+          performance_sem_dc_max?: number | null
+          performance_sem_dc_sinistro_max?: number | null
+          rotas_coleta?: number | null
+          rotas_em_andamento?: number | null
+          rotas_entrega?: number | null
+          rotas_mistas?: number | null
+          rotas_totais?: number | null
+          sacas?: number | null
+          service_center_id: string
+          updated_at?: string
+        }
+        Update: {
+          base_codigo?: string
+          bem_sucedidos?: number | null
+          coletado_em?: string
+          com_falhas?: number | null
+          created_at?: string
+          data_operacional?: string
+          escopo_rotas?: string | null
+          facility_id?: string
+          id?: string
+          pacotes?: number | null
+          payload_json?: Json
+          pendentes?: number | null
+          percentual_bem_sucedidos?: number | null
+          percentual_falhas?: number | null
+          percentual_pendentes?: number | null
+          performance_logistics_max?: number | null
+          performance_sem_dc_max?: number | null
+          performance_sem_dc_sinistro_max?: number | null
+          rotas_coleta?: number | null
+          rotas_em_andamento?: number | null
+          rotas_entrega?: number | null
+          rotas_mistas?: number | null
+          rotas_totais?: number | null
+          sacas?: number | null
+          service_center_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meli_motoristas_catalogo: {
+        Row: {
+          ativo: boolean
+          carrier_id: string | null
+          created_at: string
+          meli_driver_id: string
+          nome: string
+          origem: string
+          service_center_id: string | null
+          sincronizado_em: string
+          status: string
+          ultima_rota_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          carrier_id?: string | null
+          created_at?: string
+          meli_driver_id: string
+          nome: string
+          origem?: string
+          service_center_id?: string | null
+          sincronizado_em?: string
+          status?: string
+          ultima_rota_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          carrier_id?: string | null
+          created_at?: string
+          meli_driver_id?: string
+          nome?: string
+          origem?: string
+          service_center_id?: string | null
+          sincronizado_em?: string
+          status?: string
+          ultima_rota_em?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meli_oauth_states: {
+        Row: {
+          code_verifier: string
+          criado_em: string
+          expira_em: string
+          solicitado_por: string
+          state_hash: string
+          usado_em: string | null
+        }
+        Insert: {
+          code_verifier: string
+          criado_em?: string
+          expira_em?: string
+          solicitado_por: string
+          state_hash: string
+          usado_em?: string | null
+        }
+        Update: {
+          code_verifier?: string
+          criado_em?: string
+          expira_em?: string
+          solicitado_por?: string
+          state_hash?: string
+          usado_em?: string | null
+        }
+        Relationships: []
+      }
       meli_ocorrencia_codigos: {
         Row: {
           ativo: boolean
@@ -1341,7 +1666,9 @@ export type Database = {
           created_at: string
           destinatario: string | null
           endereco: string | null
+          facility: string | null
           id: string
+          integration_source: string
           last_synced_at: string | null
           motivo_area_risco: string | null
           occurrence_code: string | null
@@ -1350,11 +1677,13 @@ export type Database = {
           pacote_area_risco: boolean
           printed_label: string | null
           rota_id: string
+          service_center_id: string | null
           shipment_id: string | null
           status: string | null
           stop_id: string | null
           substatus: string | null
           tracking_id: string
+          tracking_number: string | null
           uf: string | null
           updated_at: string
           valor_original_area_risco: Json | null
@@ -1368,7 +1697,9 @@ export type Database = {
           created_at?: string
           destinatario?: string | null
           endereco?: string | null
+          facility?: string | null
           id?: string
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
           occurrence_code?: string | null
@@ -1377,11 +1708,13 @@ export type Database = {
           pacote_area_risco?: boolean
           printed_label?: string | null
           rota_id: string
+          service_center_id?: string | null
           shipment_id?: string | null
           status?: string | null
           stop_id?: string | null
           substatus?: string | null
           tracking_id: string
+          tracking_number?: string | null
           uf?: string | null
           updated_at?: string
           valor_original_area_risco?: Json | null
@@ -1395,7 +1728,9 @@ export type Database = {
           created_at?: string
           destinatario?: string | null
           endereco?: string | null
+          facility?: string | null
           id?: string
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
           occurrence_code?: string | null
@@ -1404,11 +1739,13 @@ export type Database = {
           pacote_area_risco?: boolean
           printed_label?: string | null
           rota_id?: string
+          service_center_id?: string | null
           shipment_id?: string | null
           status?: string | null
           stop_id?: string | null
           substatus?: string | null
           tracking_id?: string
+          tracking_number?: string | null
           uf?: string | null
           updated_at?: string
           valor_original_area_risco?: Json | null
@@ -1430,6 +1767,107 @@ export type Database = {
           },
         ]
       }
+      meli_performance_diaria: {
+        Row: {
+          created_at: string
+          data_operacional: string
+          dc_cancelado: number
+          entregues: number
+          id: string
+          insucessos: number
+          origem: string
+          pacotes: number
+          payload: Json | null
+          pnr: number
+          sinistros: number
+          source_updated_at: string | null
+          unidade_id: string
+          updated_at: string
+          veiculos: number
+        }
+        Insert: {
+          created_at?: string
+          data_operacional: string
+          dc_cancelado?: number
+          entregues?: number
+          id?: string
+          insucessos?: number
+          origem?: string
+          pacotes?: number
+          payload?: Json | null
+          pnr?: number
+          sinistros?: number
+          source_updated_at?: string | null
+          unidade_id: string
+          updated_at?: string
+          veiculos?: number
+        }
+        Update: {
+          created_at?: string
+          data_operacional?: string
+          dc_cancelado?: number
+          entregues?: number
+          id?: string
+          insucessos?: number
+          origem?: string
+          pacotes?: number
+          payload?: Json | null
+          pnr?: number
+          sinistros?: number
+          source_updated_at?: string | null
+          unidade_id?: string
+          updated_at?: string
+          veiculos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_performance_diaria_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "meli_unidades_operacionais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meli_performance_fechamentos: {
+        Row: {
+          created_at: string
+          data_operacional: string
+          email_destinatarios: string[]
+          email_enviado_at: string | null
+          email_resposta: Json | null
+          email_status: string
+          email_tentativas: number
+          fechado_at: string
+          id: string
+          snapshot: Json
+        }
+        Insert: {
+          created_at?: string
+          data_operacional: string
+          email_destinatarios?: string[]
+          email_enviado_at?: string | null
+          email_resposta?: Json | null
+          email_status?: string
+          email_tentativas?: number
+          fechado_at?: string
+          id?: string
+          snapshot: Json
+        }
+        Update: {
+          created_at?: string
+          data_operacional?: string
+          email_destinatarios?: string[]
+          email_enviado_at?: string | null
+          email_resposta?: Json | null
+          email_status?: string
+          email_tentativas?: number
+          fechado_at?: string
+          id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
       meli_rotas: {
         Row: {
           area_risco_detectado_em: string | null
@@ -1448,8 +1886,10 @@ export type Database = {
           finish_date: string | null
           id: string
           init_date: string | null
+          integration_source: string
           last_synced_at: string | null
           motivo_area_risco: string | null
+          motorista_id: string | null
           occurrence_total: number | null
           origem_area_risco: string | null
           origem_importacao: string | null
@@ -1458,6 +1898,7 @@ export type Database = {
           route_id: string
           route_status: string | null
           route_substatus: string | null
+          service_center_id: string | null
           stops_total: number | null
           sync_batch_id: string | null
           total_impressos: number
@@ -1483,8 +1924,10 @@ export type Database = {
           finish_date?: string | null
           id?: string
           init_date?: string | null
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
+          motorista_id?: string | null
           occurrence_total?: number | null
           origem_area_risco?: string | null
           origem_importacao?: string | null
@@ -1493,6 +1936,7 @@ export type Database = {
           route_id: string
           route_status?: string | null
           route_substatus?: string | null
+          service_center_id?: string | null
           stops_total?: number | null
           sync_batch_id?: string | null
           total_impressos?: number
@@ -1518,8 +1962,10 @@ export type Database = {
           finish_date?: string | null
           id?: string
           init_date?: string | null
+          integration_source?: string
           last_synced_at?: string | null
           motivo_area_risco?: string | null
+          motorista_id?: string | null
           occurrence_total?: number | null
           origem_area_risco?: string | null
           origem_importacao?: string | null
@@ -1528,6 +1974,7 @@ export type Database = {
           route_id?: string
           route_status?: string | null
           route_substatus?: string | null
+          service_center_id?: string | null
           stops_total?: number | null
           sync_batch_id?: string | null
           total_impressos?: number
@@ -1542,6 +1989,20 @@ export type Database = {
             columns: ["base_id"]
             isOneToOne: false
             referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_rotas_motorista_id_fkey"
+            columns: ["motorista_id"]
+            isOneToOne: false
+            referencedRelation: "motoristas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_rotas_motorista_id_fkey"
+            columns: ["motorista_id"]
+            isOneToOne: false
+            referencedRelation: "motoristas_safe"
             referencedColumns: ["id"]
           },
           {
@@ -1588,6 +2049,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meli_sla_diario: {
+        Row: {
+          bases_total: number
+          data_operacional: string
+          entregues_total: number
+          insucessos_total: number
+          pacotes_total: number
+          pendentes_total: number
+          rotas_total: number
+          sla_geral: number
+          ultima_coleta: string | null
+          updated_at: string
+        }
+        Insert: {
+          bases_total?: number
+          data_operacional: string
+          entregues_total?: number
+          insucessos_total?: number
+          pacotes_total?: number
+          pendentes_total?: number
+          rotas_total?: number
+          sla_geral?: number
+          ultima_coleta?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bases_total?: number
+          data_operacional?: string
+          entregues_total?: number
+          insucessos_total?: number
+          pacotes_total?: number
+          pendentes_total?: number
+          rotas_total?: number
+          sla_geral?: number
+          ultima_coleta?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       meli_sync_ciclos: {
         Row: {
@@ -1728,6 +2228,121 @@ export type Database = {
           },
         ]
       }
+      meli_tracking_eventos: {
+        Row: {
+          created_at: string
+          event_date: string
+          id: string
+          idempotency_key: string | null
+          meli_pacote_id: string | null
+          payload: Json
+          resposta_meli: Json | null
+          rota_id: string | null
+          sent_at: string | null
+          shipment_id: string | null
+          status_envio: string
+          tentativas: number
+          tipo_evento: string
+          tracking_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_date: string
+          id?: string
+          idempotency_key?: string | null
+          meli_pacote_id?: string | null
+          payload?: Json
+          resposta_meli?: Json | null
+          rota_id?: string | null
+          sent_at?: string | null
+          shipment_id?: string | null
+          status_envio?: string
+          tentativas?: number
+          tipo_evento: string
+          tracking_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_date?: string
+          id?: string
+          idempotency_key?: string | null
+          meli_pacote_id?: string | null
+          payload?: Json
+          resposta_meli?: Json | null
+          rota_id?: string | null
+          sent_at?: string | null
+          shipment_id?: string | null
+          status_envio?: string
+          tentativas?: number
+          tipo_evento?: string
+          tracking_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_tracking_eventos_meli_pacote_id_fkey"
+            columns: ["meli_pacote_id"]
+            isOneToOne: false
+            referencedRelation: "meli_pacotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_tracking_eventos_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meli_tracking_eventos_rota_id_fkey"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "meli_rotas_ativas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meli_unidades_operacionais: {
+        Row: {
+          ativo: boolean
+          cidade: string | null
+          codigo: string
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          service_center_id: string | null
+          tipo: string
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cidade?: string | null
+          codigo: string
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          service_center_id?: string | null
+          tipo: string
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cidade?: string | null
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          service_center_id?: string | null
+          tipo?: string
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meli_worker_execucoes: {
         Row: {
           base_id: string
@@ -1796,36 +2411,45 @@ export type Database = {
       motoristas: {
         Row: {
           ativo: boolean
+          auth_user_id: string | null
           base_id: string | null
           cnh: string | null
           cpf: string | null
           created_at: string
           id: string
+          meli_driver_id: string | null
           nome: string
           placa: string | null
           transportadora: string | null
+          usuario: string | null
         }
         Insert: {
           ativo?: boolean
+          auth_user_id?: string | null
           base_id?: string | null
           cnh?: string | null
           cpf?: string | null
           created_at?: string
           id?: string
+          meli_driver_id?: string | null
           nome: string
           placa?: string | null
           transportadora?: string | null
+          usuario?: string | null
         }
         Update: {
           ativo?: boolean
+          auth_user_id?: string | null
           base_id?: string | null
           cnh?: string | null
           cpf?: string | null
           created_at?: string
           id?: string
+          meli_driver_id?: string | null
           nome?: string
           placa?: string | null
           transportadora?: string | null
+          usuario?: string | null
         }
         Relationships: [
           {
@@ -1845,7 +2469,9 @@ export type Database = {
           email: string
           id: string
           matricula: string | null
+          meli_driver_id: string | null
           nome: string
+          placa: string | null
         }
         Insert: {
           ativo?: boolean
@@ -1854,7 +2480,9 @@ export type Database = {
           email: string
           id: string
           matricula?: string | null
+          meli_driver_id?: string | null
           nome: string
+          placa?: string | null
         }
         Update: {
           ativo?: boolean
@@ -1863,7 +2491,9 @@ export type Database = {
           email?: string
           id?: string
           matricula?: string | null
+          meli_driver_id?: string | null
           nome?: string
+          placa?: string | null
         }
         Relationships: [
           {
@@ -2554,6 +3184,50 @@ export type Database = {
           },
         ]
       }
+      worker_ultimos_dados: {
+        Row: {
+          atualizado_em: string
+          base_codigo: string | null
+          base_id: string | null
+          chave_referencia: string
+          coletado_em: string
+          dados: Json
+          data_operacional: string | null
+          fonte: string
+          id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          base_codigo?: string | null
+          base_id?: string | null
+          chave_referencia: string
+          coletado_em?: string
+          dados?: Json
+          data_operacional?: string | null
+          fonte: string
+          id?: string
+        }
+        Update: {
+          atualizado_em?: string
+          base_codigo?: string | null
+          base_id?: string | null
+          chave_referencia?: string
+          coletado_em?: string
+          dados?: Json
+          data_operacional?: string | null
+          fonte?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_ultimos_dados_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       meli_rotas_ativas: {
@@ -2720,6 +3394,19 @@ export type Database = {
         Args: { p_base_id: string; p_data: string }
         Returns: string
       }
+      gerencial_rotas_por_base: {
+        Args: { p_importacao_ids: string[] }
+        Returns: {
+          base_operacional_id: string
+          devolvido: number
+          importacao_id: string
+          motorista: string
+          nro_rota: string
+          placa: string
+          total: number
+          triado: number
+        }[]
+      }
       get_allowed_bases: { Args: { _user_id: string }; Returns: string[] }
       has_base_access: {
         Args: { _base_id: string; _user_id: string }
@@ -2747,6 +3434,11 @@ export type Database = {
         Returns: boolean
       }
       inventario_global_access: { Args: { _user_id: string }; Returns: boolean }
+      meli_dashboard_geral: { Args: { p_data?: string }; Returns: Json }
+      meli_dashboard_geral_calculado: {
+        Args: { p_data?: string }
+        Returns: Json
+      }
       meli_dashboard_operacional: {
         Args: {
           p_base_id?: string
@@ -2802,6 +3494,10 @@ export type Database = {
         Args: { p_base_id?: string; p_data_ate?: string; p_data_de?: string }
         Returns: Json
       }
+      meli_fechar_dashboard_geral: {
+        Args: { p_data?: string }
+        Returns: string
+      }
       meli_importar_rota: {
         Args: { p_arquivo_nome?: string; p_payload: Json }
         Returns: Json
@@ -2817,10 +3513,31 @@ export type Database = {
         }
         Returns: Json
       }
+      meli_monitoramento_upsert: { Args: { p_snapshot: Json }; Returns: Json }
       meli_pode_operar: { Args: never; Returns: boolean }
       meli_publicar_rota_operacional: {
         Args: { p_data_operacional?: string; p_rota_id: string }
         Returns: Json
+      }
+      meli_registrar_monitoramento_snapshot: {
+        Args: {
+          p_base_codigo: string
+          p_bem_sucedidos: number
+          p_coletado_em: string
+          p_com_falhas: number
+          p_data_operacional: string
+          p_facility_id: string
+          p_pacotes: number
+          p_pendentes: number
+          p_rotas_coleta: number
+          p_rotas_em_andamento: number
+          p_rotas_entrega: number
+          p_rotas_mistas: number
+          p_rotas_totais: number
+          p_sacas: number
+          p_service_center_id: string
+        }
+        Returns: undefined
       }
       meli_romaneio_abrir_com_primeiro_pacote: {
         Args: {
@@ -2960,6 +3677,10 @@ export type Database = {
         }
         Returns: Json
       }
+      recalcular_meli_sla_diario: {
+        Args: { p_data: string }
+        Returns: undefined
+      }
       registrar_evento_transferencia: {
         Args: {
           p_etapa: string
@@ -3049,12 +3770,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3078,11 +3799,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3103,11 +3824,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3128,11 +3849,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3145,11 +3866,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

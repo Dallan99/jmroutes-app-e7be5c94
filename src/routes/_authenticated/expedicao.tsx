@@ -18,11 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   biparExpedicao,
   concluirExpedicao,
   detalharExpedicao,
   iniciarExpedicao,
+  listarMotoristasMeli,
   listarRotasExpedicao,
 } from "@/lib/expedicao.functions";
 
@@ -49,6 +51,7 @@ function ExpedicaoPage() {
   const qc = useQueryClient();
   const listarFn = useServerFn(listarRotasExpedicao);
   const iniciarFn = useServerFn(iniciarExpedicao);
+  const listarMotoristasFn = useServerFn(listarMotoristasMeli);
   const detalheFn = useServerFn(detalharExpedicao);
   const biparFn = useServerFn(biparExpedicao);
   const concluirFn = useServerFn(concluirExpedicao);
@@ -56,6 +59,7 @@ function ExpedicaoPage() {
   const [rotaSelecionada, setRotaSelecionada] = useState<string | null>(null);
   const [expedicaoId, setExpedicaoId] = useState<string | null>(null);
   const [motorista, setMotorista] = useState("");
+  const [motoristaMeliId, setMotoristaMeliId] = useState("");
   const [codigo, setCodigo] = useState("");
   const [responsavelMeli, setResponsavelMeli] = useState("");
   const [outro, setOutro] = useState("");
@@ -63,6 +67,10 @@ function ExpedicaoPage() {
   const rotas = useQuery({
     queryKey: ["expedicao-rotas", baseId, dataOperacional],
     queryFn: () => listarFn({ data: { baseId, dataOperacional } }),
+  });
+  const motoristas = useQuery({
+    queryKey: ["motoristas-meli", baseId],
+    queryFn: () => listarMotoristasFn({ data: { baseId } }),
   });
   const detalhe = useQuery({
     queryKey: ["expedicao", expedicaoId],
@@ -72,7 +80,7 @@ function ExpedicaoPage() {
 
   const iniciar = useMutation({
     mutationFn: () =>
-      iniciarFn({ data: { baseId, dataOperacional, rota: rotaSelecionada!, motorista } }),
+      iniciarFn({ data: { baseId, dataOperacional, rota: rotaSelecionada!, motorista, motoristaMeliId } }),
     onSuccess: (resultado) => {
       setExpedicaoId(resultado.id);
       void qc.invalidateQueries({ queryKey: ["expedicao-rotas"] });
@@ -139,17 +147,33 @@ function ExpedicaoPage() {
         </Button>
       </div>
 
+      <Card className="p-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+        <span>
+          Catálogo Meli: <b>{motoristas.data?.length ?? 0} motoristas</b>
+        </span>
+        {!motoristas.isLoading && (
+          <span className="text-muted-foreground">
+            {(motoristas.data ?? []).some((item) => item.origem === "adminml")
+              ? "Catálogo oficial sincronizado"
+              : "Sincronização oficial pendente; exibindo histórico de rotas"}
+          </span>
+        )}
+      </Card>
+
       {!rotaSelecionada ? (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2.5">
           {(rotas.data ?? []).map((item) => (
-            <Card key={item.rota} className="p-4 space-y-3">
+            <Card key={item.rota} className="p-3 space-y-2.5">
               <div className="flex justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs text-muted-foreground">Rota</div>
-                  <b className="font-mono text-xl">{item.rota}</b>
+                  <b className="block truncate font-mono text-xl leading-tight">{item.rotaCodigo}</b>
+                  {item.rotaCodigo !== item.rota && (
+                    <span className="block font-mono text-xs text-muted-foreground">#{item.rota}</span>
+                  )}
                 </div>
-                <Badge variant={item.expedicao ? "secondary" : "default"}>
-                  {item.expedicao?.status ?? "Pronta"}
+                <Badge variant={item.pronta ? (item.expedicao ? "secondary" : "default") : "outline"}>
+                  {item.expedicao?.status ?? (item.pronta ? "Pronta" : "Aguardando Recebimento")}
                 </Badge>
               </div>
               <div className="grid grid-cols-3 text-center text-sm">
@@ -169,20 +193,22 @@ function ExpedicaoPage() {
                 </div>
               </div>
               <Button
-                className="w-full"
+                className="h-9 w-full"
+                disabled={!item.pronta}
                 onClick={() => {
                   setRotaSelecionada(item.rota);
                   setExpedicaoId(item.expedicao?.id ?? null);
                   setMotorista(item.expedicao?.motorista ?? "");
+                  setMotoristaMeliId("");
                 }}
               >
-                {item.expedicao ? "Abrir conferência" : "Iniciar Expedição"}
+                {!item.pronta ? "Concluir no Recebimento primeiro" : item.expedicao ? "Abrir conferência" : "Iniciar Expedição"}
               </Button>
             </Card>
           ))}
           {!rotas.isLoading && !(rotas.data ?? []).length && (
             <Card className="p-8 text-center text-muted-foreground md:col-span-2">
-              Nenhuma rota concluída no Recebimento está pronta para Expedição.
+              Nenhuma rota foi encontrada para esta base e este dia operacional.
             </Card>
           )}
         </div>
@@ -198,14 +224,32 @@ function ExpedicaoPage() {
               A conferência usará os {rota?.previstos ?? 0} shipment IDs da relação original.
             </p>
           </div>
-          <Input
-            placeholder="Nome do motorista"
-            value={motorista}
-            onChange={(e) => setMotorista(e.target.value)}
-          />
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Motorista do catálogo Meli</div>
+            <Select
+              value={motoristaMeliId}
+              onValueChange={(id) => {
+                const selecionado = (motoristas.data ?? []).find((item) => item.id === id);
+                setMotoristaMeliId(id);
+                setMotorista(selecionado?.nome ?? "");
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Selecione o motorista" /></SelectTrigger>
+              <SelectContent>
+                {(motoristas.data ?? []).map((item) => (
+                  <SelectItem key={item.id} value={item.id} disabled={item.status !== "active"}>
+                    {item.nome}{item.status !== "active" ? ` — ${item.status === "blocked" ? "Bloqueado" : "Pausado"}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Catálogo oficial do Meli. Motoristas pausados ou bloqueados aparecem identificados e não podem ser atribuídos.
+            </p>
+          </div>
           <Button
             className="w-full"
-            disabled={motorista.trim().length < 2 || iniciar.isPending}
+            disabled={!motoristaMeliId || motorista.trim().length < 2 || iniciar.isPending}
             onClick={() => iniciar.mutate()}
           >
             <Truck className="w-4 h-4 mr-2" />
